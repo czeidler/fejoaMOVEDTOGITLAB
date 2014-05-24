@@ -5,7 +5,7 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library.git;
+package org.fejoa.library.database;
 
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -73,38 +73,25 @@ public class JGitInterface implements IDatabaseInterface {
     private ObjectId rootTree = ObjectId.zeroId();
 
     @Override
-    public boolean init(String path, String branch, boolean create) {
+    public void init(String path, String branch, boolean create) throws IOException {
         this.branch = branch;
         FileRepositoryBuilder builder = new FileRepositoryBuilder();
-        try {
-            repository = builder.setGitDir(new File(path))
-                    .readEnvironment()
-                    .findGitDir()
-                    .build();
+        repository = builder.setGitDir(new File(path))
+                .readEnvironment()
+                .findGitDir()
+                .build();
 
-            File dir = new File(path);
-            if (dir.exists())
-                return true;
+        File dir = new File(path);
+        if (dir.exists())
+            return;
 
-            if (create) {
-                repository.create(create);
-                return true;
-            } else
-                return false;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+        if (create)
+            repository.create(create);
     }
 
     @Override
     public String getBranch() {
         return branch;
-    }
-
-    @Override
-    public String readString(String path) throws IOException{
-          return new String(readBytes(path));
     }
 
     @Override

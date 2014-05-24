@@ -8,8 +8,8 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
-import org.fejoa.library.StorageLib;
-import org.fejoa.library.git.JGitInterface;
+import org.fejoa.library.support.StorageLib;
+import org.fejoa.library.database.JGitInterface;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,15 +32,15 @@ public class JGitInterfaceTest extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
-    public void testInitWriteRead() {
+    public void testInitWriteRead() throws Exception {
         testInitWriteReadSimple("gitTest", "test");
     }
 
-    public void testInitWriteReadSubdirs() {
+    public void testInitWriteReadSubdirs() throws Exception {
         testInitWriteReadSimple("gitTest2", "sub/dir/test");
     }
 
-    private void testInitWriteReadSimple(String gitDir, String dataPath) {
+    private void testInitWriteReadSimple(String gitDir, String dataPath) throws Exception {
         cleanUpDirs.add(gitDir);
 
         JGitInterface git = new JGitInterface();
@@ -52,7 +52,7 @@ public class JGitInterfaceTest extends TestCase {
             git.commit();
 
             // and read again
-            String result = git.readString(dataPath);
+            String result = new String(git.readBytes(dataPath));
             assertEquals(testString, result);
         } catch (Exception e) {
             System.out.print(e.getMessage());

@@ -35,6 +35,19 @@ public class CryptoHelper {
             return null;
         }
     }
+
+    static public byte[] sha256Hash(byte data[]) {
+        try {
+            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+            messageDigest.reset();
+            messageDigest.update(data);
+            return messageDigest.digest();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
     static public SecretKey symmetricKeyFromRaw(byte[] key) {
         return new SecretKeySpec(key, 0, key.length, CryptoSettings.SYMMETRIC_KEY_TYPE);
     }

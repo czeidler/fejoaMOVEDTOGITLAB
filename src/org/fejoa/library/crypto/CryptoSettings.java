@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.crypto;
 
 public class CryptoSettings {
@@ -10,4 +17,7 @@ public class CryptoSettings {
     final static public int MASTER_PASSWORD_ITERATIONS = 20000;
     final static public int MASTER_PASSWORD_LENGTH = 256;
     final static public int MASTER_PASSWORD_IV_LENGTH = 16;
+    final static public int SYMMETRIC_KEY_SIZE = 256;
+    final static public int SYMMETRIC_KEY_IV_SIZE = 16;
+    final static public int ASYMMETRIC_KEY_SIZE = 2048;
 }

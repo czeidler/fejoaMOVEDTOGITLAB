@@ -189,4 +189,68 @@ public class JGitInterface implements IDatabaseInterface {
 
         return dirs;
     }
+
+    @Override
+    public String getTip() throws IOException {
+        Ref head = repository.getRef("refs/heads/" + branch);
+        return head.getObjectId().toString();
+    }
+
+    @Override
+    public void updateTip(String commit) throws FileNotFoundException {
+        String refPath = "refs/heads/";
+        refPath += branch;
+
+        PrintWriter out = new PrintWriter(new File(refPath));
+        try {
+            out.println(commit);
+        } finally {
+            out.close();
+        }
+    }
+
+    @Override
+    public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException {
+        String refPath = new String(path);
+        refPath += "/refs/remotes/";
+        refPath += remoteName;
+        refPath += "/";
+        refPath += remoteBranch;
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(
+                new FileInputStream(refPath))));
+        try {
+            return reader.readLine();
+        } finally {
+            reader.close();
+        }
+    }
+
+    @Override
+    public void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException {
+        String refPath = new String(path);
+        refPath += "/refs/remotes/";
+        refPath += remoteName;
+        File dir = new File(refPath);
+        if (!dir.mkdirs())
+            throw new IOException();
+
+        File file = new File(dir, remoteBranch);
+        PrintWriter out = new PrintWriter(file);
+        try {
+            out.println(uid);
+        } finally {
+            out.close();
+        }
+    }
+
+    @Override
+    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) {
+        return new byte[0];
+    }
+
+    @Override
+    public void importPack(byte[] pack, String baseCommit, String endCommit, int format) {
+
+    }
 }

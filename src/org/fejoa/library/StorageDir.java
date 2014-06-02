@@ -7,28 +7,49 @@
  */
 package org.fejoa.library;
 
+import org.fejoa.library.crypto.Crypto;
+import org.fejoa.library.crypto.ICryptoInterface;
 import org.fejoa.library.database.IDatabaseInterface;
+
+import java.io.IOException;
+import java.util.List;
 
 
 class StorageDir {
     final IDatabaseInterface database;
     final String baseDir;
 
+    public StorageDir(StorageDir storageDir) {
+        this.database = storageDir.getDatabase();
+        this.baseDir = storageDir.getBaseDir();
+    }
+
     public StorageDir(IDatabaseInterface database, String baseDir) {
         this.database = database;
-        if (!baseDir.equals(""))
-            baseDir += "/";
         this.baseDir = baseDir;
+    }
+
+    public IDatabaseInterface getDatabase() {
+        return database;
+    }
+
+    public String getBaseDir() {
+        return baseDir;
+    }
+    public String appendDir(String dir) {
+        String newDir = new String(baseDir);
+        if (!newDir.equals(""))
+            newDir += "/";
+        newDir += dir;
+        return newDir;
     }
 
     public byte[] readBytes(String path) throws Exception {
         return database.readBytes(getRealPath(path));
     }
-
     public String readString(String path) throws Exception {
         return new String(database.readBytes(getRealPath(path)));
     }
-
     public int readInt(String path) throws Exception {
         byte data[] = database.readBytes(getRealPath(path));
         return Integer.parseInt(new String(data));
@@ -37,13 +58,11 @@ class StorageDir {
     public void writeBytes(String path, byte[] data) throws Exception {
         database.writeBytes(getRealPath(path), data);
     }
-
     public void writeString(String path, String data) throws Exception {
         database.writeBytes(getRealPath(path), data.getBytes());
     }
-
     public void writeInt(String path, int data) throws Exception {
-        String dataString = new String();
+        String dataString = "";
         dataString += data;
         writeString(getRealPath(path), dataString);
     }
@@ -51,18 +70,73 @@ class StorageDir {
     private String getRealPath(String path) {
         return baseDir + path;
     }
+
+    public boolean remove(String path) {
+        return false;
+    }
+
+    public List<String> listFiles(String path) throws IOException {
+        return database.listFiles(path);
+    }
+
+    public List<String> listDirectories(String path) throws IOException {
+        return database.listDirectories(path);
+    }
 }
 
 class SecureStorageDir extends StorageDir {
+    private KeyStore keyStore;
+    private KeyId keyId;
+    private KeyStore.SecreteKeyIVPair secreteKeyIVPair;
+    private ICryptoInterface crypto = Crypto.get();
+
+    public SecureStorageDir(SecureStorageDir storageDir, String baseDir) {
+        super(storageDir.getDatabase(), baseDir);
+
+        keyStore = storageDir.keyStore;
+        keyId = storageDir.keyId;
+        secreteKeyIVPair = storageDir.secreteKeyIVPair;
+    }
+
     public SecureStorageDir(IDatabaseInterface database, String baseDir) {
         super(database, baseDir);
     }
 
-    public byte[] readSecure(String path) throws Exception {
-        return null;
+    public SecureStorageDir(IDatabaseInterface database, String baseDir, KeyStore keyStore,
+                            KeyId keyId) throws Exception {
+        super(database, baseDir);
+
+        setTo(keyStore, keyId);
     }
 
-    public void writeSecure(String path, byte[] data) throws Exception {
+    public void setTo(KeyStore keyStore, KeyId keyId) throws Exception {
+        this.keyStore = keyStore;
+        this.keyId = keyId;
+        secreteKeyIVPair = keyStore.readSymmetricKey(keyId);
+    }
 
+    public KeyStore getKeyStore() {
+        return keyStore;
+    }
+
+    public KeyId getKeyId() {
+        return keyId;
+    }
+
+    public byte[] readSecureBytes(String path) throws Exception {
+        byte encrypted[] = readBytes(path);
+        return crypto.decryptSymmetric(encrypted, secreteKeyIVPair.key, secreteKeyIVPair.iv);
+    }
+    public String readSecureString(String path) throws Exception {
+        return new String(readSecureBytes(path));
+    }
+
+    public void writeSecureBytes(String path, byte[] data) throws Exception {
+        byte encrypted[] = crypto.encryptSymmetric(data, secreteKeyIVPair.key, secreteKeyIVPair.iv);
+        writeBytes(path, encrypted);
+    }
+
+    public void writeSecureString(String path, String data) throws Exception {
+        writeBytes(path, data.getBytes());
     }
 }

@@ -129,6 +129,9 @@ public class JGitInterface implements IDatabaseInterface {
         commit.setAuthor(personIdent);
         commit.setMessage("client commit");
         commit.setTreeId(rootTree);
+        String tip = getTip();
+        if (!tip.equals(""))
+            commit.setParentId(ObjectId.fromString(tip));
 
         ObjectInserter objectInserter = repository.newObjectInserter();
 
@@ -193,7 +196,9 @@ public class JGitInterface implements IDatabaseInterface {
     @Override
     public String getTip() throws IOException {
         Ref head = repository.getRef("refs/heads/" + branch);
-        return head.getObjectId().toString();
+        if (head == null)
+            return "";
+        return head.getObjectId().name();
     }
 
     @Override
@@ -245,12 +250,17 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) {
-        return new byte[0];
+    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws Exception {
+        PackManager packManager = new PackManager(this, repository);
+        return packManager.exportPack(startCommit, endCommit, ignoreCommit, -1);
     }
 
     @Override
-    public void importPack(byte[] pack, String baseCommit, String endCommit, int format) {
+    public void importPack(byte[] pack, String baseCommit, String endCommit, int format) throws IOException {
+        if (endCommit.length() != 40)
+            throw new IllegalArgumentException();
 
+        PackManager packManager = new PackManager(this, repository);
+        packManager.importPack(pack, baseCommit, endCommit, format);
     }
 }

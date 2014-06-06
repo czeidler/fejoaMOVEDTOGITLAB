@@ -11,22 +11,19 @@ import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
-import org.eclipse.jgit.merge.MergeStrategy;
-import org.eclipse.jgit.merge.Merger;
-import org.eclipse.jgit.merge.StrategySimpleTwoWayInCore;
-import org.eclipse.jgit.merge.ThreeWayMerger;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.NameConflictTreeWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 
 class PackManager {
@@ -38,20 +35,17 @@ class PackManager {
         this.repository = repository;
     }
 
-    public void importPack(byte data[], String base, String last) throws IOException {
+    public void importPack(byte data[], String base, String last, int format) throws IOException {
         DataInputStream stream = new DataInputStream(new ByteArrayInputStream(data));
 
-        int objectStart = 0;
-        while (objectStart < data.length) {
-            int objectEnd = objectStart;
+        while (true) {
             String hash = readTill(stream, ' ');
+            if (hash.equals(""))
+                break;
             String size = readTill(stream, '\0');
-            int blobStart = objectEnd;
-            objectEnd += Integer.parseInt(size);
+            int blobSize = Integer.parseInt(size);
 
-            writeFile(hash, data, blobStart, objectEnd - blobStart);
-
-            objectStart = objectEnd;
+            writeFile(hash, stream, blobSize);
         }
 
         String currentTip = database.getTip();
@@ -63,18 +57,20 @@ class PackManager {
         database.updateTip(newTip);
     }
 
-    private void writeFile(String hash, byte data[], int offset, int size) throws IOException {
+    private void writeFile(String hash, DataInputStream stream, int size) throws IOException {
         final String pathOrg = database.getPath();
 
-        File dir = new File(pathOrg + "/objects" + hash.substring(0, 2));
+        File dir = new File(pathOrg + "/objects/" + hash.substring(0, 2));
         dir.mkdir();
         File file = new File(dir, hash.substring(2));
-        if (file.exists())
+        if (file.exists()) {
+            stream.skipBytes(size);
             return;
+        }
 
         FileOutputStream outputStream = new FileOutputStream(file);
         try {
-            outputStream.write(data, offset, size);
+            StreamHelper.copyBytes(stream, outputStream, size);
         } finally {
             outputStream.close();
         }
@@ -85,15 +81,15 @@ class PackManager {
         String out = "";
 
         while (true) {
-            char data = 0;
+            byte data = 0;
             try {
-                data = stream.readChar();
+                data = stream.readByte();
             } catch (IOException e) {
                 return out;
             }
             if (data == stopChar)
                 break;
-            out += data;
+            out += (char)data;
         }
         return out;
     }
@@ -138,7 +134,7 @@ class PackManager {
 
             for (int i = 0; i < revCommit.getParentCount(); i++) {
                 RevCommit parent = revCommit.getParent(i);
-                commits.add(parent.getId().toString());
+                commits.add(parent.getId().name());
             }
         }
     }
@@ -175,7 +171,7 @@ class PackManager {
             for (int i = 0; i < parentCount; i++) {
                 RevCommit parent = revCommit.getParent(i);
 
-                String parentString = parent.getId().toString();
+                String parentString = parent.getId().name();
                 // if we reachted the ancestor commits tree we are done
                 if (!stopAncestorCommits.contains(parentString))
                     commits.add(parentString);
@@ -195,49 +191,48 @@ class PackManager {
 
     private byte[] packObjects(List<String> objects) throws IOException {
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
-        DataOutputStream stream = new DataOutputStream(packageData);
+        DataOutputStream out = new DataOutputStream(packageData);
 
         for (int i = 0; i < objects.size(); i++) {
             ObjectLoader loader = repository.getObjectDatabase().newReader().open(ObjectId.fromString(objects.get(i)));
 
+            // re-create the blob
+            ByteArrayOutputStream blobData = new ByteArrayOutputStream();
+            DataOutputStream blob = new DataOutputStream(blobData);
             String typeString = Constants.typeString(loader.getType());
-            stream.writeBytes(typeString);
-            stream.write(' ');
+            blob.writeBytes(typeString);
+            blob.write(' ');
             String sizeString = "";
             sizeString += loader.getSize();
-            stream.writeBytes(sizeString);
-            stream.write('\0');
+            blob.writeBytes(sizeString);
+            blob.write('\0');
+            blob.write(loader.getBytes());
 
-            ByteArrayOutputStream zippedData = new ByteArrayOutputStream();
-            DataOutputStream zipOutStream = new DataOutputStream(zippedData);
-            InputStream inputStream = loader.openStream();
-            GZIPInputStream gzipInputStream = new GZIPInputStream(inputStream);
-            int zipSize = 0;
+            // compress the blob
+            ByteArrayInputStream blobInput = new ByteArrayInputStream(blobData.toByteArray());
+            ByteArrayOutputStream blobCompressed = new ByteArrayOutputStream();
+            GZIPOutputStream gzipOutputStream = new GZIPOutputStream(blobCompressed);
             try {
-                byte[] buffer = new byte[1024];
-                int length;
-                while ((length = gzipInputStream.read(buffer)) > 0) {
-                    zipOutStream.write(buffer, 0, length);
-                    zipSize += length;
-                }
+                StreamHelper.copy(blobInput, gzipOutputStream);
             } finally {
-                gzipInputStream.close();
+                gzipOutputStream.close();
             }
 
-            stream.writeBytes(objects.get(i));
-            stream.write(' ');
+            // pack the blob
+            out.writeBytes(objects.get(i));
+            out.write(' ');
+            byte blobCompressedBytes[] = blobCompressed.toByteArray();
             String blobSize = "";
-            blobSize += zipSize;
-            stream.writeBytes(blobSize);
-            stream.write('\0');
-            byte blobCompressed[] = zippedData.toByteArray();
-            stream.write(blobCompressed, 0, blobCompressed.length);
+            blobSize += blobCompressedBytes.length;
+            out.writeBytes(blobSize);
+            out.write('\0');
+            out.write(blobCompressedBytes, 0, blobCompressedBytes.length);
         }
 
         return packageData.toByteArray();
     }
 
-    private byte[] exportPack(String commitOldest, String commitLatest, String ignoreCommit, int format) throws Exception {
+    public byte[] exportPack(String commitOldest, String commitLatest, String ignoreCommit, int format) throws Exception {
         String commitEnd = new String(commitLatest);
         if (commitLatest == "")
             commitEnd = database.getTip();
@@ -251,7 +246,7 @@ class PackManager {
 
     private void listTreeObjects(RevTree tree, List<String> objects) throws IOException {
 
-        String treeOidString = tree.getId().toString();
+        String treeOidString = tree.getId().name();
         if (!objects.contains(treeOidString))
             objects.add(treeOidString);
         List<RevTree> treesQueue = new ArrayList<>();
@@ -265,7 +260,7 @@ class PackManager {
             TreeWalk treeWalk = new TreeWalk(repository);
             treeWalk.addTree(currentTree);
             while (treeWalk.next()) {
-                String objectOidString = treeWalk.getObjectId(0).toString();
+                String objectOidString = treeWalk.getObjectId(0).name();
                 if (!objects.contains(objectOidString))
                     objects.add(objectOidString);
                 if (treeWalk.isSubtree()) {
@@ -364,7 +359,7 @@ class PackManager {
 
         RevTree newRootTree = walk.lookupTree(resultTree);
         ObjectId commitId = mergeCommit(newRootTree, oursCommit, theirsCommit);
-        database.updateTip(commitId.toString());
+        database.updateTip(commitId.name());
     }
 
     private ObjectId mergeCommit(RevTree tree, RevCommit parent1, RevCommit parent2) throws IOException {

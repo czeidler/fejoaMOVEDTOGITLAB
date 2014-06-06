@@ -12,6 +12,7 @@ import org.fejoa.library.support.StorageLib;
 import org.fejoa.library.database.JGitInterface;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,5 +58,29 @@ public class JGitInterfaceTest extends TestCase {
         } catch (Exception e) {
             System.out.print(e.getMessage());
         }
+    }
+
+    public void testExportImport() throws Exception {
+        String gitDir = "gitExport";
+        cleanUpDirs.add(gitDir);
+
+        JGitInterface gitExport = new JGitInterface();
+        gitExport.init(gitDir, "testBranch", true);
+
+        gitExport.writeBytes("test1", "data1".getBytes());
+        gitExport.commit();
+
+        gitExport.writeBytes("folder/test1", "data2".getBytes());
+        gitExport.commit();
+
+        String tip1 = gitExport.getTip();
+        byte exportData[] = gitExport.exportPack("", tip1, "", -1);
+
+        gitDir = "gitImport";
+        //cleanUpDirs.add(gitDir)
+        JGitInterface gitImport = new JGitInterface();
+        gitImport.init(gitDir, "testBranch", true);
+
+        gitImport.importPack(exportData, "", tip1, -1);
     }
 }

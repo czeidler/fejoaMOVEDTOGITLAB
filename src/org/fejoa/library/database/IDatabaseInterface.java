@@ -25,7 +25,7 @@ public interface IDatabaseInterface {
     // sync
     public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;
     public void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException;
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format);
+    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws Exception;
     //! import pack, tries to merge and update the tip
-    public void importPack(byte pack[], String baseCommit, String endCommit, int format);
+    public void importPack(byte pack[], String baseCommit, String endCommit, int format) throws IOException;
 }

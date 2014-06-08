@@ -51,11 +51,10 @@ class PackManager {
 
         String currentTip = database.getTip();
         String newTip = last;
-        if (currentTip != base)
+        if (!currentTip.equals("") && !currentTip.equals(base))
             mergeBranches(base, currentTip, last, newTip);
-
-        // update tip
-        database.updateTip(newTip);
+        else
+            database.updateTip(newTip);
     }
 
     private void writeFile(String hash, DataInputStream stream, int size) throws IOException {
@@ -266,19 +265,17 @@ class PackManager {
 
     private void add(final int tree, final int stage, final NameConflictTreeWalk tw, final DirCacheBuilder builder,
                      final ObjectReader reader) throws IOException {
-        final AbstractTreeIterator i = tw.getTree(tree, AbstractTreeIterator.class);
-        if (i != null) {
-            if (FileMode.TREE.equals(tw.getRawMode(tree))) {
-                builder.addTree(tw.getRawPath(), stage, reader, tw
-                        .getObjectId(tree));
-            } else {
-                final DirCacheEntry e;
+        final AbstractTreeIterator it = tw.getTree(tree, AbstractTreeIterator.class);
+        if (it == null)
+            return;
 
-                e = new DirCacheEntry(tw.getRawPath(), stage);
-                e.setObjectIdFromRaw(i.idBuffer(), i.idOffset());
-                e.setFileMode(tw.getFileMode(tree));
-                builder.add(e);
-            }
+        if (FileMode.TREE.equals(tw.getRawMode(tree))) {
+            builder.addTree(tw.getRawPath(), stage, reader, tw.getObjectId(tree));
+        } else {
+            final DirCacheEntry entry = new DirCacheEntry(tw.getRawPath(), stage);
+            entry.setObjectIdFromRaw(it.idBuffer(), it.idOffset());
+            entry.setFileMode(tw.getFileMode(tree));
+            builder.add(entry);
         }
     }
 
@@ -288,11 +285,10 @@ class PackManager {
 
     private void mergeBranches(String baseCommit, String ours, String theirs, String merge) throws IOException {
         final ObjectReader reader = repository.getObjectDatabase().newReader();
-        RevWalk walk = new RevWalk(repository);
 
-        RevCommit baseRevCommit = walk.lookupCommit(ObjectId.fromString(baseCommit));
-        RevCommit oursCommit = walk.lookupCommit(ObjectId.fromString(ours));
-        RevCommit theirsCommit = walk.lookupCommit(ObjectId.fromString(theirs));
+        RevCommit baseRevCommit = new RevWalk(repository).parseCommit(ObjectId.fromString(baseCommit));
+        RevCommit oursCommit = new RevWalk(repository).parseCommit(ObjectId.fromString(ours));
+        RevCommit theirsCommit = new RevWalk(repository).parseCommit(ObjectId.fromString(theirs));
 
         final NameConflictTreeWalk tw = new NameConflictTreeWalk(reader);
         tw.addTree(baseRevCommit.getTree());
@@ -307,6 +303,7 @@ class PackManager {
         final int T_THEIRS = 2;
 
         while (tw.next()) {
+            String test = tw.getPathString();
             final int modeO = tw.getRawMode(T_OURS);
             final int modeT = tw.getRawMode(T_THEIRS);
             if (modeO == modeT && tw.idEqual(T_OURS, T_THEIRS)) {
@@ -344,16 +341,16 @@ class PackManager {
         }
         builder.finish();
 
-        ObjectInserter odi = repository.newObjectInserter();
-        ObjectId resultTree = cache.writeTree(odi);
-        odi.flush();
+        ObjectInserter inserter = repository.newObjectInserter();
+        ObjectId resultTree = cache.writeTree(inserter);
+        inserter.flush();
 
-        RevTree newRootTree = walk.lookupTree(resultTree);
-        ObjectId commitId = mergeCommit(newRootTree, oursCommit, theirsCommit);
-        database.updateTip(commitId.name());
+        RevTree newRootTree = new RevWalk(repository).parseTree(resultTree);
+        mergeCommit(newRootTree, baseRevCommit, oursCommit, theirsCommit);
     }
 
-    private ObjectId mergeCommit(RevTree tree, RevCommit parent1, RevCommit parent2) throws IOException {
+    private void mergeCommit(RevTree tree, RevCommit base, RevCommit parent1, RevCommit parent2)
+            throws IOException {
         CommitBuilder commit = new CommitBuilder();
         PersonIdent personIdent = new PersonIdent("PackManager", "");
         commit.setCommitter(personIdent);
@@ -367,6 +364,6 @@ class PackManager {
         ObjectId commitId = objectInserter.insert(commit);
         objectInserter.flush();
 
-        return commitId;
+        database.updateTip(commitId.name());
     }
 }

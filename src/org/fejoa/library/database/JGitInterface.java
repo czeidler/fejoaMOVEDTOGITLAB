@@ -202,12 +202,15 @@ public class JGitInterface implements IDatabaseInterface {
         refPath += "/";
         refPath += remoteBranch;
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(
-                new FileInputStream(refPath))));
+        BufferedReader reader = null;
         try {
+            reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(refPath))));
             return reader.readLine();
+        } catch (Exception e) {
+            return "";
         } finally {
-            reader.close();
+            if (reader != null)
+                reader.close();
         }
     }
 
@@ -217,8 +220,7 @@ public class JGitInterface implements IDatabaseInterface {
         refPath += "/refs/remotes/";
         refPath += remoteName;
         File dir = new File(refPath);
-        if (!dir.mkdirs())
-            throw new IOException();
+        dir.mkdirs();
 
         File file = new File(dir, remoteBranch);
         PrintWriter out = new PrintWriter(file);
@@ -242,5 +244,9 @@ public class JGitInterface implements IDatabaseInterface {
 
         PackManager packManager = new PackManager(this, repository);
         packManager.importPack(pack, baseCommit, endCommit, format);
+
+        RevWalk walk = new RevWalk(repository);
+        RevCommit commit = walk.parseCommit(repository.getRef(branch).getLeaf().getObjectId());
+        rootTree = commit.getTree().getId();
     }
 }

@@ -104,16 +104,39 @@ public class JGitInterfaceTest extends TestCase {
 
         assertTrue(containsContent(gitExport, content));
 
-        String tip1 = gitExport.getTip();
-        byte exportData[] = gitExport.exportPack("", tip1, "", -1);
-
+        // init import database
         gitDir = "gitImport";
         cleanUpDirs.add(gitDir);
         JGitInterface gitImport = new JGitInterface();
         gitImport.init(gitDir, "testBranch", true);
 
-        gitImport.importPack(exportData, "", tip1, -1);
-
+        sync(gitExport, gitImport);
         assertTrue(containsContent(gitImport, content));
+
+        // test with merge
+
+        // create non conflicting fork
+        add(gitExport, content, new DatabaseStingEntry("folder/test3", "data3"));
+        gitExport.commit();
+        add(gitExport, content, new DatabaseStingEntry("test4", "data4"));
+        gitExport.commit();
+
+        add(gitImport, content, new DatabaseStingEntry("folder/test5", "data5"));
+        gitImport.commit();
+        add(gitImport, content, new DatabaseStingEntry("test6", "data6"));
+        gitImport.commit();
+
+        sync(gitExport, gitImport);
+        assertTrue(containsContent(gitImport, content));
+    }
+
+    private void sync(JGitInterface gitExport, JGitInterface gitImport) throws Exception {
+        String tip = gitExport.getTip();
+        byte exportData[] = gitExport.exportPack("", tip, "", -1);
+
+        String base = gitExport.getLastSyncCommit("gitImport", gitExport.getBranch());
+        gitImport.importPack(exportData, base, tip, -1);
+
+        gitExport.updateLastSyncCommit("gitImport", gitExport.getBranch(), tip);
     }
 }

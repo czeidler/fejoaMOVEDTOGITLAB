@@ -60,27 +60,60 @@ public class JGitInterfaceTest extends TestCase {
         }
     }
 
+    class DatabaseStingEntry {
+        public String path;
+        public String content;
+
+        public DatabaseStingEntry(String path, String content) {
+            this.path = path;
+            this.content = content;
+        }
+    }
+
+    private void add(JGitInterface database, List<DatabaseStingEntry> content, DatabaseStingEntry entry)
+            throws Exception {
+        content.add(entry);
+        database.writeBytes(entry.path, entry.content.getBytes());
+    }
+
+    private boolean containsContent(JGitInterface database, List<DatabaseStingEntry> content) throws IOException {
+        for (DatabaseStingEntry entry : content) {
+            byte bytes[] = database.readBytes(entry.path);
+            if (!entry.content.equals(new String(bytes)))
+                return false;
+        }
+        return true;
+    }
+
     public void testExportImport() throws Exception {
+        List<DatabaseStingEntry> content = new ArrayList<>();
+
         String gitDir = "gitExport";
         cleanUpDirs.add(gitDir);
 
         JGitInterface gitExport = new JGitInterface();
         gitExport.init(gitDir, "testBranch", true);
 
-        gitExport.writeBytes("test1", "data1".getBytes());
-        gitExport.commit();
+        add(gitExport, content, new DatabaseStingEntry("test1", "data1"));
+        String commit1 = gitExport.commit();
+        assertEquals(commit1, gitExport.getTip());
 
-        gitExport.writeBytes("folder/test1", "data2".getBytes());
-        gitExport.commit();
+        add(gitExport, content, new DatabaseStingEntry("folder/test2", "data2"));
+        String commit2 = gitExport.commit();
+        assertEquals(commit2, gitExport.getTip());
+
+        assertTrue(containsContent(gitExport, content));
 
         String tip1 = gitExport.getTip();
         byte exportData[] = gitExport.exportPack("", tip1, "", -1);
 
         gitDir = "gitImport";
-        //cleanUpDirs.add(gitDir)
+        cleanUpDirs.add(gitDir);
         JGitInterface gitImport = new JGitInterface();
         gitImport.init(gitDir, "testBranch", true);
 
         gitImport.importPack(exportData, "", tip1, -1);
+
+        assertTrue(containsContent(gitImport, content));
     }
 }

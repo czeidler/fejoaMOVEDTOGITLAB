@@ -7,12 +7,13 @@
  */
 package org.fejoa.library.database;
 
+import org.eclipse.jgit.dircache.DirCache;
+import org.eclipse.jgit.dircache.DirCacheBuilder;
+import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
-import org.eclipse.jgit.treewalk.AbstractTreeIterator;
-import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 
@@ -20,54 +21,6 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-class TreeBuilder {
-    static public ObjectId updateNode(Repository repository, ObjectId rootTree, String path, byte[] data)
-            throws Exception
-    {
-        String paths[] = path.split("/");
-        if (paths.length == 0)
-            throw new IllegalArgumentException();
-
-        // write the blob
-        ObjectInserter objectInserter = repository.newObjectInserter();
-        ObjectId blobId = objectInserter.insert(Constants.OBJ_BLOB, data);
-        FileMode mode = FileMode.REGULAR_FILE;
-
-        for (int i = paths.length - 1; i >= 0; i--) {
-            String currentPath = paths[i];
-            TreeWalk treeWalk = null;
-            if (!rootTree.equals(ObjectId.zeroId()))
-                treeWalk = TreeWalk.forPath(repository, buildPath(paths, i), rootTree);
-            TreeFormatter treeFormatter = new TreeFormatter();
-            treeFormatter.append(currentPath, mode, blobId);
-            if (treeWalk != null) {
-                AbstractTreeIterator it = treeWalk.getTree(0, CanonicalTreeParser.class);
-                while (!it.eof()) {
-                    byte buffer[] = new byte[it.getNameLength()];
-                    it.getName(buffer, 0);
-                    treeFormatter.append(buffer, mode, it.getEntryObjectId());
-                    it.next(1);
-                }
-            }
-
-            blobId = treeFormatter.insertTo(objectInserter);
-            // from now on add directories
-            mode = FileMode.TREE;
-        }
-        objectInserter.flush();
-        return blobId;
-    }
-
-    static private String buildPath(String[] paths, int n) {
-        String path = "";
-        for (int i = 0; i <= n; i++) {
-            if (i > 0)
-                path += "/";
-            path += paths[i];
-        }
-        return path;
-    }
-}
 
 public class JGitInterface implements IDatabaseInterface {
     private Repository repository = null;
@@ -107,7 +60,7 @@ public class JGitInterface implements IDatabaseInterface {
     public byte[] readBytes(String path) throws IOException{
         TreeWalk treeWalk = cd(path);
         if (!treeWalk.next())
-            return null;
+            throw new FileNotFoundException();
 
         ObjectId objectId = treeWalk.getObjectId(0);
         return repository.open(objectId).getBytes();
@@ -115,11 +68,32 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public void writeBytes(String path, byte[] bytes) throws Exception {
-        rootTree = TreeBuilder.updateNode(repository, rootTree, path, bytes);
+        // write the blob
+        final ObjectInserter objectInserter = repository.newObjectInserter();
+        final ObjectId blobId = objectInserter.insert(Constants.OBJ_BLOB, bytes);
+
+        final DirCache cache = DirCache.newInCore();
+        final DirCacheBuilder builder = cache.builder();
+        if (!rootTree.equals(ObjectId.zeroId())) {
+            final ObjectReader reader = repository.getObjectDatabase().newReader();
+            builder.addTree("".getBytes(), DirCacheEntry.STAGE_0, reader, rootTree);
+        }
+        final DirCacheEntry entry = new DirCacheEntry(path);
+
+        entry.setLastModified(System.currentTimeMillis());
+
+        entry.setFileMode(FileMode.REGULAR_FILE);
+        entry.setObjectId(blobId);
+
+        builder.add(entry);
+        builder.finish();
+
+        rootTree = cache.writeTree(objectInserter);
+        objectInserter.flush();
     }
 
     @Override
-    public void commit() throws Exception {
+    public String commit() throws Exception {
         if (rootTree.equals(ObjectId.zeroId()))
             throw new InvalidObjectException("invalid root tree");
 
@@ -130,23 +104,29 @@ public class JGitInterface implements IDatabaseInterface {
         commit.setMessage("client commit");
         commit.setTreeId(rootTree);
         String tip = getTip();
-        if (!tip.equals(""))
-            commit.setParentId(ObjectId.fromString(tip));
+        ObjectId oldTip = null;
+        if (tip.equals(""))
+            oldTip = ObjectId.zeroId();
+        else {
+            oldTip = ObjectId.fromString(tip);
+            commit.setParentId(oldTip);
+        }
 
         ObjectInserter objectInserter = repository.newObjectInserter();
-
         ObjectId commitId = objectInserter.insert(commit);
         objectInserter.flush();
+
         RefUpdate refUpdate = repository.updateRef("refs/heads/" + getBranch());
         refUpdate.setForceUpdate(true);
         refUpdate.setRefLogIdent(personIdent);
         refUpdate.setNewObjectId(commitId);
-        refUpdate.setExpectedOldObjectId(ObjectId.zeroId());
+        refUpdate.setExpectedOldObjectId(oldTip);
         refUpdate.setRefLogMessage("client commit", false);
         RefUpdate.Result result = refUpdate.update();
         if (result == RefUpdate.Result.REJECTED)
             throw new IOException();
-        rootTree = ObjectId.zeroId();
+
+        return commitId.name();
     }
 
     private TreeWalk cd(String path) throws IOException {
@@ -202,11 +182,11 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
-    public void updateTip(String commit) throws FileNotFoundException {
-        String refPath = "refs/heads/";
+    public void updateTip(String commit) throws IOException {
+        String refPath = getPath() + "/refs/heads/";
         refPath += branch;
 
-        PrintWriter out = new PrintWriter(new File(refPath));
+        PrintWriter out = new PrintWriter(new FileWriter(new File(refPath), false));
         try {
             out.println(commit);
         } finally {

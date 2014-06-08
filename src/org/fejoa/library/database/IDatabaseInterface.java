@@ -14,13 +14,13 @@ public interface IDatabaseInterface {
     public byte[] readBytes(String path) throws IOException;
     public void writeBytes(String path, byte[] bytes) throws Exception;
 
-    public void commit() throws Exception;
+    public String commit() throws Exception;
 
     public List<String> listFiles(String path) throws IOException;
     public List<String> listDirectories(String path) throws IOException;
 
     public String getTip() throws IOException;
-    public void updateTip(String commit) throws FileNotFoundException;
+    public void updateTip(String commit) throws IOException;
 
     // sync
     public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;

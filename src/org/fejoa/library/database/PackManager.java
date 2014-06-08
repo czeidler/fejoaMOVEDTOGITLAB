@@ -23,7 +23,8 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.GZIPOutputStream;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
 
 class PackManager {
@@ -39,10 +40,10 @@ class PackManager {
         DataInputStream stream = new DataInputStream(new ByteArrayInputStream(data));
 
         while (true) {
-            String hash = readTill(stream, ' ');
+            String hash = readTill(stream, (byte)' ');
             if (hash.equals(""))
                 break;
-            String size = readTill(stream, '\0');
+            String size = readTill(stream, (byte)0);
             int blobSize = Integer.parseInt(size);
 
             writeFile(hash, stream, blobSize);
@@ -76,7 +77,7 @@ class PackManager {
         }
     }
 
-    private String readTill(DataInputStream stream, char stopChar)
+    private String readTill(DataInputStream stream, byte stopChar)
     {
         String out = "";
 
@@ -172,7 +173,7 @@ class PackManager {
                 RevCommit parent = revCommit.getParent(i);
 
                 String parentString = parent.getId().name();
-                // if we reachted the ancestor commits tree we are done
+                // if we reached the ancestor commits tree we are done
                 if (!stopAncestorCommits.contains(parentString))
                     commits.add(parentString);
             }
@@ -197,35 +198,25 @@ class PackManager {
             ObjectLoader loader = repository.getObjectDatabase().newReader().open(ObjectId.fromString(objects.get(i)));
 
             // re-create the blob
-            ByteArrayOutputStream blobData = new ByteArrayOutputStream();
-            DataOutputStream blob = new DataOutputStream(blobData);
-            String typeString = Constants.typeString(loader.getType());
-            blob.writeBytes(typeString);
-            blob.write(' ');
-            String sizeString = "";
-            sizeString += loader.getSize();
-            blob.writeBytes(sizeString);
-            blob.write('\0');
-            blob.write(loader.getBytes());
-
-            // compress the blob
-            ByteArrayInputStream blobInput = new ByteArrayInputStream(blobData.toByteArray());
             ByteArrayOutputStream blobCompressed = new ByteArrayOutputStream();
-            GZIPOutputStream gzipOutputStream = new GZIPOutputStream(blobCompressed);
+            DeflaterOutputStream blob = new DeflaterOutputStream(blobCompressed, new Deflater(), 8192);
+
             try {
-                StreamHelper.copy(blobInput, gzipOutputStream);
+                blob.write(Constants.encodedTypeString(loader.getType()));
+                blob.write((byte)' ');
+                blob.write(Constants.encodeASCII(loader.getSize()));
+                blob.write((byte)0);
+                blob.write(loader.getBytes(), 0, (int)loader.getSize());
             } finally {
-                gzipOutputStream.close();
+                blob.close();
             }
 
             // pack the blob
-            out.writeBytes(objects.get(i));
-            out.write(' ');
             byte blobCompressedBytes[] = blobCompressed.toByteArray();
-            String blobSize = "";
-            blobSize += blobCompressedBytes.length;
-            out.writeBytes(blobSize);
-            out.write('\0');
+            out.writeBytes(objects.get(i));
+            out.write((byte) ' ');
+            out.write(Constants.encodeASCII(blobCompressedBytes.length));
+            out.write((byte) 0);
             out.write(blobCompressedBytes, 0, blobCompressedBytes.length);
         }
 

@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.crypto;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -10,45 +17,62 @@ import javax.crypto.spec.PBEKeySpec;
 
 
 public class BCCryptoInterface implements ICryptoInterface {
-
     public BCCryptoInterface() {
         Security.addProvider(new BouncyCastleProvider());
     }
 
     @Override
-    public SecretKey deriveKey(String secret, byte[] salt, String algorithm, int keyLength, int iterations)
+    public SecretKey deriveKey(String secret, byte[] salt, String algorithm, int iterations, int keyLength)
             throws Exception {
         SecretKeyFactory factory = SecretKeyFactory.getInstance(algorithm);
-        KeySpec spec = new PBEKeySpec(secret.toCharArray(), salt, keyLength, iterations);
+        KeySpec spec = new PBEKeySpec(secret.toCharArray(), salt, iterations, keyLength);
         return factory.generateSecret(spec);
     }
 
     @Override
-    public KeyPair generateKeyPair(int size) throws Exception {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(size);
+    public KeyPair generateKeyPair(int size) throws CryptoException {
+        KeyPairGenerator keyGen = null;
+        try {
+            keyGen = KeyPairGenerator.getInstance("RSA");
+            keyGen.initialize(size);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
         return keyGen.generateKeyPair();
     }
 
     @Override
-    public byte[] encryptAsymmetric(byte[] input, PublicKey key) throws Exception {
-        Cipher cipher = Cipher.getInstance(CryptoSettings.ASYMMETRIC_ALGORITHM);
-        cipher.init(Cipher.ENCRYPT_MODE, key);
-
-        return cipher.doFinal(input);
+    public byte[] encryptAsymmetric(byte[] input, PublicKey key) throws CryptoException {
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(CryptoSettings.ASYMMETRIC_ALGORITHM);
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+            return cipher.doFinal(input);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override
-    public byte[] decryptAsymmetric(byte[] input, PrivateKey key) throws Exception {
-        Cipher cipher = Cipher.getInstance(CryptoSettings.ASYMMETRIC_ALGORITHM);
-        cipher.init(Cipher.DECRYPT_MODE, key);
-
-        return cipher.doFinal(input);
+    public byte[] decryptAsymmetric(byte[] input, PrivateKey key) throws CryptoException {
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(CryptoSettings.ASYMMETRIC_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE, key);
+            return cipher.doFinal(input);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override
-    public SecretKey generateSymmetricKey(int size) throws NoSuchAlgorithmException {
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(CryptoSettings.SYMMETRIC_KEY_TYPE);
+    public SecretKey generateSymmetricKey(int size) throws CryptoException {
+        KeyGenerator keyGenerator = null;
+        try {
+            keyGenerator = KeyGenerator.getInstance(CryptoSettings.SYMMETRIC_KEY_TYPE);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
         keyGenerator.init(size);
         return keyGenerator.generateKey();
     }
@@ -66,36 +90,56 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws Exception {
-        Cipher cipher = Cipher.getInstance(CryptoSettings.SYMMETRIC_ALGORITHM);
-        IvParameterSpec ips = new IvParameterSpec(iv);
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
-        return cipher.doFinal(input);
+    public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException {
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(CryptoSettings.SYMMETRIC_ALGORITHM);
+            IvParameterSpec ips = new IvParameterSpec(iv);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
+            return cipher.doFinal(input);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override
-    public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws Exception {
-        Cipher cipher = Cipher.getInstance(CryptoSettings.SYMMETRIC_ALGORITHM);
-        IvParameterSpec ips = new IvParameterSpec(iv);
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, ips);
-        return cipher.doFinal(input);
+    public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException {
+        Cipher cipher = null;
+        try {
+            cipher = Cipher.getInstance(CryptoSettings.SYMMETRIC_ALGORITHM);
+            IvParameterSpec ips = new IvParameterSpec(iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ips);
+            return cipher.doFinal(input);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override
-    public byte[] sign(byte[] input, PrivateKey key) throws Exception {
-        Signature signature = Signature.getInstance(CryptoSettings.SIGNATURE_ALGORITHM);
+    public byte[] sign(byte[] input, PrivateKey key) throws CryptoException {
+        Signature signature = null;
+        try {
+            signature = Signature.getInstance(CryptoSettings.SIGNATURE_ALGORITHM);
 
-        signature.initSign(key);
-        signature.update(input);
-        return signature.sign();
+            signature.initSign(key);
+            signature.update(input);
+            return signature.sign();
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override
-    public boolean verifySignature(byte[] message, byte[] signature, PublicKey key) throws Exception {
-        Signature sig = Signature.getInstance(CryptoSettings.SIGNATURE_ALGORITHM);
+    public boolean verifySignature(byte[] message, byte[] signature, PublicKey key) throws CryptoException {
+        Signature sig = null;
+        try {
+            sig = Signature.getInstance(CryptoSettings.SIGNATURE_ALGORITHM);
 
-        sig.initVerify(key);
-        sig.update(message);
-        return sig.verify(signature);
+            sig.initVerify(key);
+            sig.update(message);
+            return sig.verify(signature);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 }

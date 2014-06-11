@@ -1,9 +1,6 @@
 package org.fejoa.library;
 
-import org.fejoa.library.crypto.Crypto;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.crypto.*;
 import org.fejoa.library.support.PositionInputStream;
 
 import javax.crypto.SecretKey;
@@ -18,7 +15,7 @@ class ParcelCrypto {
     final private byte iv[];
     final private SecretKey key;
 
-    public ParcelCrypto() throws NoSuchAlgorithmException {
+    public ParcelCrypto() throws CryptoException {
         iv = crypto.generateInitializationVector(CryptoSettings.SYMMETRIC_KEY_IV_SIZE);
         key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
     }
@@ -201,7 +198,7 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
     private IParcelEnvelopeWriter childWriter;
 
     public SecureEnvelopeWriter(ContactPublic receiver, KeyId asymmetricKeyId, IParcelEnvelopeWriter childWriter)
-            throws NoSuchAlgorithmException {
+            throws CryptoException {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
         this.childWriter = childWriter;

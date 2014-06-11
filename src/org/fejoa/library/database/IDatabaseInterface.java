@@ -12,7 +12,7 @@ public interface IDatabaseInterface {
     public String getBranch();
 
     public byte[] readBytes(String path) throws IOException;
-    public void writeBytes(String path, byte[] bytes) throws Exception;
+    public void writeBytes(String path, byte[] bytes) throws IOException;
 
     public String commit() throws Exception;
 

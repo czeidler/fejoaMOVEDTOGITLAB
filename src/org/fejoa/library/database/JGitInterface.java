@@ -58,7 +58,7 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public byte[] readBytes(String path) throws IOException{
-        TreeWalk treeWalk = cd(path);
+        TreeWalk treeWalk = cdFile(path);
         if (!treeWalk.next())
             throw new FileNotFoundException();
 
@@ -67,7 +67,7 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
-    public void writeBytes(String path, byte[] bytes) throws Exception {
+    public void writeBytes(String path, byte[] bytes) throws IOException {
         // write the blob
         final ObjectInserter objectInserter = repository.newObjectInserter();
         final ObjectId blobId = objectInserter.insert(Constants.OBJ_BLOB, bytes);
@@ -93,7 +93,7 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
-    public String commit() throws Exception {
+    public String commit() throws IOException {
         if (rootTree.equals(ObjectId.zeroId()))
             throw new InvalidObjectException("invalid root tree");
 
@@ -129,13 +129,16 @@ public class JGitInterface implements IDatabaseInterface {
         return commitId.name();
     }
 
-    private TreeWalk cd(String path) throws IOException {
+    private TreeWalk cdFile(String path) throws IOException {
         RevWalk walk = new RevWalk(repository);
         ObjectId tree;
         if (!rootTree.equals(ObjectId.zeroId()))
             tree = rootTree;
         else {
-            RevCommit commit = walk.parseCommit(repository.getRef(branch).getLeaf().getObjectId());
+            Ref branchRef = repository.getRef(branch);
+            if (branchRef == null)
+                throw new IOException();
+            RevCommit commit = walk.parseCommit(branchRef.getLeaf().getObjectId());
             if (commit == null)
                 throw new IOException();
             tree = commit.getTree().toObjectId();
@@ -143,6 +146,26 @@ public class JGitInterface implements IDatabaseInterface {
         TreeWalk treeWalk = new TreeWalk(repository);
         treeWalk.addTree(tree);
         treeWalk.setRecursive(true);
+        treeWalk.setFilter(PathFilter.create(path));
+        return treeWalk;
+    }
+
+    private TreeWalk cd(String path) throws IOException {
+        RevWalk walk = new RevWalk(repository);
+        ObjectId tree;
+        if (!rootTree.equals(ObjectId.zeroId()))
+            tree = rootTree;
+        else {
+            Ref branchRef = repository.getRef(branch);
+            if (branchRef == null)
+                throw new IOException();
+            RevCommit commit = walk.parseCommit(branchRef.getLeaf().getObjectId());
+            if (commit == null)
+                throw new IOException();
+            tree = commit.getTree().toObjectId();
+        }
+        TreeWalk treeWalk = new TreeWalk(repository);
+        treeWalk.addTree(tree);
         treeWalk.setFilter(PathFilter.create(path));
         return treeWalk;
     }
@@ -165,9 +188,14 @@ public class JGitInterface implements IDatabaseInterface {
         List<String> dirs = new ArrayList<>();
 
         TreeWalk treeWalk = cd(path);
+        treeWalk.next();
+        if (!treeWalk.isSubtree())
+            throw new IOException("not a directory");
+        treeWalk.enterSubtree();
+
         while (treeWalk.next()) {
             if (treeWalk.isSubtree())
-                dirs.add(treeWalk.getPathString());
+                dirs.add(treeWalk.getNameString());
         }
 
         return dirs;

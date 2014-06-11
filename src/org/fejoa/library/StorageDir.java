@@ -8,6 +8,7 @@
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.Crypto;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.ICryptoInterface;
 import org.fejoa.library.database.IDatabaseInterface;
 
@@ -20,8 +21,7 @@ class StorageDir {
     final String baseDir;
 
     public StorageDir(StorageDir storageDir) {
-        this.database = storageDir.getDatabase();
-        this.baseDir = storageDir.getBaseDir();
+        this(storageDir.getDatabase(), storageDir.getBaseDir());
     }
 
     public StorageDir(IDatabaseInterface database, String baseDir) {
@@ -36,7 +36,8 @@ class StorageDir {
     public String getBaseDir() {
         return baseDir;
     }
-    public String appendDir(String dir) {
+
+    static public String appendDir(String baseDir, String dir) {
         String newDir = new String(baseDir);
         if (!newDir.equals(""))
             newDir += "/";
@@ -44,10 +45,10 @@ class StorageDir {
         return newDir;
     }
 
-    public byte[] readBytes(String path) throws Exception {
+    public byte[] readBytes(String path) throws IOException {
         return database.readBytes(getRealPath(path));
     }
-    public String readString(String path) throws Exception {
+    public String readString(String path) throws IOException {
         return new String(database.readBytes(getRealPath(path)));
     }
     public int readInt(String path) throws Exception {
@@ -55,20 +56,20 @@ class StorageDir {
         return Integer.parseInt(new String(data));
     }
 
-    public void writeBytes(String path, byte[] data) throws Exception {
+    public void writeBytes(String path, byte[] data) throws IOException {
         database.writeBytes(getRealPath(path), data);
     }
-    public void writeString(String path, String data) throws Exception {
-        database.writeBytes(getRealPath(path), data.getBytes());
+    public void writeString(String path, String data) throws IOException {
+        writeBytes(path, data.getBytes());
     }
-    public void writeInt(String path, int data) throws Exception {
+    public void writeInt(String path, int data) throws IOException {
         String dataString = "";
         dataString += data;
-        writeString(getRealPath(path), dataString);
+        writeString(path, dataString);
     }
 
     private String getRealPath(String path) {
-        return baseDir + path;
+        return appendDir(baseDir, path);
     }
 
     public boolean remove(String path) {
@@ -109,7 +110,7 @@ class SecureStorageDir extends StorageDir {
         setTo(keyStore, keyId);
     }
 
-    public void setTo(KeyStore keyStore, KeyId keyId) throws Exception {
+    public void setTo(KeyStore keyStore, KeyId keyId) throws IOException, CryptoException {
         this.keyStore = keyStore;
         this.keyId = keyId;
         secreteKeyIVPair = keyStore.readSymmetricKey(keyId);

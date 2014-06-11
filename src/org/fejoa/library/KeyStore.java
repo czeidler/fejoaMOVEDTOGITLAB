@@ -8,12 +8,10 @@
 package org.fejoa.library;
 
 
-import org.fejoa.library.crypto.Crypto;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.crypto.*;
 
 import javax.crypto.SecretKey;
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -53,9 +51,11 @@ public class KeyStore {
     private byte masterKeyIV[];
     private byte encryptedMasterKey[];
 
-    public KeyStore(StorageDir storageDir) {
+    public KeyStore(StorageDir storageDir) throws IOException {
         this.storageDir = storageDir;
         crypto = Crypto.get();
+
+        uid = storageDir.readString("uid");
     }
 
     public KeyStore(String password) {
@@ -64,7 +64,7 @@ public class KeyStore {
         salt = crypto.generateSalt();
         try {
             SecretKey passwordKey = crypto.deriveKey(password, salt, CryptoSettings.KDF_ALGORITHM,
-                    CryptoSettings.MASTER_PASSWORD_LENGTH, CryptoSettings.MASTER_PASSWORD_ITERATIONS);
+                    CryptoSettings.MASTER_PASSWORD_ITERATIONS, CryptoSettings.MASTER_PASSWORD_LENGTH);
 
             masterKeyIV = crypto.generateInitializationVector(CryptoSettings.MASTER_PASSWORD_IV_LENGTH);
             masterKey = crypto.generateSymmetricKey(CryptoSettings.MASTER_PASSWORD_LENGTH);
@@ -97,11 +97,10 @@ public class KeyStore {
             int masterPasswordSize = storageDir.readInt(PATH_MASTER_PASSWORD_SIZE);
             int masterPasswordIterations = storageDir.readInt(PATH_MASTER_PASSWORD_ITERATIONS);
 
-            SecretKey secretKey = crypto.deriveKey(password, salt, algorithmName, masterPasswordSize, masterPasswordIterations);
+            SecretKey secretKey = crypto.deriveKey(password, salt, algorithmName, masterPasswordIterations,
+                    masterPasswordSize);
             byte masterKeyBytes[] = crypto.decryptSymmetric(encryptedMasterKey, secretKey, masterKeyIV);
             masterKey = CryptoHelper.symmetricKeyFromRaw(masterKeyBytes);
-
-            makeUidFromEncryptedMasterKey(encryptedMasterKey);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return false;
@@ -110,10 +109,12 @@ public class KeyStore {
     }
 
 
-    public void create(StorageDir storageDir) throws Exception {
+    public void create(StorageDir storageDir) throws IOException {
         if (uid == null)
             throw new IllegalStateException();
         this.storageDir = storageDir;
+
+        storageDir.writeString("uid", uid);
 
         // write master password (master password is encrypted
         storageDir.writeBytes(PATH_MASTER_KEY, encryptedMasterKey);
@@ -158,15 +159,15 @@ public class KeyStore {
         public byte iv[];
     }
 
-    public SecreteKeyIVPair readSymmetricKey(KeyId keyId) throws Exception {
+    public SecreteKeyIVPair readSymmetricKey(KeyId keyId) throws IOException, CryptoException {
         SecreteKeyIVPair pair = new SecreteKeyIVPair();
 
         String path = keyId.getKeyId() + "/" + PATH_SYMMETRIC_KEY;
         byte encryptedKey[] = storageDir.readBytes(path);
-        pair.key = CryptoHelper.symmetricKeyFromRaw(crypto.decryptSymmetric(encryptedKey, masterKey, masterKeyIV));
-
         path = keyId.getKeyId() + "/" + PATH_SYMMETRIC_IV;
-        pair.iv = storageDir.readBytes(path);
+        masterKeyIV = storageDir.readBytes(path);
+        pair.key = CryptoHelper.symmetricKeyFromRaw(crypto.decryptSymmetric(encryptedKey, masterKey, masterKeyIV));
+        pair.iv = masterKeyIV;
 
         return  pair;
     }

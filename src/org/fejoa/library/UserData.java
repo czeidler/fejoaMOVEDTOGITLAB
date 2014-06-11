@@ -1,30 +1,73 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library;
+
+import org.fejoa.library.crypto.CryptoException;
+
+import java.io.IOException;
 
 
 public class UserData {
     private String PATH_UID = "uid";
     private String PATH_KEY_STORE_ID = "key_store_id";
-    private String PATH_KEY_KEY_ID = "key_id";
+    private String PATH_KEY_ID = "key_id";
 
     protected String uid;
     protected SecureStorageDir storageDir;
 
-    protected void writeUserData() throws Exception {
+    public void commit() throws Exception {
+        storageDir.getDatabase().commit();
+    }
+
+    protected void writeUserData(String uid, SecureStorageDir storageDir, KeyStore keyStore, KeyId keyId)
+            throws Exception {
+        this.uid = uid;
+        this.storageDir = storageDir;
+
+        storageDir.setTo(keyStore, keyId);
+
         storageDir.writeString(PATH_UID, uid);
-        storageDir.writeString(PATH_KEY_KEY_ID, getKeyId().getKeyId());
+        storageDir.writeString(PATH_KEY_ID, getKeyId().getKeyId());
         storageDir.writeString(PATH_KEY_STORE_ID, getKeyStore().getUid());
     }
 
-    protected void readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder) throws Exception {
+    protected void readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder)
+            throws IOException,
+            CryptoException {
         this.storageDir = storageDir;
 
         uid = storageDir.readString(PATH_UID);
+
         String keyStoreId = storageDir.readString(PATH_KEY_STORE_ID);
         KeyStore keyStore = keyStoreFinder.find(keyStoreId);
         if (keyStore == null)
-            throw new ClassNotFoundException("can't find key store");
-        String keyId = storageDir.readString(PATH_KEY_KEY_ID);
+            throw new IOException("can't find key store");
+        String keyId = storageDir.readString(PATH_KEY_ID);
         storageDir.setTo(keyStore, new KeyId(keyId));
+    }
+
+    protected boolean readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder, String password)
+            throws IOException,
+            CryptoException {
+        this.storageDir = storageDir;
+
+        uid = storageDir.readString(PATH_UID);
+
+        String keyStoreId = storageDir.readString(PATH_KEY_STORE_ID);
+        KeyStore keyStore = keyStoreFinder.find(keyStoreId);
+        if (keyStore == null)
+            throw new IOException("can't find key store");
+        if (!keyStore.open(password))
+            return false;
+        String keyId = storageDir.readString(PATH_KEY_ID);
+        storageDir.setTo(keyStore, new KeyId(keyId));
+
+        return true;
     }
 
     protected KeyId getKeyId() {

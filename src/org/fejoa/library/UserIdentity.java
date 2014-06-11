@@ -30,11 +30,9 @@ public class UserIdentity extends UserData {
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         uid = CryptoHelper.toHex(hashResult);
 
-        storageDir = new SecureStorageDir(databaseInterface, baseDir);
-        storageDir.appendDir(uid);
-        storageDir.setTo(keyStore, keyId);
+        storageDir = new SecureStorageDir(databaseInterface, StorageDir.appendDir(baseDir, uid));
 
-        writeUserData();
+        writeUserData(uid, storageDir, keyStore, keyId);
 
 
         KeyId personalKeyId = keyStore.writeAsymmetricKey(personalKey);

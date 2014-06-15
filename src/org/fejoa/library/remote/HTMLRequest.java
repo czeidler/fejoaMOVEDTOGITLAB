@@ -27,22 +27,18 @@ public class HTMLRequest implements IRemoteRequest {
 
     @Override
     public Observable<byte[]> send(final byte data[]) {
-        return Observable.create(new Func1<Observer<byte[]>, Subscription>() {
+        return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
             @Override
-            public Subscription call(final Observer<byte[]> receiver) {
-                new Thread(new Runnable() {
-                    @Override public void run() {
-                        byte receivedData[] = new byte[0];
-                        try {
-                            receivedData = getHTML(url, data);
-                        } catch (IOException e) {
-                            receiver.onError(e);
-                        }
+            public Subscription onSubscribe(final Observer<? super byte[]> receiver) {
+                byte receivedData[] = new byte[0];
+                try {
+                    receivedData = getHTML(url, data);
+                } catch (IOException e) {
+                    receiver.onError(e);
+                }
 
-                        receiver.onNext(receivedData);
-                        receiver.onCompleted();
-                    }
-                }).start();
+                receiver.onNext(receivedData);
+                receiver.onCompleted();
 
                 return Subscriptions.empty();
             }

@@ -20,73 +20,7 @@ import java.io.InputStream;
 import java.util.List;
 
 
-class InStanzaHandler {
-    private String name;
-    private boolean isOptionalStanza;
-    private boolean stanzaHasBeenHandled = false;
-
-    private InStanzaHandler parent = null;
-    List<InStanzaHandler> childHandlers;
-
-    public InStanzaHandler(String stanza, boolean optional) {
-        name = stanza;
-        isOptionalStanza = optional;
-    }
-
-    public void finish() {
-        for (InStanzaHandler handler : childHandlers)
-            handler.finish();
-        childHandlers.clear();
-    }
-
-    public String stanzaName() {
-        return name;
-    }
-    public boolean isOptional() {
-        return isOptionalStanza;
-    }
-    public boolean hasBeenHandled() {
-        if (!stanzaHasBeenHandled)
-            return false;
-        for (InStanzaHandler child : childHandlers) {
-            if (!child.isOptional() && !child.hasBeenHandled())
-                return false;
-        }
-        return true;
-    }
-
-    public void setHandled(boolean handled) {
-        stanzaHasBeenHandled = handled;
-    }
-    public InStanzaHandler getParent() {
-        return parent;
-    }
-    public List<InStanzaHandler> getChild() {
-        return childHandlers;
-    }
-
-    public boolean handleStanza(Attributes attributes) {
-        return false;
-    }
-    public boolean handleText(String text) {
-        return false;
-    }
-    public void finished() {
-
-    }
-
-    void addChildHandler(InStanzaHandler handler) {
-        childHandlers.add(handler);
-        handler.setParent(this);
-    }
-
-    void setParent(InStanzaHandler parent) {
-        this.parent = parent;
-    }
-};
-
-
-class ProtocolInStream extends DefaultHandler {
+public class ProtocolInStream extends DefaultHandler {
     private handler_tree root = new handler_tree(null);
     private InStanzaHandler rootHandler;
     private InStanzaHandler currentHandler;

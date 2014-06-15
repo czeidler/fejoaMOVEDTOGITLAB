@@ -35,22 +35,19 @@ public class RemoteConnection {
         return remoteRequest.send(data);
     }
 
-    public Observable<String> requestRole(String role) {
+    public Observable<Boolean> requestRole(String role) {
         if (!roleMap.containsKey(role))
             throw new IllegalArgumentException("unkown role");
 
         final AuthenticationState state = roleMap.get(role);
         if (state.connected)
-            return Observable.just("ok");
+            return Observable.just(true);
 
-        return state.authenticationRequest.send(role).map(new Func1<String, String>() {
+        return state.authenticationRequest.send(remoteRequest).map(new Func1<Boolean, Boolean>() {
             @Override
-            public String call(String s) {
-                if (s.equals("ok"))
-                    state.connected = true;
-                else
-                    state.connected = false;
-                return s;
+            public Boolean call(Boolean connected) {
+                state.connected = connected;
+                return connected;
             }
         });
     }

@@ -39,10 +39,11 @@ interface IPublicContactFinder {
 }
 
 public class Profile extends UserData {
-    private List<KeyStore> keyStoreList = new ArrayList<>();
+    private final List<KeyStore> keyStoreList = new ArrayList<>();
+    private final List<UserIdentity> userIdentityList = new ArrayList<>();
 
     private class KeyStoreFinder implements IKeyStoreFinder {
-        List<KeyStore> keyStoreList;
+        final List<KeyStore> keyStoreList;
 
         public KeyStoreFinder(List<KeyStore> keyStoreList) {
             this.keyStoreList = keyStoreList;
@@ -77,6 +78,12 @@ public class Profile extends UserData {
                 CryptoSettings.SYMMETRIC_KEY_IV_SIZE));
         storageDir.setTo(keyStore, keyId);
 
+        UserIdentity userIdentity = new UserIdentity();
+        IDatabaseInterface userIdDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "user_identities");
+        userIdentity.createNew(userIdDatabase, "", keyStore, keyId);
+        addUseIdentity(userIdentity);
+
+
         writeUserData(uid, storageDir, keyStore, keyId);
 
 /*
@@ -88,17 +95,6 @@ public class Profile extends UserData {
             return error;
         mainMailbox = mailbox->getUid();
 
-        // init user identity
-        DatabaseBranch *identitiesBranch = databaseBranchFor(databaseBranch->getDatabasePath(), "identities");
-        UserIdentity *identity = NULL;
-        error = createNewUserIdentity(identitiesBranch, mailbox, &identity);
-        if (error != WP::kOk)
-            return error;
-
-        error = writeConfig();
-        if (error != WP::kOk)
-            return error;
-
         return WP::kOk;*/
     }
 
@@ -108,6 +104,9 @@ public class Profile extends UserData {
 
         for (KeyStore keyStore : keyStoreList)
             keyStore.getStorageDir().getDatabase().commit();
+
+        for (UserIdentity entry : userIdentityList)
+            entry.getStorageDir().getDatabase().commit();
     }
 
     public boolean open(String password) throws IOException, CryptoException {
@@ -116,12 +115,12 @@ public class Profile extends UserData {
         if (!readUserData(storageDir, getKeyStoreFinder(), password))
             return false;
 
+        loadUserIdentities();
         return true;
 /*
         error = read(kMainMailboxPath, mainMailbox);
         if (error != WP::kOk)
             return error;
-
 
         // remotes
         error = loadRemotes();
@@ -138,11 +137,6 @@ public class Profile extends UserData {
         if (error != WP::kOk)
             return error;
 
-        // load identities
-        error = loadUserIdentities();
-        if (error != WP::kOk)
-            return error;
-
         return WP::kOk;*/
     }
 
@@ -150,7 +144,11 @@ public class Profile extends UserData {
         return new KeyStoreFinder(keyStoreList);
     }
 
-    private void addKeyStore(KeyStore keyStore) throws Exception {
+    public List<UserIdentity> getUserIdentityList() {
+        return userIdentityList;
+    }
+
+    private void addKeyStore(KeyStore keyStore) throws IOException {
         String path = "key_stores/";
         path += keyStore.getUid();
         path += "/";
@@ -159,7 +157,16 @@ public class Profile extends UserData {
         keyStoreList.add(keyStore);
     }
 
-    void loadKeyStores() throws IOException {
+    private void addUseIdentity(UserIdentity userIdentity) throws IOException {
+        String path = "user_ids/";
+        path += userIdentity.getUid();
+        path += "/";
+
+        writeRef(path, userIdentity.getStorageDir());
+        userIdentityList.add(userIdentity);
+    }
+
+    private void loadKeyStores() throws IOException {
         List<String> keyStores = storageDir.listDirectories("key_stores");
 
         for (String keyStorePath : keyStores) {
@@ -170,7 +177,18 @@ public class Profile extends UserData {
         }
     }
 
-    private void writeRef(String path, StorageDir refTarget) throws Exception {
+    private void loadUserIdentities() throws IOException, CryptoException {
+        List<String> userIdentities = storageDir.listDirectories("user_ids");
+
+        for (String uidPath : userIdentities) {
+            UserDataRef ref = readRef("user_ids/" + uidPath);
+            UserIdentity userIdentity = new UserIdentity();
+            userIdentity.open(DatabaseBucket.get(ref.path, ref.branch), ref.basedir, getKeyStoreFinder());
+            userIdentityList.add(userIdentity);
+        }
+    }
+
+    private void writeRef(String path, StorageDir refTarget) throws IOException {
         IDatabaseInterface databaseInterface = refTarget.getDatabase();
         storageDir.writeString(path + "database_path", databaseInterface.getPath());
         storageDir.writeString(path + "database_branch", databaseInterface.getBranch());

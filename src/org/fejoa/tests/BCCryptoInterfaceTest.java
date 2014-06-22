@@ -53,7 +53,7 @@ public class BCCryptoInterfaceTest extends TestCase {
         String password = "testPassword348#";
         byte salt[] = cryptoInterface.generateSalt();
         SecretKey kdfKey1 = cryptoInterface.deriveKey(password, salt, CryptoSettings.KDF_ALGORITHM, 20000, 256);
-        assertEquals(256, kdfKey1.getEncoded().length / 8);
+        assertEquals(32, kdfKey1.getEncoded().length);
         SecretKey kdfKey2 = cryptoInterface.deriveKey(password, salt, CryptoSettings.KDF_ALGORITHM, 20000, 256);
         assertTrue(Arrays.equals(kdfKey1.getEncoded(), kdfKey2.getEncoded()));
     }

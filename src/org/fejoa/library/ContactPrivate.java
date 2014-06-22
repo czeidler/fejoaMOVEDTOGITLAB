@@ -8,9 +8,11 @@
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.Crypto;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.ICryptoInterface;
 
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashMap;
@@ -21,11 +23,10 @@ import java.util.Map;
 public class ContactPrivate {
     private String uid;
     final private SecureStorageDir storageDir;
-    private KeyStore keyStore;
     private KeyId mainKeyId;
     final private Map<String, KeyPair> keys = new HashMap<>();
 
-    public ContactPrivate(SecureStorageDir storageDir, String uid, KeyStore keyStore) {
+    public ContactPrivate(SecureStorageDir storageDir, String uid) {
         this.uid = uid;
         String baseDir = "";
         baseDir += storageDir.getBaseDir();
@@ -33,26 +34,27 @@ public class ContactPrivate {
             baseDir += "/";
         baseDir += uid;
         this.storageDir = new SecureStorageDir(storageDir, baseDir);
-        this.keyStore = keyStore;
     }
 
     public String getUid() {
         return uid;
     }
 
-    public void write() throws Exception {
+    public void write(KeyStore keyStore) throws Exception {
         storageDir.writeString("keyStoreId", keyStore.getUid());
+        storageDir.writeString("main_key_id", keyStore.getUid());
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             String keyId = entry.getKey();
             storageDir.writeString(keyId + "/keyId", keyId);
         }
     }
 
-    public void open(IKeyStoreFinder keyStoreFinder) throws Exception {
+    public void open(IKeyStoreFinder keyStoreFinder) throws IOException, CryptoException {
         String keyStoreId = storageDir.readString("keyStoreId");
-        keyStore = keyStoreFinder.find(keyStoreId);
+        KeyStore keyStore = keyStoreFinder.find(keyStoreId);
         if (keyStore == null)
-            throw new Exception("key store not found");
+            throw new IOException("key store not found");
+        mainKeyId = new KeyId(storageDir.readString("main_key_id"));
         List<String> keyIds = storageDir.listDirectories("");
         for (String keyId : keyIds) {
             KeyPair keyPair = keyStore.readAsymmetricKey(keyId);

@@ -8,12 +8,10 @@
 package org.fejoa.library;
 
 
-import org.fejoa.library.crypto.Crypto;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
 
+import java.io.IOException;
 import java.security.KeyPair;
 import java.util.List;
 
@@ -36,10 +34,10 @@ public class UserIdentity extends UserData {
 
 
         KeyId personalKeyId = keyStore.writeAsymmetricKey(personalKey);
-        myself = new ContactPrivate(storageDir, "myself", keyStore);
+        myself = new ContactPrivate(storageDir, "myself");
         myself.addKeyPair(personalKeyId.getKeyId(), personalKey);
         myself.setMainKey(personalKeyId);
-        myself.write();
+        myself.write(keyStore);
 
         /*
         error = write(kPathMailboxId, mailbox->getUid());
@@ -50,8 +48,25 @@ public class UserIdentity extends UserData {
         writePublicSignature("signature.pup", myself.getKey());*/
     }
 
-    public void open(IDatabaseInterface databaseInterface, String baseDir, IKeyStoreFinder keyStoreFinder) throws Exception {
-        readUserData(new SecureStorageDir(databaseInterface, baseDir), keyStoreFinder);
+    public void open(IDatabaseInterface databaseInterface, String baseDir, IKeyStoreFinder keyStoreFinder)
+            throws IOException, CryptoException {
+        storageDir = new SecureStorageDir(databaseInterface, baseDir);
+        readUserData(storageDir, keyStoreFinder);
 
+        ContactPrivate myself = new ContactPrivate(storageDir, "myself");
+        myself.open(keyStoreFinder);
     }
+
+    public ContactPrivate getMyself() {
+        return myself;
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public StorageDir getStorageDir() {
+        return storageDir;
+    }
+
 }

@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.remote;
 
+import org.fejoa.library.ContactPrivate;
 import rx.Observable;
 import rx.util.functions.Func1;
 
@@ -35,11 +36,24 @@ public class RemoteConnection {
         return remoteRequest.send(data);
     }
 
-    public Observable<Boolean> requestRole(String role) {
-        if (!roleMap.containsKey(role))
-            throw new IllegalArgumentException("unkown role");
+    private AuthenticationState addAuthenticationState(String role, IAuthenticationRequest request) {
+        AuthenticationState state = new AuthenticationState(request);
+        roleMap.put(role, state);
+        return state;
+    }
 
-        final AuthenticationState state = roleMap.get(role);
+    public Observable<Boolean> requestAccountUser(String loginUser, String serverUser, ContactPrivate user) {
+        String role = loginUser + ":" + serverUser;
+        AuthenticationState state;
+        if (!roleMap.containsKey(role))
+            state = addAuthenticationState(role, new SignatureAuthentication(loginUser, serverUser, user));
+        else
+            state = roleMap.get(role);
+
+        return requestRole(state);
+    }
+
+    private Observable<Boolean> requestRole(final AuthenticationState state) {
         if (state.connected)
             return Observable.just(true);
 

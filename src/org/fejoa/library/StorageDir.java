@@ -39,6 +39,8 @@ class StorageDir {
 
     static public String appendDir(String baseDir, String dir) {
         String newDir = new String(baseDir);
+        if (dir.equals(""))
+            return baseDir;
         if (!newDir.equals(""))
             newDir += "/";
         newDir += dir;
@@ -77,11 +79,11 @@ class StorageDir {
     }
 
     public List<String> listFiles(String path) throws IOException {
-        return database.listFiles(path);
+        return database.listFiles(getRealPath(path));
     }
 
     public List<String> listDirectories(String path) throws IOException {
-        return database.listDirectories(path);
+        return database.listDirectories(getRealPath(path));
     }
 }
 

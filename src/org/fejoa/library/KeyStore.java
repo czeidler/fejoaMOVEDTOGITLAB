@@ -172,7 +172,7 @@ public class KeyStore {
         return  pair;
     }
 
-    public KeyId writeAsymmetricKey(KeyPair keyPair) throws Exception {
+    public KeyId writeAsymmetricKey(KeyPair keyPair) throws IOException, CryptoException {
         String privateKeyPem = CryptoHelper.convertToPEM(keyPair.getPrivate());
         byte encryptedPrivate[] = crypto.encryptSymmetric(privateKeyPem.getBytes(), masterKey, masterKeyIV);
 
@@ -192,7 +192,7 @@ public class KeyStore {
         return new KeyId(keyId);
     }
 
-    KeyPair readAsymmetricKey(String keyId) throws Exception {
+    KeyPair readAsymmetricKey(String keyId) throws IOException, CryptoException {
         String path = keyId + "/" + PATH_PRIVATE_KEY;
         byte encryptedPrivate[] = storageDir.readBytes(path);
         path = keyId + "/" + PATH_PUBLIC_KEY;

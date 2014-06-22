@@ -166,7 +166,9 @@ public class JGitInterface implements IDatabaseInterface {
         }
         TreeWalk treeWalk = new TreeWalk(repository);
         treeWalk.addTree(tree);
-        treeWalk.setFilter(PathFilter.create(path));
+        treeWalk.setRecursive(true);
+        if (!path.equals("") && !path.equals("/"))
+            treeWalk.setFilter(PathFilter.create(path));
         return treeWalk;
     }
 
@@ -175,9 +177,18 @@ public class JGitInterface implements IDatabaseInterface {
         List<String> files = new ArrayList<>();
 
         TreeWalk treeWalk = cd(path);
+
+        String pathList[] = path.split("/");
+        int nDirs = 0;
+        if (!path.equals("") && !path.equals("/"))
+            nDirs = pathList.length;
         while (treeWalk.next()) {
-            if (!treeWalk.isSubtree())
-                files.add(treeWalk.getPathString());
+            if (treeWalk.isSubtree())
+                continue;
+            String currentPath = treeWalk.getPathString();
+            String currentPathList[] = currentPath.split("/");
+            if (currentPathList.length == nDirs + 1)
+                files.add(treeWalk.getNameString());
         }
 
         return files;
@@ -185,17 +196,26 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public List<String> listDirectories(String path) throws IOException {
+        // TODO: this is horrible slow!!
         List<String> dirs = new ArrayList<>();
 
         TreeWalk treeWalk = cd(path);
         treeWalk.next();
-        if (!treeWalk.isSubtree())
-            throw new IOException("not a directory");
         treeWalk.enterSubtree();
 
+        String pathList[] = path.split("/");
+        int nDirs = 0;
+        if (!path.equals("") && !path.equals("/"))
+            nDirs = pathList.length;
         while (treeWalk.next()) {
-            if (treeWalk.isSubtree())
-                dirs.add(treeWalk.getNameString());
+            String currentPath = treeWalk.getPathString();
+            String currentPathList[] = currentPath.split("/");
+            int nParts = currentPathList.length;
+            if (nParts - 1 > nDirs){
+                String dir = currentPathList[nDirs];
+                if (!dirs.contains(dir))
+                    dirs.add(dir);
+            }
         }
 
         return dirs;

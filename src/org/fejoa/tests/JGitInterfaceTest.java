@@ -14,6 +14,7 @@ import org.fejoa.library.database.JGitInterface;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class JGitInterfaceTest extends TestCase {
@@ -58,6 +59,58 @@ public class JGitInterfaceTest extends TestCase {
         } catch (Exception e) {
             System.out.print(e.getMessage());
         }
+    }
+
+    public void testListEntries() throws IOException {
+        String gitDir = "listEntriesGit";
+        cleanUpDirs.add(gitDir);
+
+        JGitInterface git = new JGitInterface();
+        git.init(gitDir, "testBranch", true);
+
+        byte data[] = "test".getBytes();
+        git.writeBytes("test1", data);
+        git.writeBytes("test2", data);
+
+        git.writeBytes("dir/test3", data);
+        git.writeBytes("dir/test4", data);
+
+        git.writeBytes("dir2/test5", data);
+        git.writeBytes("dir2/test6", data);
+
+        git.writeBytes("dir/sub1/test7", data);
+        git.writeBytes("dir/sub1/test8", data);
+
+        git.writeBytes("dir/sub2/sub3/test9", data);
+        git.writeBytes("dir/sub2/sub3/test10", data);
+
+
+        git.commit();
+
+        List<String> entries = git.listDirectories("");
+        assertTrue(equals(entries, Arrays.asList("dir", "dir2")));
+
+        entries = git.listDirectories("dir");
+        assertTrue(equals(entries, Arrays.asList("sub1", "sub2")));
+
+        entries = git.listDirectories("dir/sub2");
+        assertTrue(equals(entries, Arrays.asList("sub3")));
+
+        entries = git.listFiles("");
+        assertTrue(equals(entries, Arrays.asList("test1", "test2")));
+
+        entries = git.listFiles("dir");
+        assertTrue(equals(entries, Arrays.asList("test3", "test4")));
+
+        entries = git.listFiles("dir/sub1");
+        assertTrue(equals(entries, Arrays.asList("test7", "test8")));
+
+        entries = git.listFiles("dir/sub2/sub3");
+        assertTrue(equals(entries, Arrays.asList("test9", "test10")));
+    }
+
+    private boolean equals(List<String> list1, List<String> list2) {
+        return list1.containsAll(list2) && list2.containsAll(list1);
     }
 
     class DatabaseStingEntry {

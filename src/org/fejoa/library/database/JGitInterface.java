@@ -200,8 +200,6 @@ public class JGitInterface implements IDatabaseInterface {
         List<String> dirs = new ArrayList<>();
 
         TreeWalk treeWalk = cd(path);
-        treeWalk.next();
-        treeWalk.enterSubtree();
 
         String pathList[] = path.split("/");
         int nDirs = 0;

@@ -42,7 +42,7 @@ public class ContactPrivate {
 
     public void write(KeyStore keyStore) throws Exception {
         storageDir.writeString("keyStoreId", keyStore.getUid());
-        storageDir.writeString("main_key_id", keyStore.getUid());
+        storageDir.writeString("main_key_id", mainKeyId.getKeyId());
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             String keyId = entry.getKey();
             storageDir.writeString(keyId + "/keyId", keyId);
@@ -77,9 +77,11 @@ public class ContactPrivate {
         return mainKeyId;
     }
 
-    public byte[] sign(KeyId keyId, byte data[]) throws Exception {
+    public byte[] sign(KeyId keyId, byte data[]) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         KeyPair keyPair = getKeyPair(keyId.getKeyId());
+        if (keyPair == null)
+            throw new IllegalArgumentException();
         return crypto.sign(data, keyPair.getPrivate());
     }
 }

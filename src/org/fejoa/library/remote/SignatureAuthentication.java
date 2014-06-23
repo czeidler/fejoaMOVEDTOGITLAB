@@ -98,7 +98,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         if (!userAuthHandler.hasBeenHandled())
             throw new IOException();
 
-        if (!userAuthHandler.status.equals("i_dont_know_you"))
+        if (userAuthHandler.status.equals("i_dont_know_you"))
             throw new IOException("no contact");
         if (!userAuthHandler.status.equals("sign_this_token"))
             throw new IOException("no sign token");

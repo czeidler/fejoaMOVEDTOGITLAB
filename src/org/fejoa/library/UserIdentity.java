@@ -11,6 +11,8 @@ package org.fejoa.library;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyPair;
 import java.util.List;
@@ -43,9 +45,8 @@ public class UserIdentity extends UserData {
         error = write(kPathMailboxId, mailbox->getUid());
         if (error != WP::kOk)
             return error;
-
-        QString outPut("signature.pup");
-        writePublicSignature("signature.pup", myself.getKey());*/
+        */
+        writePublicSignature("signature.pup", CryptoHelper.convertToPEM(personalKey.getPublic()));
     }
 
     public void open(IDatabaseInterface databaseInterface, String baseDir, IKeyStoreFinder keyStoreFinder)
@@ -53,7 +54,7 @@ public class UserIdentity extends UserData {
         storageDir = new SecureStorageDir(databaseInterface, baseDir);
         readUserData(storageDir, keyStoreFinder);
 
-        ContactPrivate myself = new ContactPrivate(storageDir, "myself");
+        myself = new ContactPrivate(storageDir, "myself");
         myself.open(keyStoreFinder);
     }
 
@@ -69,4 +70,13 @@ public class UserIdentity extends UserData {
         return storageDir;
     }
 
+    private void writePublicSignature(String filename, String publicKey) throws IOException {
+        File file = new File(filename);
+        FileWriter fileWriter = new FileWriter(file);
+        try {
+            fileWriter.write(publicKey);
+        } finally {
+            fileWriter.close();
+        }
+    }
 }

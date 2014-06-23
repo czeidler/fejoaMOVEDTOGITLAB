@@ -17,6 +17,7 @@ import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -60,7 +61,7 @@ public class ProtocolInStream extends DefaultHandler {
         }
 
         public handler_tree parent;
-        public List<InStanzaHandler> handlers;
+        final public List<InStanzaHandler> handlers = new ArrayList<>();
     };
 
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {

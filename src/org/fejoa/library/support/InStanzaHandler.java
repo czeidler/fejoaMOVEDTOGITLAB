@@ -9,6 +9,7 @@ package org.fejoa.library.support;
 
 import org.xml.sax.Attributes;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -18,7 +19,7 @@ public class InStanzaHandler {
     private boolean stanzaHasBeenHandled = false;
 
     private InStanzaHandler parent = null;
-    List<InStanzaHandler> childHandlers;
+    final List<InStanzaHandler> childHandlers = new ArrayList<>();
 
     public InStanzaHandler(String stanza, boolean optional) {
         name = stanza;

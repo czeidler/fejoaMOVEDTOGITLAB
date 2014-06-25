@@ -13,15 +13,21 @@ import org.fejoa.library.Profile;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
 
 public class Main {
 
     public static void main(String[] args) {
+        CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
+
         boolean opened = false;
 
         String password = "test";
+        Profile profile = null;
         try {
-            Profile profile = new Profile(DatabaseBucket.get(".git", "profile"), "");
+            profile = new Profile(DatabaseBucket.get(".git", "profile"), "");
 
             while (!opened) {
                 try {
@@ -37,6 +43,7 @@ public class Main {
             if (!opened) {
                 // create dialog
                 profile.createNew(password);
+               // profile.setAllRemotes();
                 profile.commit();
             }
 
@@ -46,7 +53,7 @@ public class Main {
 
 
         JFrame frame = new JFrame("LoginScreen");
-        frame.setContentPane(new LoginScreen().getContent());
+        frame.setContentPane(new LoginScreen(profile).getContent());
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
         frame.setVisible(true);

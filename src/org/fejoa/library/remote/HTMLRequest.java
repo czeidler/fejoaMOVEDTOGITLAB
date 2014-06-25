@@ -50,7 +50,7 @@ public class HTMLRequest implements IRemoteRequest {
         final String boundary = "===" + System.currentTimeMillis() + "===";
         final String LINE_FEED = "\r\n";
         final URL url = new URL(urlToRead);
-        final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        final HttpURLConnection connection = (HttpURLConnection)url.openConnection();
         BufferedInputStream bufferedInputStream = null;
         ByteArrayOutputStream receivedData = null;
         try {

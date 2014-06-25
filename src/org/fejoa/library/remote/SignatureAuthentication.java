@@ -81,11 +81,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
         outStream.addElement(iqStanza);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrintWriter writer = new PrintWriter(out);
-        outStream.write(writer);
-
-        byte reply[] = send(remoteRequest, out.toByteArray());
+        byte reply[] = RemoteConnection.send(remoteRequest, outStream);
 
         IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
         UserAuthHandler userAuthHandler = new UserAuthHandler();
@@ -104,33 +100,6 @@ public class SignatureAuthentication implements IAuthenticationRequest {
             throw new IOException("no sign token");
 
         return userAuthHandler.signToken;
-    }
-
-    private byte[] send(final IRemoteRequest remoteRequest, byte out[]) throws IOException {
-        final byte[][] reply = new byte[1][1];
-        final Throwable[] error = {null};
-        Observable<byte[]> remote = remoteRequest.send(out);
-        remote.subscribe(new Observer<byte[]>() {
-            @Override
-            public void onCompleted() {
-
-            }
-
-            @Override
-            public void onError(Throwable throwable) {
-                error[0] = throwable;
-            }
-
-            @Override
-            public void onNext(byte[] bytes) {
-                reply[0] = bytes;
-            }
-        });
-
-        if (error[0] != null)
-            throw new IOException(error[0].getMessage());
-
-        return reply[0];
     }
 
     class UserAuthHandler extends InStanzaHandler {
@@ -194,26 +163,22 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         authStanza.setAttribute("loginUser", loginUser);
         iqStanza.appendChild(authStanza);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrintWriter writer = new PrintWriter(out);
-        outStream.write(writer);
-
-        byte reply[] = send(remoteRequest, out.toByteArray());
+        byte reply[] = RemoteConnection.send(remoteRequest, outStream);
 
         IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
-        UserAuthResultHandler userAuthResutlHandler = new UserAuthResultHandler();
-        AuthResultRoleHandler roleHander = new AuthResultRoleHandler();
-        userAuthResutlHandler.addChildHandler(roleHander);
-        iqHandler.addChildHandler(userAuthResutlHandler);
+        UserAuthResultHandler userAuthResultHandler = new UserAuthResultHandler();
+        AuthResultRoleHandler roleHandler = new AuthResultRoleHandler();
+        userAuthResultHandler.addChildHandler(roleHandler);
+        iqHandler.addChildHandler(userAuthResultHandler);
 
         ProtocolInStream inStream = new ProtocolInStream(reply);
         inStream.addHandler(iqHandler);
         inStream.parse();
 
-        if (!userAuthResutlHandler.hasBeenHandled())
+        if (!userAuthResultHandler.hasBeenHandled())
             throw new Exception();
 
-        roles = roleHander.roles;
+        roles = roleHandler.roles;
         if (roles.size() == 0)
             return false;
 

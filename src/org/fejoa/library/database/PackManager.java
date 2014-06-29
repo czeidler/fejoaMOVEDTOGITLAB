@@ -151,7 +151,7 @@ class PackManager {
         RevWalk walk = new RevWalk(repository);
         while (commits.size() > 0) {
             String currentCommit = commits.remove(0);
-            if (currentCommit == commitStop)
+            if (currentCommit.equals(commitStop))
                 continue;
             if (newObjects.contains(currentCommit))
                 continue;
@@ -224,9 +224,9 @@ class PackManager {
 
     public byte[] exportPack(String commitOldest, String commitLatest, String ignoreCommit, int format) throws Exception {
         String commitEnd = new String(commitLatest);
-        if (commitLatest == "")
+        if (commitLatest.equals(""))
             commitEnd = database.getTip();
-        if (commitEnd == "")
+        if (commitEnd.equals(""))
             throw new Exception("no tip found");
 
         List<String> blobs = new ArrayList<>();

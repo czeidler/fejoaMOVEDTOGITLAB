@@ -25,12 +25,7 @@ public class ContactPublic {
 
     public ContactPublic(SecureStorageDir storageDir, String uid) {
         this.uid = uid;
-        String baseDir = "";
-        baseDir += storageDir.getBaseDir();
-        if (!baseDir.equals(""))
-            baseDir += "/";
-        baseDir += uid;
-        this.storageDir = new SecureStorageDir(storageDir, baseDir);
+        this.storageDir = new SecureStorageDir(storageDir, uid);
     }
 
     public String getUid() {

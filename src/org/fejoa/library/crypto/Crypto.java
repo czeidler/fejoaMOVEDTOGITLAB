@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.crypto;
 
+
 public class Crypto {
     static private ICryptoInterface cryptoInterface = null;
 

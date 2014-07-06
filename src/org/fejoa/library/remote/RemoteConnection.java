@@ -42,6 +42,10 @@ public class RemoteConnection {
         return remoteRequest.send(data);
     }
 
+    public IRemoteRequest getRemoteRequest() {
+        return remoteRequest;
+    }
+
     static public byte[] send(final IRemoteRequest remoteRequest, byte out[]) throws IOException {
         final byte[][] reply = new byte[1][1];
         final Throwable[] error = {null};

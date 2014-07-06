@@ -1,9 +1,8 @@
 package org.fejoa.library.database;
 
-
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+
 
 public interface IDatabaseInterface {
     public void init(String path, String branch, boolean create) throws IOException;

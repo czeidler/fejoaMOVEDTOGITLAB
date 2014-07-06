@@ -9,12 +9,17 @@ package org.fejoa.library;
 
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
-import org.fejoa.library.database.JGitInterface;
+import org.fejoa.library.remote.IRemoteRequest;
+import org.fejoa.library.remote.RemoteConnection;
+import org.fejoa.library.remote.RemoteRequestFactory;
+import org.fejoa.library.remote.RemoteStorageLink;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /*
 Profile
@@ -39,8 +44,9 @@ interface IPublicContactFinder {
 }
 
 public class Profile extends UserData {
-    private final List<KeyStore> keyStoreList = new ArrayList<>();
-    private final List<UserIdentity> userIdentityList = new ArrayList<>();
+    final private List<KeyStore> keyStoreList = new ArrayList<>();
+    final private List<UserIdentity> userIdentityList = new ArrayList<>();
+    final private Map<IDatabaseInterface, RemoteStorageLink> remoteStorageLinks = new HashMap<>();
 
     private class KeyStoreFinder implements IKeyStoreFinder {
         final List<KeyStore> keyStoreList;
@@ -70,8 +76,9 @@ public class Profile extends UserData {
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
         IDatabaseInterface keyStoreDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "key_stores");
+        addAndWriteRemoteStorageLink(keyStoreDatabase);
         keyStore.create(new StorageDir(keyStoreDatabase, keyStore.getUid()));
-        addKeyStore(keyStore);
+        addAndWriteKeyStore(keyStore);
 
         SecretKey key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
         KeyId keyId = keyStore.writeSymmetricKey(key, crypto.generateInitializationVector(
@@ -80,8 +87,9 @@ public class Profile extends UserData {
 
         UserIdentity userIdentity = new UserIdentity();
         IDatabaseInterface userIdDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "user_identities");
+        addAndWriteRemoteStorageLink(userIdDatabase);
         userIdentity.createNew(userIdDatabase, "", keyStore, keyId);
-        addUseIdentity(userIdentity);
+        addAndWriteUseIdentity(userIdentity);
 
 
         writeUserData(uid, storageDir, keyStore, keyId);
@@ -109,6 +117,15 @@ public class Profile extends UserData {
             entry.getStorageDir().getDatabase().commit();
     }
 
+    public void setEmptyRemotes(String url) {
+        IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(url);
+        for (RemoteStorageLink link : remoteStorageLinks.values()) {
+            if (link.getRemoteConnections().size() > 0)
+                continue;
+            link.addRemoteConnection(new RemoteConnection(remoteRequest));
+        }
+    }
+
     public boolean open(String password) throws IOException, CryptoException {
         loadKeyStores();
 
@@ -116,14 +133,11 @@ public class Profile extends UserData {
             return false;
 
         loadUserIdentities();
+
+        loadRemoteStorageLinks();
         return true;
 /*
         error = read(kMainMailboxPath, mainMailbox);
-        if (error != WP::kOk)
-            return error;
-
-        // remotes
-        error = loadRemotes();
         if (error != WP::kOk)
             return error;
 
@@ -148,7 +162,7 @@ public class Profile extends UserData {
         return userIdentityList;
     }
 
-    private void addKeyStore(KeyStore keyStore) throws IOException {
+    private void addAndWriteKeyStore(KeyStore keyStore) throws IOException {
         String path = "key_stores/";
         path += keyStore.getUid();
         path += "/";
@@ -157,13 +171,22 @@ public class Profile extends UserData {
         keyStoreList.add(keyStore);
     }
 
-    private void addUseIdentity(UserIdentity userIdentity) throws IOException {
+    private void addAndWriteUseIdentity(UserIdentity userIdentity) throws IOException {
         String path = "user_ids/";
         path += userIdentity.getUid();
         path += "/";
 
         writeRef(path, userIdentity.getStorageDir());
         userIdentityList.add(userIdentity);
+    }
+
+    private void addAndWriteRemoteStorageLink(IDatabaseInterface databaseInterface) throws IOException, CryptoException {
+        if (remoteStorageLinks.containsKey(databaseInterface))
+            return;
+        RemoteStorageLink remoteStorageLink = new RemoteStorageLink(databaseInterface);
+        String path = "remotes/" + remoteStorageLink.getUid();
+        remoteStorageLink.write(new SecureStorageDir(storageDir, path));
+        remoteStorageLinks.put(databaseInterface, remoteStorageLink);
     }
 
     private void loadKeyStores() throws IOException {
@@ -185,6 +208,17 @@ public class Profile extends UserData {
             UserIdentity userIdentity = new UserIdentity();
             userIdentity.open(DatabaseBucket.get(ref.path, ref.branch), ref.basedir, getKeyStoreFinder());
             userIdentityList.add(userIdentity);
+        }
+    }
+
+    private void loadRemoteStorageLinks() throws IOException, CryptoException {
+        String baseDir = "remotes";
+        List<String> remoteUids = storageDir.listDirectories(baseDir);
+
+        for (String uidPath : remoteUids) {
+            SecureStorageDir linkDir = new SecureStorageDir(storageDir, baseDir + "/" + uidPath);
+            RemoteStorageLink link = new RemoteStorageLink(linkDir);
+            remoteStorageLinks.put(link.getDatabaseInterface(), link);
         }
     }
 

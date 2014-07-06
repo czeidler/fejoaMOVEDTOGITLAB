@@ -26,6 +26,11 @@ public class HTMLRequest implements IRemoteRequest {
     }
 
     @Override
+    public String getUrl() {
+        return url;
+    }
+
+    @Override
     public Observable<byte[]> send(final byte data[]) {
         return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
             @Override

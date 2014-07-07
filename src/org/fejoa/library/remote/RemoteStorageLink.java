@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.remote;
 
+import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.DatabaseBucket;
 import org.fejoa.library.SecureStorageDir;
 import org.fejoa.library.crypto.Crypto;
@@ -15,49 +16,55 @@ import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.database.IDatabaseInterface;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 
 public class RemoteStorageLink {
     final String uid;
-    final private List<RemoteConnection> remoteConnections = new ArrayList<>();
+    private RemoteConnection remoteConnection;
+    private String serverUser;
+    final private ContactPrivate myself;
     final private IDatabaseInterface databaseInterface;
 
-    public RemoteStorageLink(SecureStorageDir loadFromDir) throws IOException, CryptoException {
+    public RemoteStorageLink(SecureStorageDir loadFromDir, ContactPrivate myself) throws IOException, CryptoException {
+        this.myself = myself;
         this.uid = loadFromDir.readString("uid");
         String databasePath = loadFromDir.readSecureString("database_path");
         String databaseBranch = loadFromDir.readSecureString("database_branch");
         databaseInterface = DatabaseBucket.get(databasePath, databaseBranch);
 
-        List<String> remoteConnectionIds = loadFromDir.listDirectories("");
-        for (String id : remoteConnectionIds) {
-            SecureStorageDir subDir = new SecureStorageDir(loadFromDir, id);
-            String url = subDir.readSecureString("url");
-            RemoteConnection remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(url));
-            remoteConnections.add(remoteConnection);
-        }
+        String url = loadFromDir.readSecureString("url");
+        remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(url));
     }
 
-    public RemoteStorageLink(IDatabaseInterface databaseInterface) {
-        this.uid = new String(CryptoHelper.sha256Hash(Crypto.get().generateInitializationVector(40)));
+    public RemoteStorageLink(IDatabaseInterface databaseInterface, ContactPrivate myself) {
         this.databaseInterface = databaseInterface;
+        this.myself = myself;
+        this.uid = new String(CryptoHelper.sha256Hash(Crypto.get().generateInitializationVector(40)));
     }
 
     public String getUid() {
         return uid;
     }
 
-    public List<RemoteConnection> getRemoteConnections() {
-        return remoteConnections;
+    public ContactPrivate getMyself() {
+        return myself;
+    }
+
+    public String getServerUser() {
+        return serverUser;
+    }
+
+    public RemoteConnection getRemoteConnection() {
+        return remoteConnection;
     }
 
     public IDatabaseInterface getDatabaseInterface() {
         return databaseInterface;
     }
 
-    public void addRemoteConnection(RemoteConnection remoteConnection) {
-        remoteConnections.add(remoteConnection);
+    public void setTo(RemoteConnection remoteConnection, String serverUser) {
+        this.remoteConnection = remoteConnection;
+        this.serverUser = serverUser;
     }
 
     public void write(SecureStorageDir dir) throws IOException, CryptoException {
@@ -65,10 +72,7 @@ public class RemoteStorageLink {
         dir.writeSecureString("database_path", databaseInterface.getPath());
         dir.writeSecureString("database_branch", databaseInterface.getBranch());
 
-        for (RemoteConnection remoteConnection : remoteConnections) {
-            String url = remoteConnection.getRemoteRequest().getUrl();
-            String hash = new String(CryptoHelper.sha1Hash(url.getBytes()));
-            dir.writeSecureString(hash + "/url", url);
-        }
+        String url = remoteConnection.getRemoteRequest().getUrl();
+        dir.writeSecureString("url", url);
     }
 }

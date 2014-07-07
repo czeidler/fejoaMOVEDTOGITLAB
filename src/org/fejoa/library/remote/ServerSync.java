@@ -26,13 +26,11 @@ import java.io.IOException;
 
 
 public class ServerSync {
-    final private IDatabaseInterface database;
-    final private RemoteStorage remoteStorage;
+    final private RemoteStorageLink remoteStorageLink;
     private String remoteTip;
 
-    public ServerSync(IDatabaseInterface database, RemoteStorage remoteStorage) {
-        this.database = database;
-        this.remoteStorage = remoteStorage;
+    public ServerSync(RemoteStorageLink remoteStorageLink) {
+        this.remoteStorageLink = remoteStorageLink;
     }
 
     public Observable<Boolean> send() {
@@ -40,10 +38,11 @@ public class ServerSync {
             @Override
             public Subscription onSubscribe(final Observer<? super Boolean> observer) {
                 boolean syncDone;
-                IRemoteRequest remoteRequest = remoteStorage.getRemoteRequest();
-                IAuthenticationRequest authenticationRequest = remoteStorage.getAuthenticationRequest();
+                RemoteConnection remoteConnection = remoteStorageLink.getRemoteConnection();
+                IRemoteRequest remoteRequest = remoteConnection.getRemoteRequest();
                 try {
-                    if (!RemoteConnection.authenticate(remoteRequest, authenticationRequest))
+                    if (!remoteConnection.requestAuthenticationSync(remoteStorageLink.getMyself(),
+                            remoteStorageLink.getServerUser()))
                         throw new IOException("can't authenticate");
                     syncDone = pull(remoteRequest);
                     if (syncDone)
@@ -115,8 +114,9 @@ public class ServerSync {
 
     private boolean pull(IRemoteRequest remoteRequest) throws ParserConfigurationException, TransformerException,
             IOException {
+        IDatabaseInterface database = remoteStorageLink.getDatabaseInterface();
         String localBranch = database.getBranch();
-        String lastSyncCommit = database.getLastSyncCommit(remoteStorage.getUid(), localBranch);
+        String lastSyncCommit = database.getLastSyncCommit(remoteStorageLink.getUid(), localBranch);
 
         ProtocolOutStream outStream = new ProtocolOutStream();
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
@@ -163,8 +163,9 @@ public class ServerSync {
     }
 
     private boolean push(IRemoteRequest remoteRequest) throws Exception {
+        IDatabaseInterface database = remoteStorageLink.getDatabaseInterface();
         String localBranch = database.getBranch();
-        String lastSyncCommit = database.getLastSyncCommit(remoteStorage.getUid(), localBranch);
+        String lastSyncCommit = database.getLastSyncCommit(remoteStorageLink.getUid(), localBranch);
         String localTipCommit = database.getTip();
 
         // we are ahead of the server: push changes to the server
@@ -186,7 +187,7 @@ public class ServerSync {
         byte reply[] = RemoteConnection.send(remoteRequest, outStream);
 
         // TODO check if it went through!
-        database.updateLastSyncCommit(remoteStorage.getUid(), database.getBranch(), localTipCommit);
+        database.updateLastSyncCommit(remoteStorageLink.getUid(), database.getBranch(), localTipCommit);
 
         return true;
     }

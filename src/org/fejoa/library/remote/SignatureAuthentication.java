@@ -35,16 +35,14 @@ public class SignatureAuthentication implements IAuthenticationRequest {
     final String AUTH_STANZA = "auth";
     final String AUTH_SIGNED_STANZA = "auth_signed";
 
-    final private String loginUser;
     final private String serverUser;
     final ContactPrivate user;
 
     private List<String> roles;
 
-    public SignatureAuthentication(String loginUser, String serverUser, ContactPrivate user) {
-        this.loginUser = loginUser;
+    public SignatureAuthentication(ContactPrivate loginUser, String serverUser) {
         this.serverUser = serverUser;
-        this.user = user;
+        this.user = loginUser;
     }
 
     @Override
@@ -75,7 +73,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
         Element authStanza = outStream.createElement(AUTH_STANZA);
         authStanza.setAttribute("type", "signature");
-        authStanza.setAttribute("loginUser", loginUser);
+        authStanza.setAttribute("loginUser", user.getUid());
         authStanza.setAttribute("serverUser", serverUser);
         iqStanza.appendChild(authStanza);
 
@@ -160,7 +158,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         Element authStanza =  outStream.createElement(AUTH_SIGNED_STANZA);
         authStanza.setAttribute("signature", Base64.encodeBytes(signature));
         authStanza.setAttribute("serverUser", serverUser);
-        authStanza.setAttribute("loginUser", loginUser);
+        authStanza.setAttribute("loginUser", user.getUid());
         iqStanza.appendChild(authStanza);
 
         byte reply[] = RemoteConnection.send(remoteRequest, outStream);

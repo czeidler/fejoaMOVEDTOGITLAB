@@ -82,8 +82,25 @@ public class RemoteConnection {
         return RemoteConnection.send(remoteRequest, out.toByteArray());
     }
 
-    static public boolean authenticate(IRemoteRequest remoteRequest, IAuthenticationRequest authenticationRequest) {
-        Observable<Boolean> remote = authenticationRequest.send(remoteRequest);
+    private AuthenticationState addAuthenticationState(String role, IAuthenticationRequest request) {
+        AuthenticationState state = new AuthenticationState(request);
+        roleMap.put(role, state);
+        return state;
+    }
+
+    public Observable<Boolean> requestAuthentication(ContactPrivate loginUser, String serverUser) {
+        String role = loginUser.getUid() + ":" + serverUser;
+        AuthenticationState state;
+        if (!roleMap.containsKey(role))
+            state = addAuthenticationState(role, new SignatureAuthentication(loginUser, serverUser));
+        else
+            state = roleMap.get(role);
+
+        return requestRole(state);
+    }
+
+    public boolean requestAuthenticationSync(ContactPrivate loginUser, String serverUser) {
+        Observable<Boolean> remote = requestAuthentication(loginUser, serverUser);
         final boolean[] status = {false};
         remote.subscribe(new Observer<Boolean>() {
             @Override
@@ -102,23 +119,6 @@ public class RemoteConnection {
             }
         });
         return status[0];
-    }
-
-    private AuthenticationState addAuthenticationState(String role, IAuthenticationRequest request) {
-        AuthenticationState state = new AuthenticationState(request);
-        roleMap.put(role, state);
-        return state;
-    }
-
-    public Observable<Boolean> requestAccountUser(String loginUser, String serverUser, ContactPrivate user) {
-        String role = loginUser + ":" + serverUser;
-        AuthenticationState state;
-        if (!roleMap.containsKey(role))
-            state = addAuthenticationState(role, new SignatureAuthentication(loginUser, serverUser, user));
-        else
-            state = roleMap.get(role);
-
-        return requestRole(state);
     }
 
     private Observable<Boolean> requestRole(final AuthenticationState state) {

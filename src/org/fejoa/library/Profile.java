@@ -47,6 +47,7 @@ public class Profile extends UserData {
     final private List<KeyStore> keyStoreList = new ArrayList<>();
     final private List<UserIdentity> userIdentityList = new ArrayList<>();
     final private Map<IDatabaseInterface, RemoteStorageLink> remoteStorageLinks = new HashMap<>();
+    private UserIdentity mainUserIdentity = null;
 
     private class KeyStoreFinder implements IKeyStoreFinder {
         final List<KeyStore> keyStoreList;
@@ -76,7 +77,6 @@ public class Profile extends UserData {
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
         IDatabaseInterface keyStoreDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "key_stores");
-        addAndWriteRemoteStorageLink(keyStoreDatabase);
         keyStore.create(new StorageDir(keyStoreDatabase, keyStore.getUid()));
         addAndWriteKeyStore(keyStore);
 
@@ -87,10 +87,13 @@ public class Profile extends UserData {
 
         UserIdentity userIdentity = new UserIdentity();
         IDatabaseInterface userIdDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "user_identities");
-        addAndWriteRemoteStorageLink(userIdDatabase);
         userIdentity.createNew(userIdDatabase, "", keyStore, keyId);
         addAndWriteUseIdentity(userIdentity);
+        mainUserIdentity = userIdentity;
+        storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
+        addAndWriteRemoteStorageLink(keyStoreDatabase, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(userIdDatabase, userIdentity.getMyself());
 
         writeUserData(uid, storageDir, keyStore, keyId);
 
@@ -117,12 +120,12 @@ public class Profile extends UserData {
             entry.getStorageDir().getDatabase().commit();
     }
 
-    public void setEmptyRemotes(String url) {
+    public void setEmptyRemotes(String url, String serverUser) {
         IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(url);
         for (RemoteStorageLink link : remoteStorageLinks.values()) {
-            if (link.getRemoteConnections().size() > 0)
+            if (link.getRemoteConnection() == null)
                 continue;
-            link.addRemoteConnection(new RemoteConnection(remoteRequest));
+            link.setTo(new RemoteConnection(remoteRequest), serverUser);
         }
     }
 
@@ -134,6 +137,15 @@ public class Profile extends UserData {
 
         loadUserIdentities();
 
+        String mainUserIdentityId = storageDir.readSecureString("main_user_identity");
+        for (UserIdentity userIdentity : userIdentityList) {
+            if (userIdentity.getUid().equals(mainUserIdentityId)) {
+                mainUserIdentity = userIdentity;
+                break;
+            }
+        }
+
+        // must be called after mainUserIdentity has been found
         loadRemoteStorageLinks();
         return true;
 /*
@@ -180,10 +192,11 @@ public class Profile extends UserData {
         userIdentityList.add(userIdentity);
     }
 
-    private void addAndWriteRemoteStorageLink(IDatabaseInterface databaseInterface) throws IOException, CryptoException {
+    private void addAndWriteRemoteStorageLink(IDatabaseInterface databaseInterface, ContactPrivate myself)
+            throws IOException, CryptoException {
         if (remoteStorageLinks.containsKey(databaseInterface))
             return;
-        RemoteStorageLink remoteStorageLink = new RemoteStorageLink(databaseInterface);
+        RemoteStorageLink remoteStorageLink = new RemoteStorageLink(databaseInterface, myself);
         String path = "remotes/" + remoteStorageLink.getUid();
         remoteStorageLink.write(new SecureStorageDir(storageDir, path));
         remoteStorageLinks.put(databaseInterface, remoteStorageLink);
@@ -217,7 +230,7 @@ public class Profile extends UserData {
 
         for (String uidPath : remoteUids) {
             SecureStorageDir linkDir = new SecureStorageDir(storageDir, baseDir + "/" + uidPath);
-            RemoteStorageLink link = new RemoteStorageLink(linkDir);
+            RemoteStorageLink link = new RemoteStorageLink(linkDir, mainUserIdentity.getMyself());
             remoteStorageLinks.put(link.getDatabaseInterface(), link);
         }
     }

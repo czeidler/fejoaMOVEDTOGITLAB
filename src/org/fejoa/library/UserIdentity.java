@@ -66,7 +66,7 @@ public class UserIdentity extends UserData {
         return uid;
     }
 
-    public StorageDir getStorageDir() {
+    public SecureStorageDir getStorageDir() {
         return storageDir;
     }
 

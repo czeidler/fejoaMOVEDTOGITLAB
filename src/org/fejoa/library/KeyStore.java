@@ -16,18 +16,6 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-class KeyId {
-    private String keyId;
-
-    public KeyId(String keyId) {
-        this.keyId = keyId;
-    }
-
-    public String getKeyId() {
-        return keyId;
-    }
-}
-
 public class KeyStore {
 
     final private String PATH_MASTER_KEY = "master_key";

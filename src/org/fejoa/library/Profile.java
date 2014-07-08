@@ -70,6 +70,10 @@ public class Profile extends UserData {
         storageDir = new SecureStorageDir(database, baseDir);
     }
 
+    public Map<IDatabaseInterface, RemoteStorageLink> getRemoteStorageLinks() {
+        return remoteStorageLinks;
+    }
+
     public void createNew(String password) throws Exception {
         ICryptoInterface crypto = Crypto.get();
         uid = CryptoHelper.toHex(crypto.generateInitializationVector(20));

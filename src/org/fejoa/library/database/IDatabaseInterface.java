@@ -13,7 +13,7 @@ public interface IDatabaseInterface {
     public byte[] readBytes(String path) throws IOException;
     public void writeBytes(String path, byte[] bytes) throws IOException;
 
-    public String commit() throws Exception;
+    public String commit() throws IOException;
 
     public List<String> listFiles(String path) throws IOException;
     public List<String> listDirectories(String path) throws IOException;

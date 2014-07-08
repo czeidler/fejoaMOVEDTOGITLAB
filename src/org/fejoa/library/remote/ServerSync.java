@@ -33,7 +33,7 @@ public class ServerSync {
         this.remoteStorageLink = remoteStorageLink;
     }
 
-    public Observable<Boolean> send() {
+    public Observable<Boolean> sync() {
         return Observable.create(new Observable.OnSubscribeFunc<Boolean>() {
             @Override
             public Subscription onSubscribe(final Observer<? super Boolean> observer) {

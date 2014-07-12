@@ -22,22 +22,19 @@ public class SecureStorageDir extends StorageDir {
     private ICryptoInterface crypto = Crypto.get();
 
     public SecureStorageDir(SecureStorageDir storageDir, String baseDir) {
-        super(storageDir.getDatabase(), appendDir(storageDir.getBaseDir(), baseDir));
+        super(storageDir, appendDir(storageDir.getBaseDir(), baseDir), false);
 
         keyStore = storageDir.keyStore;
         keyId = storageDir.keyId;
         secreteKeyIVPair = storageDir.secreteKeyIVPair;
     }
 
-    public SecureStorageDir(IDatabaseInterface database, String baseDir) {
-        super(database, baseDir);
+    public SecureStorageDir(StorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
+        super(storageDir, baseDir, absoluteBaseDir);
     }
 
-    public SecureStorageDir(IDatabaseInterface database, String baseDir, KeyStore keyStore,
-                            KeyId keyId) throws Exception {
+    public SecureStorageDir(IDatabaseInterface database, String baseDir) {
         super(database, baseDir);
-
-        setTo(keyStore, keyId);
     }
 
     public void setTo(KeyStore keyStore, KeyId keyId) throws IOException, CryptoException {

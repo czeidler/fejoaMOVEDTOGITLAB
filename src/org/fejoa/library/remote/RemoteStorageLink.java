@@ -8,7 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.ContactPrivate;
-import org.fejoa.library.DatabaseBucket;
+import org.fejoa.library.SecureStorageDirBucket;
 import org.fejoa.library.SecureStorageDir;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
@@ -30,7 +30,7 @@ public class RemoteStorageLink {
         this.uid = loadFromDir.readString("uid");
         String databasePath = loadFromDir.readSecureString("database_path");
         String databaseBranch = loadFromDir.readSecureString("database_branch");
-        databaseInterface = DatabaseBucket.get(databasePath, databaseBranch);
+        databaseInterface = SecureStorageDirBucket.get(databasePath, databaseBranch).getDatabase();
 
         String url = loadFromDir.readSecureString("url");
         remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(url));

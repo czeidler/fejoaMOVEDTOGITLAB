@@ -66,8 +66,8 @@ public class Profile extends UserData {
         }
     }
 
-    public Profile(IDatabaseInterface database, String baseDir) {
-        storageDir = new SecureStorageDir(database, baseDir);
+    public Profile(SecureStorageDir storageDir, String baseDir) {
+        this.storageDir = new SecureStorageDir(storageDir, baseDir, true);
     }
 
     public Map<IDatabaseInterface, RemoteStorageLink> getRemoteStorageLinks() {
@@ -80,8 +80,8 @@ public class Profile extends UserData {
 
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
-        IDatabaseInterface keyStoreDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "key_stores");
-        keyStore.create(new StorageDir(keyStoreDatabase, keyStore.getUid()));
+        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "key_stores");
+        keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
 
         SecretKey key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
@@ -90,14 +90,16 @@ public class Profile extends UserData {
         storageDir.setTo(keyStore, keyId);
 
         UserIdentity userIdentity = new UserIdentity();
-        IDatabaseInterface userIdDatabase = DatabaseBucket.get(storageDir.getDatabase().getPath(), "user_identities");
-        userIdentity.createNew(userIdDatabase, "", keyStore, keyId);
+        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "user_identities");
+        SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
+        userIdDir.setTo(keyStore, keyId);
+        userIdentity.createNew(userIdDir);
         addAndWriteUseIdentity(userIdentity);
         mainUserIdentity = userIdentity;
         storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
-        addAndWriteRemoteStorageLink(keyStoreDatabase, userIdentity.getMyself());
-        addAndWriteRemoteStorageLink(userIdDatabase, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(keyStoreBranch.getDatabase(), userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(userIdBranch.getDatabase(), userIdentity.getMyself());
 
         writeUserData(uid, storageDir, keyStore, keyId);
 
@@ -118,10 +120,10 @@ public class Profile extends UserData {
         super.commit();
 
         for (KeyStore keyStore : keyStoreList)
-            keyStore.getStorageDir().getDatabase().commit();
+            keyStore.getStorageDir().commit();
 
         for (UserIdentity entry : userIdentityList)
-            entry.getStorageDir().getDatabase().commit();
+            entry.getStorageDir().commit();
     }
 
     public void setEmptyRemotes(String url, String serverUser) {
@@ -211,8 +213,9 @@ public class Profile extends UserData {
 
         for (String keyStorePath : keyStores) {
             UserDataRef ref = readRef("key_stores/" + keyStorePath);
-            StorageDir storageDir = new StorageDir(DatabaseBucket.get(ref.path, ref.branch), ref.basedir);
-            KeyStore keyStore = new KeyStore(storageDir);
+            // use a secure storage without a key store (hack to use SecureStorageDirBucket)
+            StorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir, true);
+            KeyStore keyStore = new KeyStore(dir);
             keyStoreList.add(keyStore);
         }
     }
@@ -223,7 +226,9 @@ public class Profile extends UserData {
         for (String uidPath : userIdentities) {
             UserDataRef ref = readRef("user_ids/" + uidPath);
             UserIdentity userIdentity = new UserIdentity();
-            userIdentity.open(DatabaseBucket.get(ref.path, ref.branch), ref.basedir, getKeyStoreFinder());
+            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir,
+                    true);
+            userIdentity.open(dir, getKeyStoreFinder());
             userIdentityList.add(userIdentity);
         }
     }

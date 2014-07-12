@@ -24,22 +24,20 @@ public class UserIdentity extends UserData {
     private ContactPrivate myself;
     private List<ContactPublic> allContacts;
 
-    public void createNew(IDatabaseInterface databaseInterface, final String baseDir, KeyStore keyStore, KeyId keyId)
+    public void createNew(SecureStorageDir storageDir)
             throws Exception {
         KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         uid = CryptoHelper.toHex(hashResult);
 
-        storageDir = new SecureStorageDir(databaseInterface, StorageDir.appendDir(baseDir, uid));
+        this.storageDir = storageDir;
 
-        writeUserData(uid, storageDir, keyStore, keyId);
+        writeUserData(uid, storageDir, storageDir.getKeyStore(), storageDir.getKeyId());
 
 
-        KeyId personalKeyId = keyStore.writeAsymmetricKey(personalKey);
-        myself = new ContactPrivate(storageDir, "myself");
-        myself.addKeyPair(personalKeyId.getKeyId(), personalKey);
-        myself.setMainKey(personalKeyId);
-        myself.write(keyStore);
+        KeyId personalKeyId = storageDir.getKeyStore().writeAsymmetricKey(personalKey);
+        myself = new ContactPrivate(personalKeyId, personalKey);
+        myself.write(new SecureStorageDir(storageDir, "myself"), storageDir.getKeyStore());
 
         /*
         error = write(kPathMailboxId, mailbox->getUid());
@@ -49,13 +47,20 @@ public class UserIdentity extends UserData {
         writePublicSignature("signature.pup", CryptoHelper.convertToPEM(personalKey.getPublic()));
     }
 
-    public void open(IDatabaseInterface databaseInterface, String baseDir, IKeyStoreFinder keyStoreFinder)
+    public void open(SecureStorageDir dir, IKeyStoreFinder keyStoreFinder)
             throws IOException, CryptoException {
-        storageDir = new SecureStorageDir(databaseInterface, baseDir);
+        storageDir = dir;
         readUserData(storageDir, keyStoreFinder);
 
-        myself = new ContactPrivate(storageDir, "myself");
-        myself.open(keyStoreFinder);
+        myself = new ContactPrivate(new SecureStorageDir(storageDir, "myself"), keyStoreFinder);
+
+        // load contacts
+        List<String> contactIds = storageDir.listDirectories("contacts");
+        for (String contactId : contactIds) {
+            ContactPublic contactPublic = new ContactPublic(new SecureStorageDir(storageDir, "contacts/" + contactId));
+            allContacts.add(contactPublic);
+        }
+
     }
 
     public ContactPrivate getMyself() {
@@ -78,5 +83,11 @@ public class UserIdentity extends UserData {
         } finally {
             fileWriter.close();
         }
+    }
+
+    public void addContact(ContactPublic contact) throws IOException, CryptoException {
+        allContacts.add(contact);
+
+        contact.write(new SecureStorageDir(storageDir, "contacts/" + contact.getUid()));
     }
 }

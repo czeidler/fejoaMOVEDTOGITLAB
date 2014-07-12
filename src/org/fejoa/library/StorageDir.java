@@ -10,24 +10,74 @@ package org.fejoa.library;
 import org.fejoa.library.database.IDatabaseInterface;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 class StorageDir {
-    final IDatabaseInterface database;
-    final String baseDir;
+    final private StorageDirCache cache;
+    final private String baseDir;
 
-    public StorageDir(StorageDir storageDir) {
-        this(storageDir.getDatabase(), storageDir.getBaseDir());
+    class StorageDirCache {
+        final private IDatabaseInterface database;
+        final private Map<String, byte[]> map = new HashMap<>();
+
+        public StorageDirCache(IDatabaseInterface database) {
+            this.database = database;
+        }
+
+        public IDatabaseInterface getDatabase() {
+            return database;
+        }
+
+        public void writeBytes(String path, byte[] data) {
+            this.map.put(path, data);
+        }
+
+        public byte[] readBytes(String path) throws IOException {
+            if (map.containsKey(path))
+                return map.get(path);
+            return database.readBytes(path);
+        }
+
+        public void flush() throws IOException {
+            for (Map.Entry<String, byte[]> entry : map.entrySet())
+                database.writeBytes(entry.getKey(), entry.getValue());
+            map.clear();
+        }
+
+        public void commit() throws IOException {
+            flush();
+            database.commit();
+        }
+
+        public List<String> listFiles(String path) throws IOException {
+            flush();
+            return database.listFiles(path);
+        }
+
+        public List<String> listDirectories(String path) throws IOException {
+            flush();
+            return database.listDirectories(path);
+        }
+    }
+
+    public StorageDir(StorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
+        if (absoluteBaseDir)
+            this.baseDir = baseDir;
+        else
+            this.baseDir = appendDir(storageDir.baseDir, baseDir);
+        this.cache = storageDir.cache;
     }
 
     public StorageDir(IDatabaseInterface database, String baseDir) {
-        this.database = database;
         this.baseDir = baseDir;
+        this.cache = new StorageDirCache(database);
     }
 
     public IDatabaseInterface getDatabase() {
-        return database;
+        return cache.getDatabase();
     }
 
     public String getBaseDir() {
@@ -45,18 +95,18 @@ class StorageDir {
     }
 
     public byte[] readBytes(String path) throws IOException {
-        return database.readBytes(getRealPath(path));
+        return cache.readBytes(getRealPath(path));
     }
     public String readString(String path) throws IOException {
-        return new String(database.readBytes(getRealPath(path)));
+        return new String(readBytes(path));
     }
     public int readInt(String path) throws Exception {
-        byte data[] = database.readBytes(getRealPath(path));
+        byte data[] = readBytes(path);
         return Integer.parseInt(new String(data));
     }
 
     public void writeBytes(String path, byte[] data) throws IOException {
-        database.writeBytes(getRealPath(path), data);
+        cache.writeBytes(getRealPath(path), data);
     }
     public void writeString(String path, String data) throws IOException {
         writeBytes(path, data.getBytes());
@@ -76,11 +126,15 @@ class StorageDir {
     }
 
     public List<String> listFiles(String path) throws IOException {
-        return database.listFiles(getRealPath(path));
+        return cache.listFiles(getRealPath(path));
     }
 
     public List<String> listDirectories(String path) throws IOException {
-        return database.listDirectories(getRealPath(path));
+        return cache.listDirectories(getRealPath(path));
+    }
+
+    public void commit() throws IOException {
+        cache.commit();
     }
 }
 

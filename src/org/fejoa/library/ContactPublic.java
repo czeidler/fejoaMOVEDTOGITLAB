@@ -8,9 +8,11 @@
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.Crypto;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.ICryptoInterface;
 
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashMap;
@@ -18,32 +20,45 @@ import java.util.List;
 import java.util.Map;
 
 
-public class ContactPublic {
-    final String uid;
-    final protected SecureStorageDir storageDir;
+public class ContactPublic extends Contact {
     protected Map<String, KeyPair> keys = new HashMap<>();
 
+    // open contact
+    public ContactPublic(SecureStorageDir storageDir) throws IOException, CryptoException {
+        super(storageDir);
+
+        open();
+    }
+
+    // new contact
     public ContactPublic(SecureStorageDir storageDir, String uid) {
+        super(storageDir);
+
         this.uid = uid;
-        this.storageDir = new SecureStorageDir(storageDir, uid);
     }
 
     public String getUid() {
         return uid;
     }
 
-    public void write() throws Exception {
+    @Override
+    public void write() throws IOException, CryptoException {
+        super.write();
+
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             KeyPair keyPair = entry.getValue();
             String keyId = entry.getKey();
-            storageDir.writeString(keyId + "/public_key", CryptoHelper.convertToPEM(keyPair.getPublic()));
+            storageDir.writeSecureString(keyId + "/public_key", CryptoHelper.convertToPEM(keyPair.getPublic()));
         }
     }
 
-    public void read() throws Exception {
+    @Override
+    public void open() throws IOException, CryptoException {
+        super.open();
+
         List<String> keyIds = storageDir.listDirectories("");
         for (String keyId : keyIds) {
-            PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readString(keyId + "/public_key"));
+            PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readSecureString(keyId + "/public_key"));
             keys.put(keyId, new KeyPair(publicKey, null));
         }
     }

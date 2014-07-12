@@ -8,6 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.*;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.InStanzaHandler;
 import org.fejoa.library.support.IqInStanzaHandler;
@@ -137,7 +138,7 @@ public class ContactRequest {
         });
     }
 
-    private boolean makeRequest() throws ParserConfigurationException, TransformerException, IOException {
+    private boolean makeRequest() throws ParserConfigurationException, TransformerException, IOException, CryptoException {
         ProtocolOutStream outStream = new ProtocolOutStream();
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
         outStream.addElement(iqStanza);
@@ -178,11 +179,10 @@ public class ContactRequest {
         if (!publicKeyHandler.hasBeenHandled())
             return false;
 
-        ContactPublic contact = new ContactPublic(userIdentity.getStorageDir(), requestHandler.uid);
+        ContactPublic contact = userIdentity.addNewContact(requestHandler.uid);
         contact.addKey(requestHandler.keyId, CryptoHelper.publicKeyFromPem(publicKeyHandler.publicKey));
         contact.setAddress(requestHandler.address);
-
-        userIdentity.addContact(contact);
+        contact.write();
 
         // commit changes
         userIdentity.getStorageDir().getDatabase().commit();

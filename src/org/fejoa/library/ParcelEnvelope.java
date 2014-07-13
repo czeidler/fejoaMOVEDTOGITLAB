@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.*;
@@ -20,7 +27,7 @@ class ParcelCrypto {
         key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
     }
 
-    public ParcelCrypto(ContactPrivate owner, KeyId keyId, byte iv[], byte encryptedSymmetricKey[]) throws Exception {
+    public ParcelCrypto(ContactPrivate owner, KeyId keyId, byte iv[], byte encryptedSymmetricKey[]) throws CryptoException {
         this.iv = iv;
 
         PrivateKey privateKey = owner.getKeyPair(keyId.getKeyId()).getPrivate();
@@ -34,7 +41,7 @@ class ParcelCrypto {
         this.key = parcelCrypto.key;
     }
 
-    public byte[] cloakData(byte data[]) throws Exception {
+    public byte[] cloakData(byte data[]) throws CryptoException {
         return crypto.encryptSymmetric(data, key, iv);
     }
 
@@ -50,7 +57,7 @@ class ParcelCrypto {
         return key;
     }
 
-    public byte[] getEncryptedSymmetricKey(ContactPublic receiver, KeyId keyId) throws Exception {
+    public byte[] getEncryptedSymmetricKey(ContactPublic receiver, KeyId keyId) throws CryptoException {
         PublicKey publicKey = receiver.getKey(keyId.getKeyId());
         return crypto.encryptAsymmetric(key.getEncoded(), publicKey);
     }
@@ -58,7 +65,7 @@ class ParcelCrypto {
 
 
 interface IParcelEnvelopeWriter {
-    public byte[] pack(byte data[]) throws Exception;
+    public byte[] pack() throws IOException, CryptoException;
 }
 
 interface IParcelEnvelopeReader {
@@ -88,7 +95,7 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
     }
 
     @Override
-    public byte[] pack(byte[] data) throws Exception {
+    public byte[] pack() throws IOException, CryptoException {
         /*
          Structure:
          - signature length int
@@ -104,9 +111,9 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
         stream.writeBytes(signatureKey + "\n");
 
         // write the data
-        byte outData[] = data;
+        byte outData[] = new byte[0];
         if (childWriter != null)
-            outData = childWriter.pack(data);
+            outData = childWriter.pack();
         uid = CryptoHelper.toHex(CryptoHelper.sha256Hash(outData));
 
         stream.writeInt(outData.length);
@@ -214,7 +221,7 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
     }
 
     @Override
-    public byte[] pack(byte[] data) throws Exception {
+    public byte[] pack() throws CryptoException, IOException {
         byte encryptedSymmetricKey[] = parcelCrypto.getEncryptedSymmetricKey(receiver, asymmetricKeyId);
 
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
@@ -233,9 +240,9 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
         stream.write(iv, 0, iv.length);
 
         // encrypted data
-        byte outData[] = data;
+        byte outData[] = new byte[0];
         if (childWriter != null)
-            outData = childWriter.pack(data);
+            outData = childWriter.pack();
         byte encryptedData[] = parcelCrypto.cloakData(outData);
 
         stream.writeInt(encryptedData.length);

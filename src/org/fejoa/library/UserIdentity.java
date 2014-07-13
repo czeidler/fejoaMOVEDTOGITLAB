@@ -36,8 +36,9 @@ public class UserIdentity extends UserData {
 
 
         KeyId personalKeyId = storageDir.getKeyStore().writeAsymmetricKey(personalKey);
-        myself = new ContactPrivate(personalKeyId, personalKey);
-        myself.write(new SecureStorageDir(storageDir, "myself"), storageDir.getKeyStore());
+        myself = new ContactPrivate(new SecureStorageDir(storageDir, "myself"), storageDir.getKeyStore(), personalKeyId,
+                personalKey);
+        myself.write();
 
         /*
         error = write(kPathMailboxId, mailbox->getUid());
@@ -85,9 +86,10 @@ public class UserIdentity extends UserData {
         }
     }
 
-    public void addContact(ContactPublic contact) throws IOException, CryptoException {
+    public ContactPublic addNewContact(String uid) throws IOException, CryptoException {
+        ContactPublic contact = new ContactPublic(new SecureStorageDir(storageDir, "contacts/" + uid), uid);
         allContacts.add(contact);
 
-        contact.write(new SecureStorageDir(storageDir, "contacts/" + contact.getUid()));
+        return contact;
     }
 }

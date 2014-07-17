@@ -22,7 +22,7 @@ public class SecureStorageDir extends StorageDir {
     private ICryptoInterface crypto = Crypto.get();
 
     public SecureStorageDir(SecureStorageDir storageDir, String baseDir) {
-        super(storageDir, appendDir(storageDir.getBaseDir(), baseDir), false);
+        super(storageDir, baseDir, false);
 
         keyStore = storageDir.keyStore;
         keyId = storageDir.keyId;

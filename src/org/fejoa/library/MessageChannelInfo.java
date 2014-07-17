@@ -14,8 +14,19 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+class SignedParcel {
+    private String uid;
 
-public class MessageChannelInfo {
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+}
+
+public class MessageChannelInfo extends SignedParcel {
     private String subject;
     private List<Participant> participants = new ArrayList<>();
 

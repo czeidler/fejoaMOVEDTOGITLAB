@@ -19,27 +19,31 @@ import java.io.IOException;
 
 
 public class RemoteStorageLink {
-    final String uid;
+    final private SecureStorageDir storageDir;
+    final private String uid;
     private RemoteConnection remoteConnection;
     private String serverUser;
     final private ContactPrivate myself;
     final private IDatabaseInterface databaseInterface;
 
-    public RemoteStorageLink(SecureStorageDir loadFromDir, ContactPrivate myself) throws IOException, CryptoException {
+    public RemoteStorageLink(SecureStorageDir storageDir, ContactPrivate myself)
+            throws IOException, CryptoException {
+        this.storageDir = storageDir;
         this.myself = myself;
-        this.uid = loadFromDir.readString("uid");
-        String databasePath = loadFromDir.readSecureString("database_path");
-        String databaseBranch = loadFromDir.readSecureString("database_branch");
+        this.uid = storageDir.readString("uid");
+        String databasePath = storageDir.readSecureString("database_path");
+        String databaseBranch = storageDir.readSecureString("database_branch");
         databaseInterface = SecureStorageDirBucket.get(databasePath, databaseBranch).getDatabase();
 
-        String url = loadFromDir.readSecureString("url");
+        String url = storageDir.readSecureString("url");
         remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(url));
     }
 
-    public RemoteStorageLink(IDatabaseInterface databaseInterface, ContactPrivate myself) {
+    public RemoteStorageLink(SecureStorageDir baseDir, IDatabaseInterface databaseInterface, ContactPrivate myself) {
+        this.uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(Crypto.get().generateInitializationVector(40)));
+        this.storageDir = new SecureStorageDir(baseDir, uid);
         this.databaseInterface = databaseInterface;
         this.myself = myself;
-        this.uid = new String(CryptoHelper.sha256Hash(Crypto.get().generateInitializationVector(40)));
     }
 
     public String getUid() {
@@ -67,12 +71,14 @@ public class RemoteStorageLink {
         this.serverUser = serverUser;
     }
 
-    public void write(SecureStorageDir dir) throws IOException, CryptoException {
-        dir.writeString("uid", uid);
-        dir.writeSecureString("database_path", databaseInterface.getPath());
-        dir.writeSecureString("database_branch", databaseInterface.getBranch());
+    public void write() throws IOException, CryptoException {
+        storageDir.writeString("uid", uid);
+        storageDir.writeSecureString("database_path", databaseInterface.getPath());
+        storageDir.writeSecureString("database_branch", databaseInterface.getBranch());
 
-        String url = remoteConnection.getRemoteRequest().getUrl();
-        dir.writeSecureString("url", url);
+        if (remoteConnection != null) {
+            String url = remoteConnection.getRemoteRequest().getUrl();
+            storageDir.writeSecureString("url", url);
+        }
     }
 }

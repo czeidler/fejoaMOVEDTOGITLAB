@@ -133,17 +133,19 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
 }
 
 class SignatureEnvelopeReader implements IParcelEnvelopeReader {
-    private String uid;
+    private SignedParcel signedParcel;
     private IPublicContactFinder contactFinder;
     private IParcelEnvelopeReader childReader;
 
-    public SignatureEnvelopeReader(IPublicContactFinder contactFinder, IParcelEnvelopeReader childReader) {
+    public SignatureEnvelopeReader(SignedParcel signedParcel, IPublicContactFinder contactFinder,
+                                   IParcelEnvelopeReader childReader) {
+        this.signedParcel = signedParcel;
         this.contactFinder = contactFinder;
         this.childReader = childReader;
     }
 
-    public String getUid() {
-        return uid;
+    public SignedParcel getSignedParcel() {
+        return signedParcel;
     }
 
     @Override
@@ -174,7 +176,7 @@ class SignatureEnvelopeReader implements IParcelEnvelopeReader {
         int mainDataLength = signedDataStream.readInt();
         byte data[] = new byte[mainDataLength];
         signedDataStream.readFully(data, 0, mainDataLength);
-        uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(data));
+        signedParcel.setUid(CryptoHelper.toHex(CryptoHelper.sha1Hash(data)));
 
         // validate data
         if (!sender.verify(signatureKey, signatureHash.getBytes(), signature))

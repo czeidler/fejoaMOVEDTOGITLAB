@@ -124,7 +124,7 @@ public class KeyStore {
      * @param iv initialization vector
      * @return key id
      */
-    public KeyId writeSymmetricKey(SecretKey key, byte iv[]) throws Exception {
+    public KeyId writeSymmetricKey(SecretKey key, byte iv[]) throws CryptoException, IOException {
         byte encryptedKey[] = crypto.encryptSymmetric(key.getEncoded(), masterKey, masterKeyIV);
         String keyId = CryptoHelper.toHex(CryptoHelper.sha1Hash(encryptedKey));
 

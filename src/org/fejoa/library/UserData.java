@@ -20,12 +20,12 @@ public class UserData {
     protected String uid;
     protected SecureStorageDir storageDir;
 
-    public void commit() throws Exception {
-        storageDir.getDatabase().commit();
+    public void commit() throws IOException {
+        storageDir.commit();
     }
 
     protected void writeUserData(String uid, SecureStorageDir storageDir, KeyStore keyStore, KeyId keyId)
-            throws Exception {
+            throws IOException, CryptoException {
         this.uid = uid;
         this.storageDir = storageDir;
 

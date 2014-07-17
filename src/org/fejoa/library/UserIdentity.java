@@ -24,8 +24,7 @@ public class UserIdentity extends UserData {
     private ContactPrivate myself;
     private List<ContactPublic> allContacts;
 
-    public void createNew(SecureStorageDir storageDir)
-            throws Exception {
+    public void createNew(SecureStorageDir storageDir) throws IOException, CryptoException {
         KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         uid = CryptoHelper.toHex(hashResult);

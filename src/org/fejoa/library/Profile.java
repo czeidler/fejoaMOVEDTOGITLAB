@@ -74,7 +74,7 @@ public class Profile extends UserData {
         return remoteStorageLinks;
     }
 
-    public void createNew(String password) throws Exception {
+    public void createNew(String password) throws IOException, CryptoException {
         ICryptoInterface crypto = Crypto.get();
         uid = CryptoHelper.toHex(crypto.generateInitializationVector(20));
 
@@ -116,7 +116,7 @@ public class Profile extends UserData {
     }
 
     @Override
-    public void commit() throws Exception {
+    public void commit() throws IOException {
         super.commit();
 
         for (KeyStore keyStore : keyStoreList)
@@ -126,12 +126,13 @@ public class Profile extends UserData {
             entry.getStorageDir().commit();
     }
 
-    public void setEmptyRemotes(String url, String serverUser) {
+    public void setEmptyRemotes(String url, String serverUser) throws IOException, CryptoException {
         IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(url);
         for (RemoteStorageLink link : remoteStorageLinks.values()) {
-            if (link.getRemoteConnection() == null)
+            if (link.getRemoteConnection() != null)
                 continue;
             link.setTo(new RemoteConnection(remoteRequest), serverUser);
+            link.write();
         }
     }
 
@@ -202,9 +203,9 @@ public class Profile extends UserData {
             throws IOException, CryptoException {
         if (remoteStorageLinks.containsKey(databaseInterface))
             return;
-        RemoteStorageLink remoteStorageLink = new RemoteStorageLink(databaseInterface, myself);
-        String path = "remotes/" + remoteStorageLink.getUid();
-        remoteStorageLink.write(new SecureStorageDir(storageDir, path));
+        RemoteStorageLink remoteStorageLink = new RemoteStorageLink(new SecureStorageDir(storageDir, "remotes"),
+                databaseInterface, myself);
+        remoteStorageLink.write();
         remoteStorageLinks.put(databaseInterface, remoteStorageLink);
     }
 

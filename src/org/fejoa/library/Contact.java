@@ -14,9 +14,9 @@ import java.io.IOException;
 
 
 public class Contact {
-    protected String uid;
-    protected String server;
-    protected String serverUser;
+    protected String uid = "";
+    protected String server = "";
+    protected String serverUser = "";
 
     final protected SecureStorageDir storageDir;
 

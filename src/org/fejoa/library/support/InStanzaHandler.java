@@ -62,7 +62,7 @@ public class InStanzaHandler {
         return false;
     }
     public boolean handleText(String text) {
-        return false;
+        return true;
     }
     public void finished() {
 

@@ -8,12 +8,11 @@
 package org.fejoa;
 
 import org.fejoa.gui.CreateProfileDialog;
-import org.fejoa.gui.LoginScreen;
+import org.fejoa.gui.MainWindow;
 import org.fejoa.gui.PasswordDialog;
 import org.fejoa.library.SecureStorageDirBucket;
 import org.fejoa.library.Profile;
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.remote.SyncManager;
 
 import javax.swing.*;
 import java.io.*;
@@ -68,6 +67,7 @@ public class Main {
                 // open password dialog
                 PasswordDialog passwordDialog = new PasswordDialog();
                 passwordDialog.pack();
+                passwordDialog.setLocationRelativeTo(null);
                 passwordDialog.setVisible(true);
 
                 int option = passwordDialog.getResult();
@@ -83,11 +83,11 @@ public class Main {
 
             CreateProfileDialog createProfileDialog = new CreateProfileDialog();
             createProfileDialog.pack();
+            createProfileDialog.setLocationRelativeTo(null);
             createProfileDialog.setVisible(true);
             int option = createProfileDialog.getResult();
 
             if (option == JOptionPane.OK_OPTION) {
-
                 try {
                     String userName = createProfileDialog.getUserName();
                     password = createProfileDialog.getPassword();
@@ -105,5 +105,10 @@ public class Main {
             } else
                 System.exit(0);
         }
+
+        MainWindow mainWindow = new MainWindow(profile);
+        mainWindow.pack();
+        mainWindow.setLocationRelativeTo(null);
+        mainWindow.setVisible(true);
     }
 }

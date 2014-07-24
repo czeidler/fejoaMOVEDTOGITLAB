@@ -7,8 +7,10 @@
  */
 package org.fejoa.library.support;
 
+import com.sun.org.apache.xerces.internal.parsers.XMLParser;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -17,7 +19,10 @@ import javax.xml.parsers.SAXParserFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -39,9 +44,19 @@ public class ProtocolInStream extends DefaultHandler {
     public void parse() {
         SAXParserFactory factory = SAXParserFactory.newInstance();
         SAXParser saxParser = null;
+
         try {
             saxParser = factory.newSAXParser();
-            saxParser.parse(xmlInput, this);
+            saxParser.parse(new SequenceInputStream(
+                    Collections.enumeration(Arrays.asList(
+                            new InputStream[]{
+                                    new ByteArrayInputStream("<dummy>".getBytes()),
+                                    xmlInput,//bogus xml
+                                    new ByteArrayInputStream("</dummy>".getBytes()),
+                            }))
+            ), this);
+
+            //saxParser.parse(xmlInput, this);
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         } catch (SAXException e) {
@@ -67,6 +82,8 @@ public class ProtocolInStream extends DefaultHandler {
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         currentHandler = null;
         String name = qName;
+        if (name.equals("dummy"))
+            return;
 
         handler_tree handlerTree = new handler_tree(currentHandlerTree);
         for (InStanzaHandler handler : currentHandlerTree.handlers) {
@@ -86,6 +103,9 @@ public class ProtocolInStream extends DefaultHandler {
     }
 
     public void endElement(String uri, String localName, String qName) throws SAXException {
+        if (qName.equals("dummy"))
+            return;
+
         for (InStanzaHandler handler : currentHandlerTree.handlers) {
             if (handler.hasBeenHandled())
                 handler.finished();

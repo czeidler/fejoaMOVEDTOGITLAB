@@ -22,7 +22,7 @@ public class RemoteStorageLink {
     final private SecureStorageDir storageDir;
     final private String uid;
     private RemoteConnection remoteConnection;
-    private String serverUser;
+    private String serverUser = "";
     final private ContactPrivate myself;
     final private IDatabaseInterface databaseInterface;
 
@@ -35,6 +35,7 @@ public class RemoteStorageLink {
         String databaseBranch = storageDir.readSecureString("database_branch");
         databaseInterface = SecureStorageDirBucket.get(databasePath, databaseBranch).getDatabase();
 
+        serverUser = storageDir.readSecureString("server_user");
         String url = storageDir.readSecureString("url");
         remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(url));
     }
@@ -75,6 +76,8 @@ public class RemoteStorageLink {
         storageDir.writeString("uid", uid);
         storageDir.writeSecureString("database_path", databaseInterface.getPath());
         storageDir.writeSecureString("database_branch", databaseInterface.getBranch());
+
+        storageDir.writeSecureString("server_user", serverUser);
 
         if (remoteConnection != null) {
             String url = remoteConnection.getRemoteRequest().getUrl();

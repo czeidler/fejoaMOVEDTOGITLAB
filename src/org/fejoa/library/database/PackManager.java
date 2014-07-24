@@ -145,7 +145,7 @@ class PackManager {
         List<String> newObjects = new ArrayList<>();
         commits.add(commitLast);
         List<String> stopAncestorCommits = new ArrayList<>();
-        if (ignoreCommit != "")
+        if (!ignoreCommit.equals(""))
             stopAncestorCommits.add(ignoreCommit);
         boolean stopAncestorsCalculated = false;
         RevWalk walk = new RevWalk(repository);
@@ -180,7 +180,7 @@ class PackManager {
 
         // get stop commit object tree
         List<String> stopCommitObjects = new ArrayList<>();
-        if (commitStop != "") {
+        if (!commitStop.equals("")) {
             RevCommit stopCommitObject = walk.parseCommit(ObjectId.fromString(commitStop));
             listTreeObjects(stopCommitObject.getTree(), stopCommitObjects);
         }
@@ -235,7 +235,6 @@ class PackManager {
     }
 
     private void listTreeObjects(RevTree tree, List<String> objects) throws IOException {
-
         String treeOidString = tree.getId().name();
         if (!objects.contains(treeOidString))
             objects.add(treeOidString);
@@ -250,12 +249,14 @@ class PackManager {
             TreeWalk treeWalk = new TreeWalk(repository);
             treeWalk.addTree(currentTree);
             while (treeWalk.next()) {
-                String objectOidString = treeWalk.getObjectId(0).name();
+                ObjectId objectId = treeWalk.getObjectId(0);
+                String objectOidString = objectId.name();
+
                 if (!objects.contains(objectOidString))
                     objects.add(objectOidString);
                 if (treeWalk.isSubtree()) {
                     RevWalk walk = new RevWalk(repository);
-                    RevTree revTree = walk.parseTree(treeWalk.getObjectId(0));
+                    RevTree revTree = walk.parseTree(objectId);
                     treesQueue.add(revTree);
                 }
             }

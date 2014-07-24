@@ -27,7 +27,7 @@ import java.io.IOException;
 
 public class ServerSync {
     final private RemoteStorageLink remoteStorageLink;
-    private String remoteTip;
+    private String remoteTip = "";
 
     public ServerSync(RemoteStorageLink remoteStorageLink) {
         this.remoteStorageLink = remoteStorageLink;
@@ -45,7 +45,7 @@ public class ServerSync {
                             remoteStorageLink.getServerUser()))
                         throw new IOException("can't authenticate");
                     syncDone = pull(remoteRequest);
-                    if (syncDone)
+                    if (!syncDone)
                         syncDone = push(remoteRequest);
                     observer.onNext(syncDone);
                 } catch (Exception e) {
@@ -128,7 +128,6 @@ public class ServerSync {
 
         byte reply[] = RemoteConnection.send(remoteRequest, outStream);
 
-
         IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
         SyncPullData syncPullData = new SyncPullData();
         SyncPullHandler syncPullHandler = new SyncPullHandler(syncPullData);
@@ -140,23 +139,22 @@ public class ServerSync {
 
         String localTipCommit = database.getTip();
 
-        if (syncPullHandler.hasBeenHandled() || !syncPullData.branch.equals(localBranch))
+        if (!syncPullHandler.hasBeenHandled() || !syncPullData.branch.equals(localBranch))
             throw new IOException("invalid server response");
 
-        if (syncPullData.tip.equals(localTipCommit)) {
+        if (syncPullData.tip.equals(localTipCommit))
             return true;
-        }
+
         // see if the server is ahead by checking if we got packages
-        if (syncPullData.pack != null) {
+        if (syncPullData.pack != null && syncPullData.pack.length > 0) {
             remoteTip = syncPullData.tip;
 
             database.importPack(syncPullData.pack, lastSyncCommit, syncPullData.tip, -1);
 
             localTipCommit = database.getTip();
             // done? otherwise it was a merge and we have to push our merge
-            if (localTipCommit.equals(lastSyncCommit)) {
+            if (localTipCommit.equals(lastSyncCommit))
                 return true;
-            }
         }
 
         return false;
@@ -182,11 +180,19 @@ public class ServerSync {
 
         Element pushPackStanza = outStream.createElement("pack");
         pushPackStanza.setTextContent(Base64.encodeBytes(pack));
-        iqStanza.appendChild(pushPackStanza);
+        pushStanza.appendChild(pushPackStanza);
 
         byte reply[] = RemoteConnection.send(remoteRequest, outStream);
-
+String test = new String(reply);
         // TODO check if it went through!
+        IqInStanzaHandler resultHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
+        ProtocolInStream inStream = new ProtocolInStream(reply);
+        inStream.addHandler(resultHandler);
+        inStream.parse();
+
+        if (!resultHandler.hasBeenHandled())
+            return false;
+
         database.updateLastSyncCommit(remoteStorageLink.getUid(), database.getBranch(), localTipCommit);
 
         return true;

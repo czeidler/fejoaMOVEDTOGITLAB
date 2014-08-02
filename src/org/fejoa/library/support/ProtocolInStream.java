@@ -7,10 +7,8 @@
  */
 package org.fejoa.library.support;
 
-import com.sun.org.apache.xerces.internal.parsers.XMLParser;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
-import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.ParserConfigurationException;

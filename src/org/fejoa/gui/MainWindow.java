@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.gui;
 
 import org.fejoa.library.ContactPrivate;
@@ -12,6 +19,7 @@ import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
 import java.awt.event.*;
+
 
 public class MainWindow extends JDialog {
     private JPanel contentPane;

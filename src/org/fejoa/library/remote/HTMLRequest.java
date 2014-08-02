@@ -18,6 +18,7 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+
 public class HTMLRequest implements IRemoteRequest {
     private String url;
 

@@ -56,4 +56,20 @@ public class Contact {
         serverUser = parts[0];
         return true;
     }
+
+    public void setServerUser(String serverUser) {
+        this.serverUser = serverUser;
+    }
+
+    public void setServer(String server) {
+        this.server = server;
+    }
+
+    public String getServer() {
+        return server;
+    }
+
+    public String getServerUser() {
+        return serverUser;
+    }
 }

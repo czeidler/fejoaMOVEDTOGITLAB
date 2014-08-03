@@ -10,6 +10,7 @@ package org.fejoa;
 import org.fejoa.gui.CreateProfileDialog;
 import org.fejoa.gui.MainWindow;
 import org.fejoa.gui.PasswordDialog;
+import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.SecureStorageDirBucket;
 import org.fejoa.library.Profile;
 import org.fejoa.library.crypto.CryptoException;
@@ -39,7 +40,21 @@ public class Main {
         }
     }
 
+    private static void setupLookAndFeel() {
+        try {
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (Exception e) {
+        }
+    }
+
     public static void main(String[] args) {
+        setupLookAndFeel();
+
         CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
 
         boolean opened = false;
@@ -92,12 +107,15 @@ public class Main {
                 try {
                     String userName = createProfileDialog.getUserName();
                     password = createProfileDialog.getPassword();
-                    String fullServerAddress = "http://";
-                    fullServerAddress += createProfileDialog.getServerName();
-                    fullServerAddress += "/php_server/portal.php";
+                    String server = createProfileDialog.getServerName();
 
                     profile.createNew(password);
-                    profile.setEmptyRemotes(fullServerAddress, userName);
+                    ContactPrivate myself = profile.getMainUserIdentity().getMyself();
+                    myself.setServerUser(userName);
+                    myself.setServer(server);
+                    myself.write();
+
+                    profile.setEmptyRemotes(server, userName);
                     profile.commit();
                 } catch (Exception e) {
                     System.exit(-1);

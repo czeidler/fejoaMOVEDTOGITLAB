@@ -9,7 +9,8 @@ package org.fejoa.library.remote;
 
 
 public class RemoteRequestFactory {
-    static public IRemoteRequest getRemoteRequest(String url) {
+    static public IRemoteRequest getRemoteRequest(String server) {
+        String url = "http://" + server + "/php_server/portal.php";
         return new HTMLRequest(url);
     }
 }

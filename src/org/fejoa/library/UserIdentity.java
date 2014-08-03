@@ -20,18 +20,17 @@ import java.util.List;
 
 public class UserIdentity extends UserData {
     private ICryptoInterface crypto = Crypto.get();
-    private SecureStorageDir storageDir;
     private ContactPrivate myself;
     private List<ContactPublic> allContacts;
 
-    public void createNew(SecureStorageDir storageDir) throws IOException, CryptoException {
+    public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
         KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         uid = CryptoHelper.toHex(hashResult);
 
         this.storageDir = storageDir;
 
-        writeUserData(uid, storageDir, storageDir.getKeyStore(), storageDir.getKeyId());
+        writeUserData(uid, storageDir);
 
 
         KeyId personalKeyId = storageDir.getKeyStore().writeAsymmetricKey(personalKey);
@@ -39,11 +38,6 @@ public class UserIdentity extends UserData {
                 personalKey);
         myself.write();
 
-        /*
-        error = write(kPathMailboxId, mailbox->getUid());
-        if (error != WP::kOk)
-            return error;
-        */
         writePublicSignature("signature.pup", CryptoHelper.convertToPEM(personalKey.getPublic()));
     }
 
@@ -65,14 +59,6 @@ public class UserIdentity extends UserData {
 
     public ContactPrivate getMyself() {
         return myself;
-    }
-
-    public String getUid() {
-        return uid;
-    }
-
-    public SecureStorageDir getStorageDir() {
-        return storageDir;
     }
 
     private void writePublicSignature(String filename, String publicKey) throws IOException {

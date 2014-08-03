@@ -46,8 +46,10 @@ interface IPublicContactFinder {
 public class Profile extends UserData {
     final private List<KeyStore> keyStoreList = new ArrayList<>();
     final private List<UserIdentity> userIdentityList = new ArrayList<>();
+    final private List<Mailbox> mailboxList = new ArrayList<>();
     final private Map<IDatabaseInterface, RemoteStorageLink> remoteStorageLinks = new HashMap<>();
     private UserIdentity mainUserIdentity = null;
+    private Mailbox mainMailbox = null;
 
     private class KeyStoreFinder implements IKeyStoreFinder {
         final List<KeyStore> keyStoreList;
@@ -74,6 +76,10 @@ public class Profile extends UserData {
         return remoteStorageLinks;
     }
 
+    public UserIdentity getMainUserIdentity() {
+        return mainUserIdentity;
+    }
+
     public void createNew(String password) throws IOException, CryptoException {
         ICryptoInterface crypto = Crypto.get();
         uid = CryptoHelper.toHex(crypto.generateInitializationVector(20));
@@ -93,26 +99,24 @@ public class Profile extends UserData {
         SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "user_identities");
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
         userIdDir.setTo(keyStore, keyId);
-        userIdentity.createNew(userIdDir);
+        userIdentity.write(userIdDir);
         addAndWriteUseIdentity(userIdentity);
         mainUserIdentity = userIdentity;
         storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
+        Mailbox mailbox = new Mailbox();
+        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "mailboxes");
+        SecureStorageDir mailboxDir = new SecureStorageDir(storageDir, mailbox.getUid());
+        mailbox.write(mailboxDir);
+        addAndWriteMailbox(mailbox);
+        mainMailbox = mailbox;
+        storageDir.writeSecureString("main_mailbox", mainMailbox.getUid());
+
         addAndWriteRemoteStorageLink(keyStoreBranch.getDatabase(), userIdentity.getMyself());
         addAndWriteRemoteStorageLink(userIdBranch.getDatabase(), userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(mailboxDir.getDatabase(), userIdentity.getMyself());
 
-        writeUserData(uid, storageDir, keyStore, keyId);
-
-/*
-        // create mailbox
-        DatabaseBranch *mailboxesBranch = databaseBranchFor(databaseBranch->getDatabasePath(), "mailboxes");
-        Mailbox *mailbox = NULL;
-        error = createNewMailbox(mailboxesBranch, &mailbox);
-        if (error != WP::kOk)
-            return error;
-        mainMailbox = mailbox->getUid();
-
-        return WP::kOk;*/
+        writeUserData(uid, storageDir);
     }
 
     @Override
@@ -126,8 +130,8 @@ public class Profile extends UserData {
             entry.getStorageDir().commit();
     }
 
-    public void setEmptyRemotes(String url, String serverUser) throws IOException, CryptoException {
-        IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(url);
+    public void setEmptyRemotes(String server, String serverUser) throws IOException, CryptoException {
+        IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(server);
         for (RemoteStorageLink link : remoteStorageLinks.values()) {
             if (link.getRemoteConnection() != null)
                 continue;
@@ -144,33 +148,11 @@ public class Profile extends UserData {
 
         loadUserIdentities();
 
-        String mainUserIdentityId = storageDir.readSecureString("main_user_identity");
-        for (UserIdentity userIdentity : userIdentityList) {
-            if (userIdentity.getUid().equals(mainUserIdentityId)) {
-                mainUserIdentity = userIdentity;
-                break;
-            }
-        }
-
         // must be called after mainUserIdentity has been found
         loadRemoteStorageLinks();
+
+        loadMailboxes();
         return true;
-/*
-        error = read(kMainMailboxPath, mainMailbox);
-        if (error != WP::kOk)
-            return error;
-
-        // load database branches
-        error = loadDatabaseBranches();
-        if (error != WP::kOk)
-            return error;
-
-        // load mailboxes
-        error = loadMailboxes();
-        if (error != WP::kOk)
-            return error;
-
-        return WP::kOk;*/
     }
 
     public IKeyStoreFinder getKeyStoreFinder() {
@@ -197,6 +179,15 @@ public class Profile extends UserData {
 
         writeRef(path, userIdentity.getStorageDir());
         userIdentityList.add(userIdentity);
+    }
+
+    private void addAndWriteMailbox(Mailbox mailbox) throws IOException {
+        String path = "mailboxes/";
+        path += mailbox.getUid();
+        path += "/";
+
+        writeRef(path, mailbox.getStorageDir());
+        mailboxList.add(mailbox);
     }
 
     private void addAndWriteRemoteStorageLink(IDatabaseInterface databaseInterface, ContactPrivate myself)
@@ -232,6 +223,14 @@ public class Profile extends UserData {
             userIdentity.open(dir, getKeyStoreFinder());
             userIdentityList.add(userIdentity);
         }
+
+        String mainUserIdentityId = storageDir.readSecureString("main_user_identity");
+        for (UserIdentity userIdentity : userIdentityList) {
+            if (userIdentity.getUid().equals(mainUserIdentityId)) {
+                mainUserIdentity = userIdentity;
+                break;
+            }
+        }
     }
 
     private void loadRemoteStorageLinks() throws IOException, CryptoException {
@@ -244,6 +243,28 @@ public class Profile extends UserData {
             remoteStorageLinks.put(link.getDatabaseInterface(), link);
         }
     }
+
+    private void loadMailboxes() throws IOException, CryptoException {
+        String baseDir = "mailboxes";
+        List<String> mailboxes = storageDir.listDirectories(baseDir);
+
+        for (String mailboxId : mailboxes) {
+            UserDataRef ref = readRef(baseDir + "/" + mailboxId);
+            SecureStorageDir dir = new SecureStorageDir(storageDir, ref.basedir, true);
+            Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder());
+
+            mailboxList.add(mailbox);
+        }
+
+        String mainMailboxId = storageDir.readSecureString("main_mailbox");
+        for (Mailbox mailbox : mailboxList) {
+            if (mailbox.getUid().equals(mainMailboxId)) {
+                mainMailbox = mailbox;
+                break;
+            }
+        }
+    }
+
 
     private void writeRef(String path, StorageDir refTarget) throws IOException {
         IDatabaseInterface databaseInterface = refTarget.getDatabase();

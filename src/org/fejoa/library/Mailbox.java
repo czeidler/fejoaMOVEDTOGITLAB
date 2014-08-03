@@ -8,33 +8,25 @@
 package org.fejoa.library;
 
 
-import org.fejoa.library.crypto.Crypto;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
 
+import java.io.IOException;
 import java.security.KeyPair;
 
 public class Mailbox extends UserData {
     private ICryptoInterface crypto = Crypto.get();
 
     public Mailbox() {
-
-    }
-
-    public void create(IDatabaseInterface databaseInterface, final String baseDir, KeyStore keyStore, KeyId keyId)
-            throws Exception {
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
         uid = CryptoHelper.toHex(hashResult);
-
-        storageDir = new SecureStorageDir(databaseInterface, StorageDir.appendDir(baseDir, uid));
-
-        writeUserData(uid, storageDir, keyStore, keyId);
     }
 
-    public void open(IDatabaseInterface databaseInterface, final String baseDir, IKeyStoreFinder keyStoreFinder)
-            throws Exception {
-        readUserData(new SecureStorageDir(databaseInterface, baseDir), keyStoreFinder);
+    public Mailbox(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder) throws IOException, CryptoException {
+        readUserData(storageDir, keyStoreFinder);
+    }
+
+    public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
+        writeUserData(uid, storageDir);
     }
 }

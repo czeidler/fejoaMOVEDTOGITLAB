@@ -63,17 +63,18 @@ public class ContactPublic extends Contact {
         }
     }
 
-    public PublicKey getKey(String keyId) {
-        return keys.get(keyId).getPublic();
+    public PublicKey getPublicKey(KeyId keyId) {
+        return keys.get(keyId.getKeyId()).getPublic();
     }
 
     public void addKey(String keyId, PublicKey publicKey) {
         keys.put(keyId, new KeyPair(publicKey, null));
     }
 
-    public boolean verify(KeyId keyId, byte data[], byte signature[]) throws Exception {
+    @Override
+    public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
-        PublicKey publicKey = getKey(keyId.getKeyId());
+        PublicKey publicKey = getPublicKey(keyId);
         return crypto.verifySignature(data, signature, publicKey);
     }
 }

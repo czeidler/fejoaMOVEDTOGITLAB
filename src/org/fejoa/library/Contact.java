@@ -11,9 +11,10 @@ package org.fejoa.library;
 import org.fejoa.library.crypto.CryptoException;
 
 import java.io.IOException;
+import java.security.PublicKey;
 
 
-public class Contact {
+abstract public class Contact {
     protected String uid = "";
     protected String server = "";
     protected String serverUser = "";
@@ -43,6 +44,9 @@ public class Contact {
         server = storageDir.readSecureString("server");
         serverUser = storageDir.readSecureString("server_user");
     }
+
+    abstract public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException;
+    abstract public PublicKey getPublicKey(KeyId keyId);
 
     public String getAddress() {
         return serverUser + "@" + server;

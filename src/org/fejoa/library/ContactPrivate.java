@@ -13,6 +13,7 @@ import org.fejoa.library.crypto.ICryptoInterface;
 
 import java.io.IOException;
 import java.security.KeyPair;
+import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,8 @@ public class ContactPrivate extends Contact {
     }
 
     public KeyPair getKeyPair(String keyId) {
+        if (!keys.containsKey(keyId))
+            return null;
         return keys.get(keyId);
     }
 
@@ -98,5 +101,22 @@ public class ContactPrivate extends Contact {
         if (keyPair == null)
             throw new IllegalArgumentException();
         return crypto.sign(data, keyPair.getPrivate());
+    }
+
+    @Override
+    public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException {
+        if (!keys.containsKey(keyId.getKeyId()))
+            return false;
+        KeyPair keyPair = keys.get(keyId.getKeyId());
+        ICryptoInterface crypto = Crypto.get();
+        return crypto.verifySignature(data, signature, keyPair.getPublic());
+    }
+
+    @Override
+    public PublicKey getPublicKey(KeyId keyId) {
+        KeyPair keyPair = getKeyPair(keyId.getKeyId());
+        if (keyPair == null)
+            return null;
+        return keyPair.getPublic();
     }
 }

@@ -14,19 +14,10 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-class SignedParcel {
-    private String uid;
 
-    public String getUid() {
-        return uid;
-    }
 
-    public void setUid(String uid) {
-        this.uid = uid;
-    }
-}
-
-public class MessageChannelInfo extends SignedParcel {
+public class MessageChannelInfo {
+    private String uid = "";
     private String subject;
     private List<Participant> participants = new ArrayList<>();
 
@@ -34,6 +25,10 @@ public class MessageChannelInfo extends SignedParcel {
         public String address;
         public String uid;
     };
+
+    public String getUid() {
+        return uid;
+    }
 
     public void setSubject(String subject) {
         this.subject = subject;
@@ -59,7 +54,7 @@ public class MessageChannelInfo extends SignedParcel {
 
     class ParcelWriter implements IParcelEnvelopeWriter {
         @Override
-        public byte[] pack() throws IOException, CryptoException {
+        public byte[] pack(byte[] parcel) throws IOException, CryptoException {
             ByteArrayOutputStream packageData = new ByteArrayOutputStream();
             DataOutputStream stream = new DataOutputStream(packageData);
 
@@ -78,7 +73,7 @@ public class MessageChannelInfo extends SignedParcel {
 
     class ParcelReader implements IParcelEnvelopeReader {
         @Override
-        public byte[] unpack(byte[] parcel) throws Exception {
+        public byte[] unpack(byte[] parcel) throws IOException {
             PositionInputStream positionInputStream = new PositionInputStream(new ByteArrayInputStream(parcel));
             DataInputStream stream = new DataInputStream(positionInputStream);
 

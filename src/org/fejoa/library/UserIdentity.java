@@ -9,7 +9,6 @@ package org.fejoa.library;
 
 
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.database.IDatabaseInterface;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -59,6 +58,21 @@ public class UserIdentity extends UserData {
 
     public ContactPrivate getMyself() {
         return myself;
+    }
+
+    public IContactForKeyFinder getContactFinder() {
+        return new IContactForKeyFinder() {
+            @Override
+            public Contact find(String keyId) {
+                if (myself.getKeyPair(keyId) != null)
+                    return myself;
+                for (Contact contact : allContacts) {
+                    if (contact.getUid().equals(keyId))
+                        return contact;
+                }
+                return null;
+            }
+        };
     }
 
     private void writePublicSignature(String filename, String publicKey) throws IOException {

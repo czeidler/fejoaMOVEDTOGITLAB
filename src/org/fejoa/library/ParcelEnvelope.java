@@ -12,7 +12,6 @@ import org.fejoa.library.support.PositionInputStream;
 
 import javax.crypto.SecretKey;
 import java.io.*;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
@@ -45,7 +44,7 @@ class ParcelCrypto {
         return crypto.encryptSymmetric(data, key, iv);
     }
 
-    public byte[] uncloakData(byte cloakedData[]) throws Exception {
+    public byte[] uncloakData(byte cloakedData[]) throws CryptoException {
         return crypto.decryptSymmetric(cloakedData, key, iv);
     }
 
@@ -57,19 +56,19 @@ class ParcelCrypto {
         return key;
     }
 
-    public byte[] getEncryptedSymmetricKey(ContactPublic receiver, KeyId keyId) throws CryptoException {
-        PublicKey publicKey = receiver.getKey(keyId.getKeyId());
+    public byte[] getEncryptedSymmetricKey(Contact receiver, KeyId keyId) throws CryptoException {
+        PublicKey publicKey = receiver.getPublicKey(keyId);
         return crypto.encryptAsymmetric(key.getEncoded(), publicKey);
     }
 }
 
 
 interface IParcelEnvelopeWriter {
-    public byte[] pack() throws IOException, CryptoException;
+    public byte[] pack(byte[] parcel) throws IOException, CryptoException;
 }
 
 interface IParcelEnvelopeReader {
-    public byte[] unpack(byte parcel[]) throws Exception;
+    public byte[] unpack(byte[] parcel) throws IOException, CryptoException;
 }
 
 class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
@@ -95,7 +94,7 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
     }
 
     @Override
-    public byte[] pack() throws IOException, CryptoException {
+    public byte[] pack(byte[] parcel) throws IOException, CryptoException {
         /*
          Structure:
          - signature length int
@@ -111,9 +110,9 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
         stream.writeBytes(signatureKey + "\n");
 
         // write the data
-        byte outData[] = new byte[0];
+        byte outData[] = parcel;
         if (childWriter != null)
-            outData = childWriter.pack();
+            outData = childWriter.pack(parcel);
         uid = CryptoHelper.toHex(CryptoHelper.sha256Hash(outData));
 
         stream.writeInt(outData.length);
@@ -133,23 +132,22 @@ class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
 }
 
 class SignatureEnvelopeReader implements IParcelEnvelopeReader {
-    private SignedParcel signedParcel;
-    private IPublicContactFinder contactFinder;
+    private String uid = "";
+    private IContactForKeyFinder contactFinder;
     private IParcelEnvelopeReader childReader;
 
-    public SignatureEnvelopeReader(SignedParcel signedParcel, IPublicContactFinder contactFinder,
+    public SignatureEnvelopeReader(IContactForKeyFinder contactFinder,
                                    IParcelEnvelopeReader childReader) {
-        this.signedParcel = signedParcel;
         this.contactFinder = contactFinder;
         this.childReader = childReader;
     }
 
-    public SignedParcel getSignedParcel() {
-        return signedParcel;
+    public String getUid() {
+        return uid;
     }
 
     @Override
-    public byte[] unpack(byte[] parcel) throws Exception {
+    public byte[] unpack(byte[] parcel) throws IOException, CryptoException {
         PositionInputStream positionInputStream = new PositionInputStream(new ByteArrayInputStream(parcel));
         DataInputStream stream = new DataInputStream(positionInputStream);
 
@@ -169,18 +167,18 @@ class SignatureEnvelopeReader implements IParcelEnvelopeReader {
         String senderUid = readLine(signedDataStream);
         KeyId signatureKey = new KeyId(readLine(signedDataStream));
 
-        ContactPublic sender = contactFinder.find(senderUid);
+        Contact sender = contactFinder.find(senderUid);
         if (sender == null)
-            throw new Exception("contact not found");
+            throw new IOException("contact not found");
 
         int mainDataLength = signedDataStream.readInt();
         byte data[] = new byte[mainDataLength];
         signedDataStream.readFully(data, 0, mainDataLength);
-        signedParcel.setUid(CryptoHelper.toHex(CryptoHelper.sha1Hash(data)));
+        uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(data));
 
         // validate data
         if (!sender.verify(signatureKey, signatureHash.getBytes(), signature))
-            throw new Exception("can't be verified");
+            throw new IOException("can't be verified");
 
         if (childReader != null)
             return childReader.unpack(data);
@@ -200,13 +198,13 @@ class SignatureEnvelopeReader implements IParcelEnvelopeReader {
     }
 }
 
-class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
-    private ContactPublic receiver;
+class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
+    private Contact receiver;
     private KeyId asymmetricKeyId;
     private ParcelCrypto parcelCrypto;
     private IParcelEnvelopeWriter childWriter;
 
-    public SecureEnvelopeWriter(ContactPublic receiver, KeyId asymmetricKeyId, IParcelEnvelopeWriter childWriter)
+    public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, IParcelEnvelopeWriter childWriter)
             throws CryptoException {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
@@ -214,8 +212,8 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
         parcelCrypto = new ParcelCrypto();
     }
 
-    public SecureEnvelopeWriter(ContactPublic receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
-                                IParcelEnvelopeWriter childWriter) {
+    public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
+                                    IParcelEnvelopeWriter childWriter) {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
         this.parcelCrypto = parcelCrypto;
@@ -223,7 +221,7 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
     }
 
     @Override
-    public byte[] pack() throws CryptoException, IOException {
+    public byte[] pack(byte[] parcel) throws CryptoException, IOException {
         byte encryptedSymmetricKey[] = parcelCrypto.getEncryptedSymmetricKey(receiver, asymmetricKeyId);
 
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
@@ -242,29 +240,28 @@ class SecureEnvelopeWriter implements IParcelEnvelopeWriter{
         stream.write(iv, 0, iv.length);
 
         // encrypted data
-        byte outData[] = new byte[0];
+        byte outData[] = parcel;
         if (childWriter != null)
-            outData = childWriter.pack();
+            outData = childWriter.pack(parcel);
         byte encryptedData[] = parcelCrypto.cloakData(outData);
 
-        stream.writeInt(encryptedData.length);
         stream.write(encryptedData, 0, encryptedData.length);
 
         return packageData.toByteArray();
     }
 }
 
-class SecureEnvelopeReader implements IParcelEnvelopeReader {
+class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
     private ContactPrivate owner;
     private IParcelEnvelopeReader childReader;
 
-    public SecureEnvelopeReader(ContactPrivate owner, IParcelEnvelopeReader childReader) {
+    public SecureAsymEnvelopeReader(ContactPrivate owner, IParcelEnvelopeReader childReader) {
         this.owner = owner;
         this.childReader = childReader;
     }
 
     @Override
-    public byte[] unpack(byte[] parcel) throws Exception {
+    public byte[] unpack(byte[] parcel) throws IOException, CryptoException {
         PositionInputStream positionInputStream = new PositionInputStream(new ByteArrayInputStream(parcel));
         DataInputStream stream = new DataInputStream(positionInputStream);
 
@@ -287,6 +284,59 @@ class SecureEnvelopeReader implements IParcelEnvelopeReader {
         stream.readFully(encryptedData, 0, encryptedData.length);
 
         ParcelCrypto parcelCrypto = new ParcelCrypto(owner, asymmetricKeyId, iv, encryptedSymmetricKey);
+        byte data[] = parcelCrypto.uncloakData(encryptedData);
+        if (childReader != null)
+            return childReader.unpack(data);
+
+        return data;
+    }
+}
+
+
+class SecureSymEnvelopeWriter implements IParcelEnvelopeWriter {
+   private ParcelCrypto parcelCrypto;
+    private IParcelEnvelopeWriter childWriter;
+
+    public SecureSymEnvelopeWriter(ParcelCrypto parcelCrypto, IParcelEnvelopeWriter childWriter)
+            throws CryptoException {
+        this.childWriter = childWriter;
+        this.parcelCrypto = parcelCrypto;
+    }
+
+    @Override
+    public byte[] pack(byte[] parcel) throws CryptoException, IOException {
+        ByteArrayOutputStream packageData = new ByteArrayOutputStream();
+        DataOutputStream stream = new DataOutputStream(packageData);
+
+        // encrypted data
+        byte outData[] = parcel;
+        if (childWriter != null)
+            outData = childWriter.pack(parcel);
+        byte encryptedData[] = parcelCrypto.cloakData(outData);
+
+        stream.write(encryptedData, 0, encryptedData.length);
+
+        return packageData.toByteArray();
+    }
+}
+
+class SecureSymEnvelopeReader implements IParcelEnvelopeReader {
+    private ParcelCrypto parcelCrypto;
+    private IParcelEnvelopeReader childReader;
+
+    public SecureSymEnvelopeReader(ParcelCrypto parcelCrypto, IParcelEnvelopeReader childReader) {
+        this.parcelCrypto = parcelCrypto;
+        this.childReader = childReader;
+    }
+
+    @Override
+    public byte[] unpack(byte[] parcel) throws IOException, CryptoException {
+        DataInputStream stream = new DataInputStream(new ByteArrayInputStream(parcel));
+
+        // encrypted data
+        byte encryptedData[] = new byte[parcel.length];
+        stream.readFully(encryptedData, 0, encryptedData.length);
+
         byte data[] = parcelCrypto.uncloakData(encryptedData);
         if (childReader != null)
             return childReader.unpack(data);

@@ -16,31 +16,19 @@ import org.fejoa.library.remote.RemoteStorageLink;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-/*
-Profile
-refs
--- mailboxes
--- keystores
--- contacts
-
-Mailbox
---encryptkeyid
-
-MailboxBranches
-*/
 
 
 interface IKeyStoreFinder {
     public KeyStore find(String keyStoreId);
 }
 
-interface IPublicContactFinder {
-    public ContactPublic find(String id);
+interface IContactForKeyFinder {
+    public Contact find(String keyId);
 }
 
 public class Profile extends UserData {
@@ -86,7 +74,8 @@ public class Profile extends UserData {
 
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
-        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "key_stores");
+        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+                "key_stores");
         keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
 
@@ -96,7 +85,8 @@ public class Profile extends UserData {
         storageDir.setTo(keyStore, keyId);
 
         UserIdentity userIdentity = new UserIdentity();
-        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "user_identities");
+        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+                "user_identities");
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
         userIdDir.setTo(keyStore, keyId);
         userIdentity.write(userIdDir);
@@ -105,7 +95,8 @@ public class Profile extends UserData {
         storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
         Mailbox mailbox = new Mailbox();
-        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(), "mailboxes");
+        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+                "mailboxes");
         SecureStorageDir mailboxDir = new SecureStorageDir(storageDir, mailbox.getUid());
         mailbox.write(mailboxDir);
         addAndWriteMailbox(mailbox);
@@ -264,7 +255,6 @@ public class Profile extends UserData {
             }
         }
     }
-
 
     private void writeRef(String path, StorageDir refTarget) throws IOException {
         IDatabaseInterface databaseInterface = refTarget.getDatabase();

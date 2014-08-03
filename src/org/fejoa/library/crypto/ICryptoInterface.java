@@ -7,9 +7,6 @@
  */
 package org.fejoa.library.crypto;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import java.security.*;
 

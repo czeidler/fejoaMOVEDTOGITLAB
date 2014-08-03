@@ -48,6 +48,7 @@ class MyGenericScheduledExecutorService {
     }
 }
 
+
 public class RequestQueue {
     interface IIdleJob {
         public Observable getObservable();
@@ -58,13 +59,7 @@ public class RequestQueue {
         private final ExecutorService executor;
 
         private EventLoopScheduler() {
-            executor = Executors.newFixedThreadPool(1, new ThreadFactory() {
-
-                @Override
-                public Thread newThread(Runnable r) {
-                    return new Thread(r, "EventLoopScheduler-");
-                }
-            });
+            executor = Executors.newSingleThreadExecutor();
         }
 
         @Override

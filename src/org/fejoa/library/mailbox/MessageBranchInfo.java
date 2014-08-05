@@ -5,8 +5,9 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library;
+package org.fejoa.library.mailbox;
 
+import org.fejoa.library.UserIdentity;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.PositionInputStream;
 
@@ -15,19 +16,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-
-public class MessageChannelInfo {
+public class MessageBranchInfo {
     private String uid = "";
     private String subject;
     private List<Participant> participants = new ArrayList<>();
+    private boolean newlyCreated = true;
 
     public class Participant {
         public String address;
         public String uid;
     };
 
+
+    public MessageBranchInfo() {
+
+    }
+
+    public void load(UserIdentity identity, byte[] pack) throws IOException, CryptoException {
+        newlyCreated = false;
+
+        ParcelReader branchInfoReader =  new ParcelReader();
+        SecureAsymEnvelopeReader secureEnvelopeReader = new SecureAsymEnvelopeReader(identity.getMyself(),
+                branchInfoReader);
+        SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
+                secureEnvelopeReader);
+
+        signatureReader.unpack(pack);
+    }
+
     public String getUid() {
         return uid;
+    }
+
+    public boolean isNewlyCreated() {
+        return newlyCreated;
     }
 
     public void setSubject(String subject) {

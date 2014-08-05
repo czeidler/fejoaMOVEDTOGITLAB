@@ -7,7 +7,6 @@
  */
 package org.fejoa.library;
 
-import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.database.JGitInterface;
 
 import java.io.IOException;
@@ -23,13 +22,9 @@ public class SecureStorageDirBucket {
 
     }
 
-    static private void init() {
-        instance = new SecureStorageDirBucket();
-    }
-
     static public SecureStorageDir get(String path, String branch) throws IOException {
         if (instance == null)
-            init();
+            instance = new SecureStorageDirBucket();
         return instance.getPrivate(path, branch);
     }
 

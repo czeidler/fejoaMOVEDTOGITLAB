@@ -9,6 +9,7 @@ package org.fejoa.library;
 
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
+import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.remote.IRemoteRequest;
 import org.fejoa.library.remote.RemoteConnection;
 import org.fejoa.library.remote.RemoteRequestFactory;
@@ -16,20 +17,11 @@ import org.fejoa.library.remote.RemoteStorageLink;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
-interface IKeyStoreFinder {
-    public KeyStore find(String keyStoreId);
-}
-
-interface IContactForKeyFinder {
-    public Contact find(String keyId);
-}
 
 public class Profile extends UserData {
     final private List<KeyStore> keyStoreList = new ArrayList<>();
@@ -94,7 +86,7 @@ public class Profile extends UserData {
         mainUserIdentity = userIdentity;
         storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
-        Mailbox mailbox = new Mailbox();
+        Mailbox mailbox = new Mailbox(mainUserIdentity);
         SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
                 "mailboxes");
         SecureStorageDir mailboxDir = new SecureStorageDir(storageDir, mailbox.getUid());
@@ -148,6 +140,19 @@ public class Profile extends UserData {
 
     public IKeyStoreFinder getKeyStoreFinder() {
         return new KeyStoreFinder(keyStoreList);
+    }
+
+    public IUserIdentityFinder getUserIdentityFinder() {
+        return new IUserIdentityFinder() {
+            @Override
+            public UserIdentity find(String uid) {
+                for (UserIdentity userIdentity : getUserIdentityList()) {
+                    if (userIdentity.getUid().equals(uid))
+                        return userIdentity;
+                }
+                return null;
+            }
+        };
     }
 
     public List<UserIdentity> getUserIdentityList() {
@@ -242,7 +247,7 @@ public class Profile extends UserData {
         for (String mailboxId : mailboxes) {
             UserDataRef ref = readRef(baseDir + "/" + mailboxId);
             SecureStorageDir dir = new SecureStorageDir(storageDir, ref.basedir, true);
-            Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder());
+            Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder(), getUserIdentityFinder());
 
             mailboxList.add(mailbox);
         }

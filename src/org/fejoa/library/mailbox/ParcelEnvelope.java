@@ -5,8 +5,12 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library;
+package org.fejoa.library.mailbox;
 
+import org.fejoa.library.Contact;
+import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.IContactForKeyFinder;
+import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.support.PositionInputStream;
 

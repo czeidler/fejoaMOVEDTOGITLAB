@@ -30,8 +30,7 @@ import java.security.PublicKey;
 public abstract class Channel {
     private String branchName;
     // used to encrypt/decrypt data in the channel
-    private byte[] iv;
-    private SecretKey symmetricKey;
+    private ParcelCrypto parcelCrypto;
     // used to verify that user is allowed to get access to the channel data
     private PrivateKey signatureKey;
     protected PublicKey signatureKeyPublic;
@@ -51,6 +50,8 @@ public abstract class Channel {
                 secureEnvelopeReader);
 
         signatureReader.unpack(pack);
+
+        parcelCrypto = secureEnvelopeReader.getParcelCrypto();
     }
 
     protected void create() throws CryptoException {
@@ -58,8 +59,7 @@ public abstract class Channel {
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
         branchName = CryptoHelper.toHex(hashResult);
 
-        iv = crypto.generateInitializationVector(CryptoSettings.SYMMETRIC_KEY_IV_SIZE);
-        symmetricKey = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
+        parcelCrypto = new ParcelCrypto();
 
         KeyPair keyPair = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
         signatureKey = keyPair.getPrivate();
@@ -70,10 +70,14 @@ public abstract class Channel {
         return branchName;
     }
 
+    public ParcelCrypto getParcelCrypto() {
+        return parcelCrypto;
+    }
+
     protected byte[] pack(ContactPrivate sender, KeyId senderKey, Contact receiver, KeyId receiverKey)
             throws CryptoException, IOException {
         ChannelBranchWriter channelBranchWriter = new ChannelBranchWriter();
-        SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey,
+        SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey, parcelCrypto,
                 channelBranchWriter);
         SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKey,
                 asymEnvelopeWriter);
@@ -89,14 +93,7 @@ public abstract class Channel {
 
             stream.writeBytes(branchName + "\n");
 
-            stream.writeInt(iv.length);
-            stream.write(iv, 0, iv.length);
-
-            byte[] raw = symmetricKey.getEncoded();
-            stream.writeInt(raw.length);
-            stream.write(raw, 0, raw.length);
-
-            raw = CryptoHelper.convertToPEM(signatureKey).getBytes();
+            byte[] raw = CryptoHelper.convertToPEM(signatureKey).getBytes();
             stream.writeInt(raw.length);
             stream.write(raw, 0, raw.length);
 
@@ -112,19 +109,9 @@ public abstract class Channel {
 
             branchName = stream.readLine();
 
-            int length = stream.readInt();
-            iv = new byte[length];
-            stream.readFully(iv, 0, iv.length);
-
-            // sym key
-            length = stream.readInt();
-            byte[] raw = new byte[length];
-            stream.readFully(raw, 0, raw.length);
-            symmetricKey = CryptoHelper.symmetricKeyFromRaw(raw);
-
             // signature key
-            length = stream.readInt();
-            raw = new byte[length];
+            int length = stream.readInt();
+            byte[] raw = new byte[length];
             stream.readFully(raw, 0, raw.length);
             signatureKey = CryptoHelper.privateKeyFromPem(new String(raw));
 

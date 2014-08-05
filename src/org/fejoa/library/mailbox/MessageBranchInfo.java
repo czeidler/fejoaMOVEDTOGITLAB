@@ -7,7 +7,7 @@
  */
 package org.fejoa.library.mailbox;
 
-import org.fejoa.library.UserIdentity;
+import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.PositionInputStream;
 
@@ -28,20 +28,27 @@ public class MessageBranchInfo {
     };
 
 
-    public MessageBranchInfo() {
-
-    }
-
-    public void load(UserIdentity identity, byte[] pack) throws IOException, CryptoException {
+    public void load(ParcelCrypto parcelCrypto, UserIdentity identity, byte[] pack) throws IOException,
+            CryptoException {
         newlyCreated = false;
 
         ParcelReader branchInfoReader =  new ParcelReader();
-        SecureAsymEnvelopeReader secureEnvelopeReader = new SecureAsymEnvelopeReader(identity.getMyself(),
-                branchInfoReader);
+        SecureSymEnvelopeReader secureSymEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto, branchInfoReader);
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
-                secureEnvelopeReader);
+                secureSymEnvelopeReader);
 
         signatureReader.unpack(pack);
+    }
+
+    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey)
+            throws CryptoException, IOException {
+        ParcelWriter parcelWriter = new ParcelWriter();
+
+        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto, parcelWriter);
+        SignatureEnvelopeWriter signatureEnvelopeWriter
+                = new SignatureEnvelopeWriter(sender, senderKey, secureSymEnvelopeWriter);
+
+        return signatureEnvelopeWriter.pack(null);
     }
 
     public String getUid() {

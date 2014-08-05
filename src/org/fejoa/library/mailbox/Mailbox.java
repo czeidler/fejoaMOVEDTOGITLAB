@@ -9,23 +9,21 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class Mailbox extends UserData {
     public interface Listener {
-        public void onBranchAdded(MessageBranch branch);
+        public void onMessageChannelAdded(MessageChannel branch);
     }
 
     final private WeakListenable<Listener> mailboxListeners = new WeakListenable();
     final private ICryptoInterface crypto = Crypto.get();
-    final private List<MessageBranch> messageBranches = new ArrayList<>();
+    final private List<MessageChannel> messageChannels = new ArrayList<>();
     final private UserIdentity userIdentity;
 
     public Mailbox(UserIdentity userIdentity) {
@@ -42,7 +40,7 @@ public class Mailbox extends UserData {
         String userIdentityId = storageDir.readSecureString("user_identity");
         userIdentity = userIdentityFinder.find(userIdentityId);
 
-        loadMessageBranches();
+        loadMessageChannels();
     }
 
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
@@ -51,33 +49,32 @@ public class Mailbox extends UserData {
         storageDir.writeSecureString("user_identity", userIdentity.getUid());
     }
 
-    private void loadMessageBranches() throws IOException, CryptoException {
-        List<String> branches = storageDir.listDirectories("");
-        for (String branch : branches) {
-            SecureStorageDir branchStorage = new SecureStorageDir(storageDir, branch);
-            MessageBranch messageBranch = new MessageBranch();
-            messageBranch.load(branchStorage, userIdentity);
+    private void loadMessageChannels() throws IOException, CryptoException {
+        List<String> channels = storageDir.listDirectories("");
+        for (String channel : channels) {
+            SecureStorageDir channelStorage = new SecureStorageDir(storageDir, channel);
+            MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
 
-            addBranchToList(messageBranch);
+            addChannelToList(messageChannel);
         }
     }
 
-    public void addBranch(MessageBranch messageBranch) throws CryptoException, IOException {
-        SecureStorageDir dir = new SecureStorageDir(storageDir, messageBranch.getBranchName());
+    public void addBranch(MessageChannel messageChannel) throws CryptoException, IOException {
+        SecureStorageDir dir = new SecureStorageDir(storageDir, messageChannel.getBranchName());
 
         ContactPrivate myself = userIdentity.getMyself();
-        messageBranch.write(dir, myself, myself.getMainKeyId());
+        messageChannel.write(dir, myself, myself.getMainKeyId());
 
-        addBranchToList(messageBranch);
+        addChannelToList(messageChannel);
     }
 
-    private void addBranchToList(MessageBranch messageBranch) {
-        messageBranches.add(messageBranch);
-        notifyOnBranchAdded(messageBranch);
+    private void addChannelToList(MessageChannel messageChannel) {
+        messageChannels.add(messageChannel);
+        notifyOnBranchAdded(messageChannel);
     }
 
-    private void notifyOnBranchAdded(MessageBranch branch) {
+    private void notifyOnBranchAdded(MessageChannel messageChannel) {
         for (Listener listener : mailboxListeners.getListeners())
-            listener.onBranchAdded(branch);
+            listener.onMessageChannelAdded(messageChannel);
     }
 }

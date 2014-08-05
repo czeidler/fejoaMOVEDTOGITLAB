@@ -208,20 +208,16 @@ class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
     private ParcelCrypto parcelCrypto;
     private IParcelEnvelopeWriter childWriter;
 
-    public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, IParcelEnvelopeWriter childWriter)
-            throws CryptoException {
-        this.receiver = receiver;
-        this.asymmetricKeyId = asymmetricKeyId;
-        this.childWriter = childWriter;
-        parcelCrypto = new ParcelCrypto();
-    }
-
     public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
                                     IParcelEnvelopeWriter childWriter) {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
         this.parcelCrypto = parcelCrypto;
         this.childWriter = childWriter;
+    }
+
+    public ParcelCrypto getParcelCrypto() {
+        return parcelCrypto;
     }
 
     @Override
@@ -257,11 +253,16 @@ class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
 
 class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
     private ContactPrivate owner;
+    private ParcelCrypto parcelCrypto;
     private IParcelEnvelopeReader childReader;
 
     public SecureAsymEnvelopeReader(ContactPrivate owner, IParcelEnvelopeReader childReader) {
         this.owner = owner;
         this.childReader = childReader;
+    }
+
+    public ParcelCrypto getParcelCrypto() {
+        return parcelCrypto;
     }
 
     @Override
@@ -287,7 +288,7 @@ class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
         byte encryptedData[] = new byte[parcel.length - position];
         stream.readFully(encryptedData, 0, encryptedData.length);
 
-        ParcelCrypto parcelCrypto = new ParcelCrypto(owner, asymmetricKeyId, iv, encryptedSymmetricKey);
+        parcelCrypto = new ParcelCrypto(owner, asymmetricKeyId, iv, encryptedSymmetricKey);
         byte data[] = parcelCrypto.uncloakData(encryptedData);
         if (childReader != null)
             return childReader.unpack(data);

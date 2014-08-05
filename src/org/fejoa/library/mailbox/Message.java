@@ -15,43 +15,41 @@ import java.io.*;
 
 
 public class Message {
+    private String uid;
     private String body;
+
+    public String getUid() {
+        return uid;
+    }
 
     public String getBody() {
         return body;
     }
 
-    public void load(SecureStorageDir dir, UserIdentity userIdentity) throws IOException, CryptoException {
-        byte[] pack = dir.readBytes("m");
-        unpack(userIdentity, pack);
-    }
-
-    public void write(SecureStorageDir dir, ContactPrivate sender, KeyId senderKeyId, ContactPublic receiver,
-                      KeyId receiverKey) throws IOException, CryptoException {
-        byte[] pack = pack(sender, senderKeyId, receiver, receiverKey);
-
-        dir.writeBytes("m", pack);
-    }
-
-    private byte[] unpack(UserIdentity identity, byte[] pack) throws IOException, CryptoException {
+    public void load(ParcelCrypto parcelCrypto, UserIdentity identity, byte[] pack) throws IOException,
+            CryptoException {
         MessageEnvelopeReader messageEnvelopeReader =  new MessageEnvelopeReader();
-        SecureAsymEnvelopeReader secureEnvelopeReader = new SecureAsymEnvelopeReader(identity.getMyself(),
+
+        SecureSymEnvelopeReader secureEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto,
                 messageEnvelopeReader);
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
                 secureEnvelopeReader);
 
-        return signatureReader.unpack(pack);
+        byte[] result = signatureReader.unpack(pack);
+        uid = signatureReader.getUid();
     }
 
-    private byte[] pack(ContactPrivate sender, KeyId senderKeyId, ContactPublic receiver, KeyId receiverKey)
-            throws CryptoException, IOException {
-
+    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKeyId) throws IOException,
+            CryptoException {
         MessageEnvelopeWriter messageEnvelopeWriter = new MessageEnvelopeWriter(this);
-        SecureAsymEnvelopeWriter secureAsymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey,
+
+        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
                 messageEnvelopeWriter);
         SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKeyId, secureAsymEnvelopeWriter);
-        return signatureEnvelopeWriter.pack(null);
+                = new SignatureEnvelopeWriter(sender, senderKeyId, secureSymEnvelopeWriter);
+        byte[] result = signatureEnvelopeWriter.pack(null);
+        uid = signatureEnvelopeWriter.getUid();
+        return result;
     }
 
     class MessageEnvelopeWriter implements IParcelEnvelopeWriter{

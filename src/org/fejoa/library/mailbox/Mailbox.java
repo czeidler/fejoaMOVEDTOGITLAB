@@ -13,18 +13,44 @@ import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class Mailbox extends UserData {
+
     public interface Listener {
-        public void onMessageChannelAdded(MessageChannel branch);
+        public void onMessageChannelAdded(MessageChannelRef branch);
     }
 
     final private WeakListenable<Listener> mailboxListeners = new WeakListenable();
     final private ICryptoInterface crypto = Crypto.get();
-    final private List<MessageChannel> messageChannels = new ArrayList<>();
+    final private List<MessageChannelRef> messageChannels = new ArrayList<>();
     final private UserIdentity userIdentity;
+
+    final private int CACHE_SIZE = 10;
+    final private Map messageChannelCache = new LinkedHashMap<String, MessageChannel>(CACHE_SIZE + 1, .75F, true) {
+            // This method is called just after a new entry has been added
+            public boolean removeEldestEntry (Map.Entry eldest){
+                return size() > CACHE_SIZE;
+            }
+        };
+
+    class MessageChannelRef {
+        final private String channelUid;
+
+        public MessageChannelRef(String channel) {
+            this.channelUid = channel;
+        }
+
+        public MessageChannel get() throws IOException, CryptoException {
+            MessageChannel channel = (MessageChannel)messageChannelCache.get(channelUid);
+            if (channel != null)
+                return channel;
+            return loadMessageChannel(channelUid);
+        }
+    }
 
     public Mailbox(UserIdentity userIdentity) {
         this.userIdentity = userIdentity;
@@ -50,31 +76,40 @@ public class Mailbox extends UserData {
     }
 
     private void loadMessageChannels() throws IOException, CryptoException {
-        List<String> channels = storageDir.listDirectories("");
-        for (String channel : channels) {
-            SecureStorageDir channelStorage = new SecureStorageDir(storageDir, channel);
-            MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
-
-            addChannelToList(messageChannel);
+        List<String> part1List = storageDir.listDirectories("");
+        for (String part1 : part1List) {
+            for (String part2 : storageDir.listDirectories(part1))
+                addChannelToList(new MessageChannelRef(part1 + part2));
         }
     }
 
-    public void addBranch(MessageChannel messageChannel) throws CryptoException, IOException {
-        SecureStorageDir dir = new SecureStorageDir(storageDir, messageChannel.getBranchName());
+    private MessageChannel loadMessageChannel(String channelId) throws IOException, CryptoException {
+        SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
+                channelId.substring(0, 1) + "/" + channelId.substring(2));
+        MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
+
+        return messageChannel;
+    }
+
+    public void addMessageChannel(MessageChannel messageChannel) throws CryptoException, IOException {
+        String branchName = messageChannel.getBranchName();
+        SecureStorageDir dir = new SecureStorageDir(storageDir,
+                branchName.substring(0, 1) + "/" + branchName.substring(2));
 
         ContactPrivate myself = userIdentity.getMyself();
         messageChannel.write(dir, myself, myself.getMainKeyId());
+        messageChannelCache.put(branchName, messageChannel);
 
-        addChannelToList(messageChannel);
+        addChannelToList(new MessageChannelRef(branchName));
     }
 
-    private void addChannelToList(MessageChannel messageChannel) {
-        messageChannels.add(messageChannel);
-        notifyOnBranchAdded(messageChannel);
+    private void addChannelToList(MessageChannelRef messageChannelRef) {
+        messageChannels.add(messageChannelRef);
+        notifyOnBranchAdded(messageChannelRef);
     }
 
-    private void notifyOnBranchAdded(MessageChannel messageChannel) {
+    private void notifyOnBranchAdded(MessageChannelRef messageChannelRef) {
         for (Listener listener : mailboxListeners.getListeners())
-            listener.onMessageChannelAdded(messageChannel);
+            listener.onMessageChannelAdded(messageChannelRef);
     }
 }

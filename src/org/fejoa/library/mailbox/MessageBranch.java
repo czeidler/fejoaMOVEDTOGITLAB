@@ -10,6 +10,7 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
 import java.security.PublicKey;
@@ -58,7 +59,11 @@ class MessageChannel extends Channel {
 }
 
 
-public class MessageBranch {
+public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
+    public interface IListener {
+        public void onMessageAdded(Message message);
+    }
+
     private ParcelCrypto parcelCrypto;
     private MessageBranchInfo messageBranchInfo;
     private List<Message> messages = new ArrayList<>();
@@ -126,6 +131,11 @@ public class MessageBranch {
 
     private void addMessageToList(Message message) {
         messages.add(message);
+        notifyMessageAdded(message);
     }
 
+    private void notifyMessageAdded(Message message) {
+        for (IListener listener : getListeners())
+            listener.onMessageAdded(message);
+    }
 }

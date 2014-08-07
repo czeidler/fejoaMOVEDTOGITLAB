@@ -21,7 +21,7 @@ import java.util.Map;
 public class Mailbox extends UserData {
 
     public interface Listener {
-        public void onMessageChannelAdded(MessageChannelRef branch);
+        public void onMessageChannelAdded(MessageChannelRef channelRef);
     }
 
     final private WeakListenable<Listener> mailboxListeners = new WeakListenable();
@@ -37,7 +37,7 @@ public class Mailbox extends UserData {
             }
         };
 
-    class MessageChannelRef {
+    public class MessageChannelRef {
         final private String channelUid;
 
         public MessageChannelRef(String channel) {
@@ -67,6 +67,14 @@ public class Mailbox extends UserData {
         userIdentity = userIdentityFinder.find(userIdentityId);
 
         loadMessageChannels();
+    }
+
+    public int getNumberOfMessageChannels() {
+        return messageChannels.size();
+    }
+
+    public MessageChannelRef getMessageChannel(int index) {
+        return messageChannels.get(index);
     }
 
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {

@@ -18,15 +18,34 @@ import rx.concurrency.Schedulers;
 import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.*;
 
 
 public class MainWindow extends JDialog {
     private JPanel contentPane;
-    private JList list1;
-    private JButton newMessageButton;
     private JLabel statusLabel;
+    private JList messageChannelList;
+    private JButton newMessageButton;
+    private JButton sendButton;
+    private JPanel threadPanel;
+    private JPanel messageCardPanel;
+    private JPanel channelsPanel;
+    private SendMessageFrame sendMessageObject;
     final private Profile profile;
+
+    private void setupSendMessage() {
+        sendButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+
+            }
+        });
+    }
+
+    private void setStatus(String status) {
+        statusLabel.setText(status);
+    }
 
     public MainWindow(Profile profile) {
         this.profile = profile;
@@ -34,6 +53,10 @@ public class MainWindow extends JDialog {
         setContentPane(contentPane);
         setModal(true);
 
+        messageChannelList.setModel(new MessageChannelAdapter(profile.getMainMailbox()));
+
+        sendMessageObject = new SendMessageFrame();
+        messageCardPanel.add(sendMessageObject.getPanel(), "new message");
 
         // call onCancel() when cross is clicked
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -46,13 +69,18 @@ public class MainWindow extends JDialog {
                 start();
             }
         });
+
+        setupSendMessage();
     }
 
     private void start() {
-        statusLabel.setText("start auth");
+        setStatus("start auth");
 
         ContactPrivate myself = profile.getUserIdentityList().get(0).getMyself();
-        RemoteConnection remoteConnection = new RemoteConnection(new HTMLRequest("http://localhost/php_server/portal.php"));
+        String server = myself.getServer();
+        String fullAddress = "http://" + server + "/php_server/portal.php";
+
+        RemoteConnection remoteConnection = new RemoteConnection(new HTMLRequest(fullAddress));
         remoteConnection.requestAuthentication(myself, "lec")
                 .subscribeOn(Schedulers.threadPoolForIO())
                 .observeOn(SwingScheduler.getInstance())
@@ -60,31 +88,31 @@ public class MainWindow extends JDialog {
                     boolean connected = false;
                     @Override
                     public void onCompleted() {
-                        statusLabel.setText("auth done: " + connected);
+                        setStatus("auth done: " + connected);
                         if (connected)
                             startSync();
                     }
 
                     @Override
                     public void onError(Throwable throwable) {
-                        statusLabel.setText("auth failed");
+                        setStatus("auth failed");
                     }
 
                     @Override
                     public void onNext(Boolean connected) {
                         this.connected = connected;
                         if (connected)
-                            statusLabel.setText("auth ok");
+                            setStatus("auth ok");
                         else
-                            statusLabel.setText("auth failed");
+                            setStatus("auth failed");
                     }
                 });
     }
 
     private void startSync() {
-        statusLabel.setText("start sync");
+        setStatus("start sync");
 
-        RemoteStorageLink link = profile.getRemoteStorageLinks().values().iterator().next();
+        final RemoteStorageLink link = profile.getRemoteStorageLinks().values().iterator().next();
         ServerSync serverSync = new ServerSync(link);
         serverSync.sync()
                 .subscribeOn(Schedulers.threadPoolForIO())
@@ -97,15 +125,15 @@ public class MainWindow extends JDialog {
 
                     @Override
                     public void onError(Throwable throwable) {
-                        statusLabel.setText("sync error");
+                        setStatus("sync error");
                     }
 
                     @Override
                     public void onNext(Boolean connected) {
                         if (connected)
-                            statusLabel.setText("sync ok");
+                            setStatus("sync ok: " + link.getDatabaseInterface().getBranch().toString());
                         else
-                            statusLabel.setText("sync failed");
+                            setStatus("sync failed");
                     }
                 });
     }

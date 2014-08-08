@@ -60,6 +60,10 @@ public class Profile extends UserData {
         return mainUserIdentity;
     }
 
+    public Mailbox getMainMailbox() {
+        return mainMailbox;
+    }
+
     public void createNew(String password) throws IOException, CryptoException {
         ICryptoInterface crypto = Crypto.get();
         uid = CryptoHelper.toHex(crypto.generateInitializationVector(20));

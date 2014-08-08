@@ -22,6 +22,10 @@ public class Message {
         return uid;
     }
 
+    public void setBody(String body) {
+        this.body = body;
+    }
+
     public String getBody() {
         return body;
     }

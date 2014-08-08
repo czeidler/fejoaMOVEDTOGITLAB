@@ -42,11 +42,13 @@ public class MessageBranchInfo {
 
     public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey)
             throws CryptoException, IOException {
-        ParcelWriter parcelWriter = new ParcelWriter();
+
 
         SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto, parcelWriter);
         SignatureEnvelopeWriter signatureEnvelopeWriter
                 = new SignatureEnvelopeWriter(sender, senderKey, secureSymEnvelopeWriter);
+
+        ParcelWriter parcelWriter = new ParcelWriter();
 
         return signatureEnvelopeWriter.pack(null);
     }

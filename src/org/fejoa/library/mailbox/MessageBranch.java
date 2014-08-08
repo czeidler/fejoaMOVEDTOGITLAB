@@ -28,12 +28,31 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
 
     private UserIdentity identity;
 
-    public MessageBranch(SecureStorageDir dir, UserIdentity identity, ParcelCrypto parcelCrypto) throws IOException,
+    static public MessageBranch createNewMessageBranch(SecureStorageDir messageStorage, UserIdentity identity,
+                                                   ParcelCrypto parcelCrypto) throws IOException, CryptoException {
+        return new MessageBranch(messageStorage, identity, parcelCrypto);
+    }
+
+    static public MessageBranch loadMessageBranch(SecureStorageDir messageStorage, UserIdentity identity,
+                                                  ParcelCrypto parcelCrypto) throws IOException, CryptoException {
+        MessageBranch messageBranch = new MessageBranch(messageStorage, identity, parcelCrypto);
+        messageBranch.load();
+        return messageBranch;
+    }
+
+    private MessageBranch(SecureStorageDir messageStorage, UserIdentity identity, ParcelCrypto parcelCrypto)
+            throws IOException,
             CryptoException {
-        messageStorage = dir;
+        this.messageStorage = messageStorage;
         this.identity = identity;
         this.parcelCrypto = parcelCrypto;
+    }
 
+    public void commit() throws IOException {
+        messageStorage.commit();
+    }
+
+    private void load() throws IOException, CryptoException {
         loadMessageBranchInfo();
         loadMessages();
     }
@@ -53,6 +72,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         info.load(parcelCrypto, identity, pack);
 
         messageBranchInfo = info;
+    }
+
+    public int getNumberOfMessages() {
+        return messages.size();
     }
 
     public void addMessage(Message message) throws IOException, CryptoException {

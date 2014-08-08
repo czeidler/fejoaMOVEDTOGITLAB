@@ -19,11 +19,11 @@ public class MessageChannel extends Channel {
     private MessageBranch branch;
 
     // create new
-    public MessageChannel(String messageBranchPath, UserIdentity identity) throws CryptoException, IOException {
+    public MessageChannel(String branchDatabasePath, UserIdentity identity) throws CryptoException, IOException {
         create();
 
-        SecureStorageDir branchStorage = SecureStorageDirBucket.get(messageBranchPath, getBranchName());
-        branch = new MessageBranch(branchStorage, identity, getParcelCrypto());
+        SecureStorageDir branchStorage = SecureStorageDirBucket.get(branchDatabasePath, getBranchName());
+        branch = MessageBranch.createNewMessageBranch(branchStorage, identity, getParcelCrypto());
     }
 
     // load
@@ -51,6 +51,6 @@ public class MessageChannel extends Channel {
         String databasePath = dir.readSecureString("database_path");
         SecureStorageDir messageStorage = SecureStorageDirBucket.get(databasePath, getBranchName());
 
-        branch = new MessageBranch(messageStorage, identity, getParcelCrypto());
+        branch = MessageBranch.loadMessageBranch(messageStorage, identity, getParcelCrypto());
     }
 }

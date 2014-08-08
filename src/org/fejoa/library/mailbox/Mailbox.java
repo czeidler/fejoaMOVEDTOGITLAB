@@ -9,7 +9,15 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.support.FejoaSchedulers;
+import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
+import rx.Observable;
+import rx.Observer;
+import rx.Scheduler;
+import rx.Subscription;
+import rx.observables.ConnectableObservable;
+import rx.subscriptions.Subscriptions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,25 +38,46 @@ public class Mailbox extends UserData {
     final private UserIdentity userIdentity;
 
     final private int CACHE_SIZE = 10;
-    final private Map messageChannelCache = new LinkedHashMap<String, MessageChannel>(CACHE_SIZE + 1, .75F, true) {
+    final private Map<String, MessageChannel> messageChannelCache = new LinkedHashMap(CACHE_SIZE + 1, .75F, true) {
             // This method is called just after a new entry has been added
             public boolean removeEldestEntry (Map.Entry eldest){
                 return size() > CACHE_SIZE;
             }
         };
 
-    public class MessageChannelRef {
+    public void clearMessageChannelCache() {
+        messageChannelCache.clear();
+    }
+
+    public class MessageChannelRef extends ObservableGetter<MessageChannel> {
         final private String channelUid;
 
         public MessageChannelRef(String channel) {
             this.channelUid = channel;
         }
 
-        public MessageChannel get() throws IOException, CryptoException {
-            MessageChannel channel = (MessageChannel)messageChannelCache.get(channelUid);
-            if (channel != null)
-                return channel;
-            return loadMessageChannel(channelUid);
+        @Override
+        protected Observable<MessageChannel> createWorker() {
+            return Observable.create(new Observable.OnSubscribeFunc<MessageChannel>() {
+                @Override
+                public Subscription onSubscribe(Observer<? super MessageChannel> observer) {
+                    MessageChannel channel = null;
+                    try {
+                        channel = loadMessageChannel(channelUid);
+                    } catch (Exception e) {
+                        observer.onError(e);
+                    }
+
+                    observer.onNext(channel);
+                    observer.onCompleted();
+                    return Subscriptions.empty();
+                }
+            });
+        }
+
+        @Override
+        protected MessageChannel getCached() {
+            return messageChannelCache.get(channelUid);
         }
     }
 
@@ -67,6 +96,10 @@ public class Mailbox extends UserData {
         userIdentity = userIdentityFinder.find(userIdentityId);
 
         loadMessageChannels();
+    }
+
+    public MessageChannel createNewMessageChannel() throws CryptoException, IOException {
+        return new MessageChannel(getStorageDir().getDatabase().getPath(), userIdentity);
     }
 
     public int getNumberOfMessageChannels() {
@@ -91,11 +124,11 @@ public class Mailbox extends UserData {
         }
     }
 
-    private MessageChannel loadMessageChannel(String channelId) throws IOException, CryptoException {
+    private MessageChannel loadMessageChannel(final String branchId) throws IOException, CryptoException {
         SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
-                channelId.substring(0, 1) + "/" + channelId.substring(2));
+                branchId.substring(0, 1) + "/" + branchId.substring(2));
         MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
-
+        messageChannelCache.put(branchId, messageChannel);
         return messageChannel;
     }
 

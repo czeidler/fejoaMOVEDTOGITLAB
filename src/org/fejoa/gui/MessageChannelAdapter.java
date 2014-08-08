@@ -38,7 +38,7 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
     public Object getElementAt(int index) {
         Mailbox.MessageChannelRef ref =  mailbox.getMessageChannel(index);
         try {
-            MessageChannel channel = ref.get();
+            MessageChannel channel = ref.getSync();
             return channel.getBranch();
         } catch (Exception e) {
             return "Failed to load channel!";

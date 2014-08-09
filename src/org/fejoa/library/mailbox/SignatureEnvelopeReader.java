@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.Contact;
@@ -10,6 +17,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
 
 public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
     private String uid = "";

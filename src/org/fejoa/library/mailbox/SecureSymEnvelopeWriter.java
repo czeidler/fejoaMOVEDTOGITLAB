@@ -1,8 +1,16 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.crypto.CryptoException;
 
 import java.io.IOException;
+
 
 public class SecureSymEnvelopeWriter implements IParcelEnvelopeWriter {
    private ParcelCrypto parcelCrypto;

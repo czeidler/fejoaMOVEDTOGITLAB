@@ -7,19 +7,9 @@
  */
 package org.fejoa.library.mailbox;
 
-import org.fejoa.library.Contact;
-import org.fejoa.library.ContactPrivate;
-import org.fejoa.library.IContactFinder;
-import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.support.PositionInputStream;
 
-import javax.crypto.SecretKey;
 import java.io.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 
 
 interface IParcelEnvelopeWriter {

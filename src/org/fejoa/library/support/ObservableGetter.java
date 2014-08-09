@@ -13,7 +13,6 @@ import rx.Observer;
 import rx.Scheduler;
 import rx.Subscription;
 import rx.concurrency.Schedulers;
-import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
 import java.util.List;

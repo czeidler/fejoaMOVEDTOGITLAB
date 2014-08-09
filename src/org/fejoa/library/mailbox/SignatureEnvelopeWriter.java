@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.ContactPrivate;
@@ -8,6 +15,7 @@ import org.fejoa.library.crypto.CryptoHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+
 
 public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
     private String uid;

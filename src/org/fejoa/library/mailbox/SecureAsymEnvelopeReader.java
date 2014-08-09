@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.ContactPrivate;
@@ -8,6 +15,7 @@ import org.fejoa.library.support.PositionInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+
 
 public class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
     private ContactPrivate owner;

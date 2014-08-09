@@ -76,18 +76,25 @@ public abstract class Channel {
 
     protected byte[] pack(ContactPrivate sender, KeyId senderKey, Contact receiver, KeyId receiverKey)
             throws CryptoException, IOException {
-        ChannelBranchWriter channelBranchWriter = new ChannelBranchWriter();
-        SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey, parcelCrypto,
-                channelBranchWriter);
-        SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKey,
-                asymEnvelopeWriter);
 
-        return signatureEnvelopeWriter.pack(null);
+        SignatureEnvelopeWriter signatureEnvelopeWriter
+                = new SignatureEnvelopeWriter(sender, senderKey, null);
+        SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey, parcelCrypto,
+                signatureEnvelopeWriter);
+
+        ChannelBranchWriter channelBranchWriter = new ChannelBranchWriter(asymEnvelopeWriter);
+        return channelBranchWriter.pack(null);
     }
 
     class ChannelBranchWriter implements IParcelEnvelopeWriter{
+        private IParcelEnvelopeWriter childWriter;
+
+        public ChannelBranchWriter(IParcelEnvelopeWriter childWriter) {
+            this.childWriter = childWriter;
+        }
+
         @Override
-        public byte[] pack(byte[] parcel) throws IOException {
+        public byte[] pack(byte[] parcel) throws IOException, CryptoException {
             ByteArrayOutputStream pack = new ByteArrayOutputStream();
             DataOutputStream stream = new DataOutputStream(pack);
 
@@ -97,7 +104,10 @@ public abstract class Channel {
             stream.writeInt(raw.length);
             stream.write(raw, 0, raw.length);
 
-            return pack.toByteArray();
+            byte[] out = pack.toByteArray();
+            if (childWriter != null)
+                return childWriter.pack(out);
+            return out;
         }
     }
 

@@ -45,32 +45,39 @@ public class Message {
 
     public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKeyId) throws IOException,
             CryptoException {
-        MessageEnvelopeWriter messageEnvelopeWriter = new MessageEnvelopeWriter(this);
 
-        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
-                messageEnvelopeWriter);
         SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKeyId, secureSymEnvelopeWriter);
-        byte[] result = signatureEnvelopeWriter.pack(null);
+                = new SignatureEnvelopeWriter(sender, senderKeyId, null);
+        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
+                signatureEnvelopeWriter);
+        MessageEnvelopeWriter messageEnvelopeWriter = new MessageEnvelopeWriter(this, secureSymEnvelopeWriter);
+
+
+        byte[] result = messageEnvelopeWriter.pack(null);
         uid = signatureEnvelopeWriter.getUid();
         return result;
     }
 
     class MessageEnvelopeWriter implements IParcelEnvelopeWriter{
-        private Message message;
+        final private Message message;
+        final private IParcelEnvelopeWriter childWriter;
 
-        public MessageEnvelopeWriter(Message message) {
+        public MessageEnvelopeWriter(Message message, IParcelEnvelopeWriter childWriter) {
             this.message = message;
+            this.childWriter = childWriter;
         }
 
         @Override
-        public byte[] pack(byte[] parcel) throws IOException {
+        public byte[] pack(byte[] parcel) throws IOException, CryptoException {
             ByteArrayOutputStream pack = new ByteArrayOutputStream();
             DataOutputStream stream = new DataOutputStream(pack);
 
             stream.writeBytes(message.getBody());
 
-            return pack.toByteArray();
+            byte[] out = pack.toByteArray();
+            if (childWriter != null)
+                return childWriter.pack(out);
+            return out;
         }
     }
 

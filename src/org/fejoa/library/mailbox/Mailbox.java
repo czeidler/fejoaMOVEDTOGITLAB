@@ -126,7 +126,7 @@ public class Mailbox extends UserData {
 
     private MessageChannel loadMessageChannel(final String branchId) throws IOException, CryptoException {
         SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
-                branchId.substring(0, 1) + "/" + branchId.substring(2));
+                branchId.substring(0, 2) + "/" + branchId.substring(2));
         MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
         messageChannelCache.put(branchId, messageChannel);
         return messageChannel;
@@ -135,7 +135,7 @@ public class Mailbox extends UserData {
     public void addMessageChannel(MessageChannel messageChannel) throws CryptoException, IOException {
         String branchName = messageChannel.getBranchName();
         SecureStorageDir dir = new SecureStorageDir(storageDir,
-                branchName.substring(0, 1) + "/" + branchName.substring(2));
+                branchName.substring(0, 2) + "/" + branchName.substring(2));
 
         ContactPrivate myself = userIdentity.getMyself();
         messageChannel.write(dir, myself, myself.getMainKeyId());

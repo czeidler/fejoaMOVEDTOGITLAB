@@ -84,7 +84,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
 
         // write message
         String uid = message.getUid();
-        SecureStorageDir dir = new SecureStorageDir(messageStorage, uid.substring(0, 1));
+        SecureStorageDir dir = new SecureStorageDir(messageStorage, uid.substring(0, 2));
         dir.writeBytes(uid.substring(2), pack);
 
         addMessageToList(message);

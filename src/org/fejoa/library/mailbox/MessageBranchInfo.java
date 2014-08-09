@@ -43,14 +43,13 @@ public class MessageBranchInfo {
     public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey)
             throws CryptoException, IOException {
 
-
-        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto, parcelWriter);
         SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKey, secureSymEnvelopeWriter);
+                = new SignatureEnvelopeWriter(sender, senderKey, null);
+        SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
+                signatureEnvelopeWriter);
 
-        ParcelWriter parcelWriter = new ParcelWriter();
-
-        return signatureEnvelopeWriter.pack(null);
+        ParcelWriter parcelWriter = new ParcelWriter(secureSymEnvelopeWriter);
+        return parcelWriter.pack(null);
     }
 
     public String getUid() {
@@ -84,6 +83,12 @@ public class MessageBranchInfo {
     final String PARTICIPANTS = "participants";
 
     class ParcelWriter implements IParcelEnvelopeWriter {
+        private IParcelEnvelopeWriter childWriter;
+
+        public ParcelWriter(IParcelEnvelopeWriter childWriter) {
+            this.childWriter = childWriter;
+        }
+
         @Override
         public byte[] pack(byte[] parcel) throws IOException, CryptoException {
             ByteArrayOutputStream packageData = new ByteArrayOutputStream();
@@ -98,7 +103,10 @@ public class MessageBranchInfo {
                     stream.writeBytes(participant.uid + " " + participant.address + "\n");
             }
 
-            return packageData.toByteArray();
+            byte[] pack = packageData.toByteArray();
+            if (childWriter != null)
+                return childWriter.pack(pack);
+            return pack;
         }
     }
 

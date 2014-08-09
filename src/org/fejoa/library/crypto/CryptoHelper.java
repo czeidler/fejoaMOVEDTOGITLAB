@@ -24,6 +24,14 @@ public class CryptoHelper {
         return stringBuffer.toString();
     }
 
+    static public MessageDigest sha1Hash() throws NoSuchAlgorithmException {
+        return MessageDigest.getInstance("SHA-1");
+    }
+
+    static public MessageDigest sha256Hash() throws NoSuchAlgorithmException {
+        return MessageDigest.getInstance("SHA-256");
+    }
+
     static public byte[] sha1Hash(byte data[]) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");

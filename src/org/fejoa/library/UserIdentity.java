@@ -60,14 +60,14 @@ public class UserIdentity extends UserData {
         return myself;
     }
 
-    public IContactForKeyFinder getContactFinder() {
-        return new IContactForKeyFinder() {
+    public IContactFinder getContactFinder() {
+        return new IContactFinder() {
             @Override
-            public Contact find(String keyId) {
-                if (myself.getKeyPair(keyId) != null)
+            public Contact find(String uid) {
+                if (myself.getUid().equals(uid))
                     return myself;
                 for (Contact contact : allContacts) {
-                    if (contact.getUid().equals(keyId))
+                    if (contact.getUid().equals(uid))
                         return contact;
                 }
                 return null;

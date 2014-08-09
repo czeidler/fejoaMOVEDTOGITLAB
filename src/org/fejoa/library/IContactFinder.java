@@ -1,5 +1,5 @@
 package org.fejoa.library;
 
-public interface IContactForKeyFinder {
+public interface IContactFinder {
     public Contact find(String keyId);
 }

@@ -93,7 +93,8 @@ public class Profile extends UserData {
         Mailbox mailbox = new Mailbox(mainUserIdentity);
         SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
                 "mailboxes");
-        SecureStorageDir mailboxDir = new SecureStorageDir(storageDir, mailbox.getUid());
+        SecureStorageDir mailboxDir = new SecureStorageDir(mailboxesBranch, mailbox.getUid());
+        mailboxDir.setTo(keyStore, keyId);
         mailbox.write(mailboxDir);
         addAndWriteMailbox(mailbox);
         mainMailbox = mailbox;
@@ -114,6 +115,9 @@ public class Profile extends UserData {
             keyStore.getStorageDir().commit();
 
         for (UserIdentity entry : userIdentityList)
+            entry.getStorageDir().commit();
+
+        for (Mailbox entry : mailboxList)
             entry.getStorageDir().commit();
     }
 
@@ -250,7 +254,8 @@ public class Profile extends UserData {
 
         for (String mailboxId : mailboxes) {
             UserDataRef ref = readRef(baseDir + "/" + mailboxId);
-            SecureStorageDir dir = new SecureStorageDir(storageDir, ref.basedir, true);
+            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir,
+                    true);
             Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder(), getUserIdentityFinder());
 
             mailboxList.add(mailbox);

@@ -29,8 +29,12 @@ public class SecureStorageDir extends StorageDir {
         secreteKeyIVPair = storageDir.secreteKeyIVPair;
     }
 
-    public SecureStorageDir(StorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
+    public SecureStorageDir(SecureStorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
         super(storageDir, baseDir, absoluteBaseDir);
+
+        keyStore = storageDir.keyStore;
+        keyId = storageDir.keyId;
+        secreteKeyIVPair = storageDir.secreteKeyIVPair;
     }
 
     public SecureStorageDir(IDatabaseInterface database, String baseDir) {

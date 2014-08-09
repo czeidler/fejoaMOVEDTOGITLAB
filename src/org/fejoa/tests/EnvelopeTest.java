@@ -10,8 +10,7 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.mailbox.SignatureEnvelopeReader;
-import org.fejoa.library.mailbox.SignatureEnvelopeWriter;
+import org.fejoa.library.mailbox.*;
 
 import java.io.IOException;
 import java.security.KeyPair;
@@ -21,6 +20,7 @@ public class EnvelopeTest extends TestCase {
     private ICryptoInterface crypto = Crypto.get();
     private KeyId personalKeyId;
     private ContactPrivate contactPrivate;
+    private ParcelCrypto parcelCrypto;
 
     @Override
     public void setUp() throws Exception {
@@ -30,9 +30,10 @@ public class EnvelopeTest extends TestCase {
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         personalKeyId = new KeyId(CryptoHelper.toHex(hashResult));
 
-
         contactPrivate = new ContactPrivate(null, null, personalKeyId,
                 personalKey);
+
+        parcelCrypto = new ParcelCrypto();
     }
 
     @Override
@@ -60,5 +61,28 @@ public class EnvelopeTest extends TestCase {
 
         assertEquals(new String(testData), new String(result));
         assertEquals(writer.getUid(), reader.getUid());
+    }
+
+    public void testSymEnvelope() throws CryptoException, IOException {
+        byte[] testData = "test data".getBytes();
+
+        SecureSymEnvelopeWriter writer = new SecureSymEnvelopeWriter(parcelCrypto, null);
+        byte[] packed = writer.pack(testData);
+        SecureSymEnvelopeReader reader = new SecureSymEnvelopeReader(parcelCrypto, null);
+        byte[] result = reader.unpack(packed);
+
+        assertEquals(new String(testData), new String(result));
+    }
+
+    public void testAsymEnvelope() throws CryptoException, IOException {
+        byte[] testData = "test data".getBytes();
+
+        SecureAsymEnvelopeWriter writer = new SecureAsymEnvelopeWriter(contactPrivate, personalKeyId, parcelCrypto,
+                null);
+        byte[] packed = writer.pack(testData);
+        SecureAsymEnvelopeReader reader = new SecureAsymEnvelopeReader(contactPrivate, null);
+        byte[] result = reader.unpack(packed);
+
+        assertEquals(new String(testData), new String(result));
     }
 }

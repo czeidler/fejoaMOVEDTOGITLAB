@@ -29,7 +29,7 @@ public class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
         DataInputStream stream = new DataInputStream(positionInputStream);
 
         // asym key id
-        KeyId asymmetricKeyId = new KeyId(SignatureEnvelopeReader.readLine(stream));
+        KeyId asymmetricKeyId = new KeyId(stream.readLine());
 
         // encrypted sym key
         int length = stream.readInt();

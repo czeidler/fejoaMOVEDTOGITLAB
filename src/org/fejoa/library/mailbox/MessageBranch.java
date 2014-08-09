@@ -65,17 +65,25 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         messageBranchInfo = info;
     }
 
+    public MessageBranchInfo getMessageBranchInfo() {
+        return messageBranchInfo;
+    }
+
     private void loadMessageBranchInfo() throws IOException, CryptoException {
         byte[] pack = messageStorage.readBytes("i");
 
         MessageBranchInfo info = new MessageBranchInfo();
-        info.load(parcelCrypto, identity, pack);
+        info.load(parcelCrypto, identity.getContactFinder(), pack);
 
         messageBranchInfo = info;
     }
 
     public int getNumberOfMessages() {
         return messages.size();
+    }
+
+    public Message getMessage(int index) {
+        return messages.get(index);
     }
 
     public void addMessage(Message message) throws IOException, CryptoException {
@@ -93,7 +101,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     private void loadMessages() throws IOException {
         List<String> firstParts = messageStorage.listDirectories("");
         for (String firstPart : firstParts) {
-            List<String> messageList = messageStorage.listDirectories(firstPart);
+            List<String> messageList = messageStorage.listFiles(firstPart);
             for (String messageName : messageList) {
                 try {
                     byte[] pack = messageStorage.readBytes(firstPart + "/" + messageName);

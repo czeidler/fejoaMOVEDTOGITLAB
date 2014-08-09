@@ -14,9 +14,10 @@ import org.fejoa.library.mailbox.*;
 
 import java.io.IOException;
 import java.security.KeyPair;
+import java.util.List;
 
 
-public class EnvelopeTest extends TestCase {
+public class MailboxTest extends TestCase {
     private ICryptoInterface crypto = Crypto.get();
     private KeyId personalKeyId;
     private ContactPrivate contactPrivate;
@@ -84,5 +85,43 @@ public class EnvelopeTest extends TestCase {
         byte[] result = reader.unpack(packed);
 
         assertEquals(new String(testData), new String(result));
+    }
+
+    class Participant {
+        final public String address;
+        final public String uid;
+
+        public Participant(String address, String uid) {
+            this.address = address;
+            this.uid = uid;
+        }
+    }
+
+    private boolean contains(List<MessageBranchInfo.Participant> list, Participant participant) {
+        for (MessageBranchInfo.Participant current : list) {
+            if (current.address.equals(participant.address) && current.uid.equals(participant.uid))
+                return true;
+        }
+        return false;
+    }
+
+    public void testMessageBranchInfo() throws CryptoException, IOException {
+        final String subject = "subject test";
+        final Participant participant1 = new Participant("peter@non.com", "fakeUI1");
+        final Participant participant2 = new Participant("otto@non.de", "fakeUI2");
+
+        MessageBranchInfo branchInfo = new MessageBranchInfo();
+        branchInfo.setSubject(subject);
+        branchInfo.addParticipant(participant1.address, participant1.uid);
+        branchInfo.addParticipant(participant2.address, participant2.uid);
+
+        byte[] pack = branchInfo.write(parcelCrypto, contactPrivate, personalKeyId);
+        // load
+        branchInfo = new MessageBranchInfo();
+        branchInfo.load(parcelCrypto, getContactFinder(), pack);
+        assertEquals(subject, branchInfo.getSubject());
+        List<MessageBranchInfo.Participant> participantList =  branchInfo.getParticipants();
+        assertTrue(contains(participantList, participant1));
+        assertTrue(contains(participantList, participant2));
     }
 }

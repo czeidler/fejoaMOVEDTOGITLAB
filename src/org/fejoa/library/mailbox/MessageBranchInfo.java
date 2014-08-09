@@ -18,7 +18,7 @@ import java.util.List;
 
 public class MessageBranchInfo {
     private String uid = "";
-    private String subject;
+    private String subject = "";
     private List<Participant> participants = new ArrayList<>();
     private boolean newlyCreated = true;
 
@@ -28,14 +28,13 @@ public class MessageBranchInfo {
     };
 
 
-    public void load(ParcelCrypto parcelCrypto, UserIdentity identity, byte[] pack) throws IOException,
+    public void load(ParcelCrypto parcelCrypto, IContactFinder contactFinder, byte[] pack) throws IOException,
             CryptoException {
         newlyCreated = false;
 
         ParcelReader branchInfoReader =  new ParcelReader();
         SecureSymEnvelopeReader secureSymEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto, branchInfoReader);
-        SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
-                secureSymEnvelopeReader);
+        SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(contactFinder, secureSymEnvelopeReader);
 
         signatureReader.unpack(pack);
     }
@@ -94,7 +93,7 @@ public class MessageBranchInfo {
             ByteArrayOutputStream packageData = new ByteArrayOutputStream();
             DataOutputStream stream = new DataOutputStream(packageData);
 
-            if (subject != "")
+            if (!subject.equals(""))
                 stream.writeBytes(SUBJECT + " " + subject + "\n");
 
             if (participants.size() > 0) {
@@ -119,31 +118,23 @@ public class MessageBranchInfo {
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(" ");
-                switch (parts[0]) {
-                    case SUBJECT:
-                        if (parts.length != 2)
+                if (line.indexOf(SUBJECT) == 0)
+                    subject = line.substring(SUBJECT.length() + 1);
+                else if (line.indexOf(PARTICIPANTS) == 0) {
+                    String data = line.substring(PARTICIPANTS.length() + 1);
+                    int numberOfParticipants = Integer.parseInt(data);
+                    for (int i = 0; i < numberOfParticipants; i++) {
+                        line = reader.readLine();
+                        if (line == null)
                             break;
-                        subject = parts[1];
-                        break;
-
-                    case PARTICIPANTS:
-                        if (parts.length != 2)
+                        String[] participantParts = line.split(" ");
+                        if (participantParts.length != 2)
                             break;
-                        int numberOfParticipants = Integer.parseInt(parts[1]);
-                        for (int i = 0; i < numberOfParticipants; i++) {
-                            line = reader.readLine();
-                            if (line == null)
-                                break;
-                            String[] participantParts = line.split(" ");
-                            if (participantParts.length != 2)
-                                break;
-                            Participant participant = new Participant();
-                            participant.uid = participantParts[0];
-                            participant.address = participantParts[1];
-                            participants.add(participant);
-                        }
-                        break;
+                        Participant participant = new Participant();
+                        participant.uid = participantParts[0];
+                        participant.address = participantParts[1];
+                        participants.add(participant);
+                    }
                 }
             }
             return null;

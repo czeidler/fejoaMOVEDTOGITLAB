@@ -43,6 +43,8 @@ public class ProfileTest extends TestCase {
         final String password = "password";
         final String userName = "testName";
         final String server = "localhost";
+        final String messageBody = "message body";
+        final String subject = "test branch";
 
         cleanUpDirs.add(gitDir);
 
@@ -81,12 +83,12 @@ public class ProfileTest extends TestCase {
         branchInfo.addParticipant(myself.getAddress(), myself.getUid());
         branchInfo.addParticipant("peter@non.com", "fakeUI1");
         branchInfo.addParticipant("otto@non.de", "fakeUI2");
-        branchInfo.setSubject("test branch");
+        branchInfo.setSubject(subject);
         MessageBranch messageBranch = messageChannel.getBranch();
         messageBranch.setMessageBranchInfo(branchInfo);
         // add messages
         Message message = new Message();
-        message.setBody("test message");
+        message.setBody(messageBody);
         messageBranch.addMessage(message);
         // and add it to the mailbox
         mailbox.addMessageChannel(messageChannel);
@@ -100,5 +102,12 @@ public class ProfileTest extends TestCase {
         messageChannel = messageChannelRef.getSync();
         messageBranch = messageChannel.getBranch();
         assertEquals(1, messageBranch.getNumberOfMessages());
+        message = messageBranch.getMessage(0);
+        assertEquals(messageBody, message.getBody());
+        branchInfo = messageBranch.getMessageBranchInfo();
+        assertTrue(branchInfo != null);
+        assertEquals(subject, branchInfo.getSubject());
+        List<MessageBranchInfo.Participant> participants = branchInfo.getParticipants();
+        assertEquals(3, participants.size());
     }
 }

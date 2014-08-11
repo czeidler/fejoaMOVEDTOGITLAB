@@ -9,14 +9,11 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.support.FejoaSchedulers;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observable;
 import rx.Observer;
-import rx.Scheduler;
 import rx.Subscription;
-import rx.observables.ConnectableObservable;
 import rx.subscriptions.Subscriptions;
 
 import java.io.IOException;
@@ -147,6 +144,14 @@ public class Mailbox extends UserData {
     private void addChannelToList(MessageChannelRef messageChannelRef) {
         messageChannels.add(messageChannelRef);
         notifyOnBranchAdded(messageChannelRef);
+    }
+
+    public void addListener(Listener listener) {
+        mailboxListeners.addListener(listener);
+    }
+
+    public void removeListener(Listener listener) {
+        mailboxListeners.removeListener(listener);
     }
 
     private void notifyOnBranchAdded(MessageChannelRef messageChannelRef) {

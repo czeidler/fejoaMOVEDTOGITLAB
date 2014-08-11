@@ -7,7 +7,9 @@
  */
 package org.fejoa.gui;
 
-import org.fejoa.library.mailbox.Mailbox;
+
+import org.fejoa.library.mailbox.Message;
+import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.support.WeakListenable;
 
@@ -16,39 +18,35 @@ import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
 
 
-public class MessageChannelAdapter extends WeakListenable<ListDataListener> implements ListModel {
-    private Mailbox mailbox;
-    private Mailbox.Listener mailboxListener = new Mailbox.Listener() {
+public class MessageThreadAdapter extends WeakListenable<ListDataListener> implements ListModel {
+    final private MessageChannel messageChannel;
+
+    final private MessageBranch.IListener threadListener = new MessageBranch.IListener() {
         @Override
-        public void onMessageChannelAdded(Mailbox.MessageChannelRef channelRef) {
-            notifyMessageChannelAdded();
+        public void onMessageAdded(Message message) {
+            notifyMessageAdded();
         }
     };
 
-    public MessageChannelAdapter(Mailbox mailbox) {
-        this.mailbox = mailbox;
-        this.mailbox.addListener(mailboxListener);
+    public MessageThreadAdapter(MessageChannel messageChannel) {
+        this.messageChannel = messageChannel;
+
+        messageChannel.getBranch().addListener(threadListener);
     }
 
     @Override
     public void finalize() {
-        mailbox.removeListener(mailboxListener);
+        messageChannel.getBranch().removeListener(threadListener);
     }
 
     @Override
     public int getSize() {
-        return mailbox.getNumberOfMessageChannels();
+        return messageChannel.getBranch().getNumberOfMessages();
     }
 
     @Override
-    public Object getElementAt(int index) {
-        Mailbox.MessageChannelRef ref =  mailbox.getMessageChannel(index);
-        try {
-            MessageChannel channel = ref.getSync();
-            return channel.getBranch();
-        } catch (Exception e) {
-            return "Failed to load channel!";
-        }
+    public Object getElementAt(int i) {
+        return messageChannel.getBranch().getMessage(i).getBody();
     }
 
     @Override
@@ -61,7 +59,7 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
         removeListener(listDataListener);
     }
 
-    private void notifyMessageChannelAdded() {
+    private void notifyMessageAdded() {
         int index = getSize();
         for (ListDataListener listener : getListeners())
             listener.intervalAdded(new ListDataEvent(this, ListDataEvent.INTERVAL_ADDED, index, index));

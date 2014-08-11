@@ -9,6 +9,7 @@ package org.fejoa.gui;
 
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
+import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.remote.HTMLRequest;
 import org.fejoa.library.remote.RemoteConnection;
 import org.fejoa.library.remote.RemoteStorageLink;
@@ -18,6 +19,8 @@ import rx.concurrency.Schedulers;
 import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.*;
 
@@ -27,25 +30,22 @@ public class MainWindow extends JDialog {
     private JLabel statusLabel;
     private JList messageChannelList;
     private JButton newMessageButton;
-    private JButton sendButton;
     private JPanel threadPanel;
     private JPanel messageCardPanel;
     private JPanel channelsPanel;
     private SendMessageFrame sendMessageObject;
+    private ThreadView threadViewObject;
     final private Profile profile;
 
-    private void setupSendMessage() {
-        sendButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-
-            }
-        });
-    }
+    // we need a strong reference
+    final private MessageChannelAdapter messageChannelAdapter;
 
     private void setStatus(String status) {
         statusLabel.setText(status);
     }
+
+    final String NEW_MESSAGE_CARD = "new message";
+    final String THREAD_CARD = "thread";
 
     public MainWindow(Profile profile) {
         this.profile = profile;
@@ -53,10 +53,22 @@ public class MainWindow extends JDialog {
         setContentPane(contentPane);
         setModal(true);
 
-        messageChannelList.setModel(new MessageChannelAdapter(profile.getMainMailbox()));
+        threadViewObject = new ThreadView();
+        messageCardPanel.add(threadViewObject.getPanel(), THREAD_CARD);
 
-        sendMessageObject = new SendMessageFrame();
-        messageCardPanel.add(sendMessageObject.getPanel(), "new message");
+        messageChannelAdapter = new MessageChannelAdapter(profile.getMainMailbox());
+        messageChannelList.setModel(messageChannelAdapter);
+
+        messageChannelList.addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent listSelectionEvent) {
+                showMessageThread(listSelectionEvent.getFirstIndex());
+            }
+        });
+
+        sendMessageObject = new SendMessageFrame(profile.getMainMailbox());
+        messageCardPanel.add(sendMessageObject.getPanel(), NEW_MESSAGE_CARD);
+        ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
 
         // call onCancel() when cross is clicked
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -69,8 +81,12 @@ public class MainWindow extends JDialog {
                 start();
             }
         });
+    }
 
-        setupSendMessage();
+    private void showMessageThread(final int i) {
+        ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, THREAD_CARD);
+
+        threadViewObject.selectChannel(profile.getMainMailbox().getMessageChannel(i));
     }
 
     private void start() {

@@ -55,6 +55,7 @@ public class SendMessageFrame {
         MessageBranch messageBranch = messageChannel.getBranch();
         messageBranch.setMessageBranchInfo(branchInfo);
         messageBranch.addMessage(message);
+        messageBranch.commit();
 
         mailbox.addMessageChannel(messageChannel);
         mailbox.commit();

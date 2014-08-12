@@ -54,7 +54,7 @@ public abstract class ObservableGetter<T> {
     public Observable<T> get(final Scheduler subscribeOn, final Scheduler observerOn) {
         T result = getCached();
         if (result != null)
-            return Observable.from(result).observeOn(observerOn);
+            return Observable.from(result);
 
         return Observable.create(new Observable.OnSubscribeFunc<T>() {
             @Override

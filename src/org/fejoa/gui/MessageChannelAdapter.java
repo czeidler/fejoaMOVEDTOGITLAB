@@ -10,6 +10,7 @@ package org.fejoa.gui;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.support.WeakListenable;
+import rx.Observer;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
@@ -41,14 +42,31 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
     }
 
     @Override
-    public Object getElementAt(int index) {
+    public Object getElementAt(final int index) {
         Mailbox.MessageChannelRef ref =  mailbox.getMessageChannel(index);
-        try {
-            MessageChannel channel = ref.getSync();
-            return channel.getBranch();
-        } catch (Exception e) {
-            return "Failed to load channel!";
-        }
+        final String[] label = {""};
+        ref.get().subscribe(new Observer<MessageChannel>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(MessageChannel args) {
+                if (!label[0].equals(""))
+                    notifyMessageChannelLoaded(index);
+                else
+                    label[0] = args.getBranchName();
+            }
+        });
+        if (label[0].equals(""))
+            label[0] = "loading...";
+        return label[0];
     }
 
     @Override
@@ -65,5 +83,10 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
         int index = getSize();
         for (ListDataListener listener : getListeners())
             listener.intervalAdded(new ListDataEvent(this, ListDataEvent.INTERVAL_ADDED, index, index));
+    }
+
+    private void notifyMessageChannelLoaded(int index) {
+        for (ListDataListener listener : getListeners())
+            listener.intervalAdded(new ListDataEvent(this, ListDataEvent.CONTENTS_CHANGED, index, index));
     }
 }

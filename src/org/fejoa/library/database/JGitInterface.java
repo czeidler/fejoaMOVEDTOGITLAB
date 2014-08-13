@@ -19,8 +19,81 @@ import org.eclipse.jgit.treewalk.filter.PathFilter;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+
+class GitTree {
+    private Repository repository = null;
+    private Map<String, ObjectId> subDirs = new HashMap<>();
+    private Map<String, ObjectId> files = new HashMap<>();
+
+    public GitTree(Repository repository) {
+        this.repository = repository;
+    }
+
+    public void setTo(ObjectId dir) throws IOException {
+        clear();
+
+        byte[] data = repository.open(dir).getBytes();
+
+        int start = 0;
+        while (start < data.length) {
+
+            int pos = findFirst(data, (byte)0, start);
+            String line = new String(data, start, pos - start);
+            String[] list = line.split(" ", 2);
+            String name = list[1];
+            byte[] object = new byte[20];
+            System.arraycopy(data, pos + 1, object, 0, 20);
+            start = pos + 21;
+            ObjectId objectId = ObjectId.fromRaw(object);
+
+            int mode = Integer.parseInt(list[0], 8);
+            if ((mode & 040000) != 0)
+                subDirs.put(name, objectId);
+            else if (mode == 57344) {
+
+            } else
+                files.put(name, objectId);
+        }
+    }
+
+    public ObjectId findFile(ObjectId baseDir, String path) throws IOException {
+        setTo(baseDir);
+
+        String[] split = path.split("/");
+        if (split.length == 0)
+            return null;
+
+        // walk dir
+        for (int i = 0; i < split.length - 1; i++) {
+            String searchDir = split[i];
+            ObjectId subDir = subDirs.get(searchDir);
+            if (subDir == null)
+                return null;
+            setTo(subDir);
+        }
+
+        return files.get(split[split.length - 1]);
+    }
+
+    private int findFirst(byte[] data, byte b, int start) {
+        int pos = start;
+        while (pos < data.length) {
+            if (data[pos] == b)
+                return pos;
+            pos++;
+        }
+        return -1;
+    }
+
+    private void clear() {
+        subDirs.clear();
+        files.clear();
+    }
+}
 
 public class JGitInterface implements IDatabaseInterface {
     private Repository repository = null;
@@ -39,11 +112,22 @@ public class JGitInterface implements IDatabaseInterface {
                 .build();
 
         File dir = new File(path);
-        if (dir.exists())
-            return;
+        if (!dir.exists()) {
+            if (create)
+                repository.create(create);
+            else
+                return;;
+        }
 
-        if (create)
-            repository.create(create);
+        // get root tree if existing
+        Ref branchRef = repository.getRef(branch);
+        if (branchRef != null) {
+            RevWalk walk = new RevWalk(repository);
+            RevCommit commit = walk.parseCommit(branchRef.getLeaf().getObjectId());
+            if (commit == null)
+                throw new IOException();
+            rootTree = commit.getTree().toObjectId();
+        }
     }
 
     @Override
@@ -147,6 +231,7 @@ public class JGitInterface implements IDatabaseInterface {
         treeWalk.addTree(tree);
         treeWalk.setRecursive(true);
         treeWalk.setFilter(PathFilter.create(path));
+
         return treeWalk;
     }
 

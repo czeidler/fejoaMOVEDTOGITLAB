@@ -7,9 +7,11 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 
-public class SendMessageFrame {
+public class SendNewMessageFrame {
     private JPanel mainPanel;
     private JButton sendButton;
     private JTextField receiverTextField;
@@ -18,7 +20,7 @@ public class SendMessageFrame {
 
     final private Mailbox mailbox;
 
-    public SendMessageFrame(Mailbox mailbox) {
+    public SendNewMessageFrame(Mailbox mailbox) {
         this.mailbox = mailbox;
 
         sendButton.addActionListener(new ActionListener() {
@@ -42,22 +44,10 @@ public class SendMessageFrame {
     private void sendMessage() throws CryptoException, IOException {
         String subject = subjectTextField.getText();
         String receiver = receiverTextField.getText();
+        List<String> receivers = new ArrayList<>();
+        receivers.add(receiver);
         String body = messagePane.getText();
 
-        MessageBranchInfo branchInfo = new MessageBranchInfo();
-        branchInfo.setSubject(subject);
-        branchInfo.addParticipant(receiver, "");
-
-        Message message = new Message();
-        message.setBody(body);
-
-        MessageChannel messageChannel = mailbox.createNewMessageChannel();
-        MessageBranch messageBranch = messageChannel.getBranch();
-        messageBranch.setMessageBranchInfo(branchInfo);
-        messageBranch.addMessage(message);
-        messageBranch.commit();
-
-        mailbox.addMessageChannel(messageChannel);
-        mailbox.commit();
+        new Messenger(mailbox).createNewThreadMessage(subject, receivers, body);
     }
 }

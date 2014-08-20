@@ -9,7 +9,7 @@ package org.fejoa.gui;
 
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
-import org.fejoa.library.mailbox.MessageChannel;
+import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.remote.HTMLRequest;
 import org.fejoa.library.remote.RemoteConnection;
 import org.fejoa.library.remote.RemoteStorageLink;
@@ -33,7 +33,7 @@ public class MainWindow extends JDialog {
     private JPanel threadPanel;
     private JPanel messageCardPanel;
     private JPanel channelsPanel;
-    private SendMessageFrame sendMessageObject;
+    private SendNewMessageFrame sendMessageObject;
     private ThreadView threadViewObject;
     final private Profile profile;
 
@@ -53,20 +53,23 @@ public class MainWindow extends JDialog {
         setContentPane(contentPane);
         setModal(true);
 
-        threadViewObject = new ThreadView();
+        Mailbox mailbox = profile.getMainMailbox();
+        threadViewObject = new ThreadView(mailbox);
         messageCardPanel.add(threadViewObject.getPanel(), THREAD_CARD);
 
-        messageChannelAdapter = new MessageChannelAdapter(profile.getMainMailbox());
+        messageChannelAdapter = new MessageChannelAdapter(mailbox);
         messageChannelList.setModel(messageChannelAdapter);
 
         messageChannelList.addListSelectionListener(new ListSelectionListener() {
             @Override
             public void valueChanged(ListSelectionEvent listSelectionEvent) {
-                showMessageThread(listSelectionEvent.getFirstIndex());
+                if (listSelectionEvent.getValueIsAdjusting())
+                    return;
+                showMessageThread(messageChannelList.getSelectedIndex());
             }
         });
 
-        sendMessageObject = new SendMessageFrame(profile.getMainMailbox());
+        sendMessageObject = new SendNewMessageFrame(mailbox);
         messageCardPanel.add(sendMessageObject.getPanel(), NEW_MESSAGE_CARD);
         ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
 
@@ -81,6 +84,17 @@ public class MainWindow extends JDialog {
                 start();
             }
         });
+
+        newMessageButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                showNewMessage();
+            }
+        });
+    }
+
+    private void showNewMessage() {
+        ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
     }
 
     private void showMessageThread(final int i) {

@@ -61,7 +61,7 @@ public abstract class Channel {
 
         parcelCrypto = new ParcelCrypto();
 
-        KeyPair keyPair = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
+        KeyPair keyPair = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE_CHANNEL_SIGN);
         signatureKey = keyPair.getPrivate();
         signatureKeyPublic = keyPair.getPublic();
     }

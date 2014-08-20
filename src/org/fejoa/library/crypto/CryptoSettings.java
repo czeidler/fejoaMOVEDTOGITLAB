@@ -20,4 +20,5 @@ public class CryptoSettings {
     final static public int SYMMETRIC_KEY_SIZE = 256;
     final static public int SYMMETRIC_KEY_IV_SIZE = 16;
     final static public int ASYMMETRIC_KEY_SIZE = 2048;
+    final static public int ASYMMETRIC_KEY_SIZE_CHANNEL_SIGN = 512;
 }

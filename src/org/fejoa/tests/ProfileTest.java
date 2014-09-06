@@ -57,7 +57,7 @@ public class ProfileTest extends TestCase {
         myself.setServer(server);
         myself.write();
 
-        profile.setEmptyRemotes(server, userName);
+        profile.setEmptyRemotes(server, userName, myself);
 
         UserIdentity userIdentity = profile.getMainUserIdentity();
         final String userIdentityIDCreation = userIdentity.getUid();

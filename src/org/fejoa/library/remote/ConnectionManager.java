@@ -119,7 +119,7 @@ class RoleManager {
                     return Subscriptions.empty();
                 }
                 SignatureAuthentication authentication = new SignatureAuthentication(loginUser, serverUser);
-                authentication.send(remoteRequest).subscribe(new Observer<Boolean>() {
+                authentication.auth(remoteRequest).subscribe(new Observer<Boolean>() {
                     @Override
                     public void onCompleted() {
                         observer.onCompleted();

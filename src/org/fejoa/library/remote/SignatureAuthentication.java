@@ -41,12 +41,35 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         this.user = loginUser;
     }
 
-    public Observable<RemoteConnectionJob.Result> auth(final RemoteConnection connection) {
-        LoginRequest loginRequest = new LoginRequest();
-        SignIn signIn = new SignIn(loginRequest);
-        loginRequest.setFollowUpJob(signIn);
+    public Observable<Boolean> auth(final IRemoteRequest remoteRequest) {
+        final LoginRequest loginRequest = new LoginRequest();
+        final SignIn signIn = new SignIn(loginRequest);
 
-        return connection.queueJob(loginRequest);
+        return Observable.create(new Observable.OnSubscribeFunc<Boolean>() {
+            @Override
+            public Subscription onSubscribe(Observer<? super Boolean> observer) {
+                try {
+                    byte[] request = loginRequest.getRequest();
+                    byte[] reply = RemoteRequestHelper.sendSync(remoteRequest, request);
+                    if (reply == null)
+                        throw new IOException("network error");
+                    if (!loginRequest.handleResponse(reply).done)
+                        throw new IOException("bad response");
+                    request = signIn.getRequest();
+                    reply = RemoteRequestHelper.sendSync(remoteRequest, request);
+                    if (reply == null)
+                        throw new IOException("network error");
+                    boolean done = signIn.handleResponse(reply).done;
+                    observer.onNext(done);
+                    observer.onCompleted();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    observer.onError(e);
+                    return Subscriptions.empty();
+                }
+                return Subscriptions.empty();
+            }
+        });
     }
 
     class LoginRequest extends RemoteConnectionJob {

@@ -21,24 +21,23 @@ import java.io.IOException;
 public class RemoteStorageLink {
     final private SecureStorageDir storageDir;
     final private String uid;
-    private RemoteConnection remoteConnection;
-    private String serverUser = "";
     final private ContactPrivate myself;
+    private ConnectionInfo connectionInfo;
     final private IDatabaseInterface databaseInterface;
 
     public RemoteStorageLink(SecureStorageDir storageDir, ContactPrivate myself)
             throws IOException, CryptoException {
         this.storageDir = storageDir;
-        this.myself = myself;
         this.uid = storageDir.readString("uid");
+        this.myself = myself;
         String databasePath = storageDir.readSecureString("database_path");
         String databaseBranch = storageDir.readSecureString("database_branch");
         databaseInterface = SecureStorageDirBucket.get(databasePath, databaseBranch).getDatabase();
 
         try {
-            serverUser = storageDir.readSecureString("server_user");
+            String serverUser = storageDir.readSecureString("server_user");
             String server = storageDir.readSecureString("server");
-            remoteConnection = new RemoteConnection(RemoteRequestFactory.getRemoteRequest(server));
+            connectionInfo = new ConnectionInfo(server, serverUser, myself);
         } catch (IOException e) {
             // no server specified
         }
@@ -48,6 +47,7 @@ public class RemoteStorageLink {
         this.uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(Crypto.get().generateInitializationVector(40)));
         this.storageDir = new SecureStorageDir(baseDir, uid);
         this.databaseInterface = databaseInterface;
+        this.connectionInfo = null;
         this.myself = myself;
     }
 
@@ -55,25 +55,20 @@ public class RemoteStorageLink {
         return uid;
     }
 
-    public ContactPrivate getMyself() {
-        return myself;
-    }
-
-    public String getServerUser() {
-        return serverUser;
-    }
-
-    public RemoteConnection getRemoteConnection() {
-        return remoteConnection;
-    }
-
     public IDatabaseInterface getDatabaseInterface() {
         return databaseInterface;
     }
 
-    public void setTo(RemoteConnection remoteConnection, String serverUser) {
-        this.remoteConnection = remoteConnection;
-        this.serverUser = serverUser;
+    public ConnectionInfo getConnectionInfo() {
+        return connectionInfo;
+    }
+
+    public void setConnectionInfo(String server, String serverUser, ContactPrivate myself) {
+        connectionInfo = new ConnectionInfo(server, serverUser, myself);
+    }
+
+    public ContactPrivate getMyself() {
+        return myself;
     }
 
     public void write() throws IOException, CryptoException {
@@ -81,17 +76,8 @@ public class RemoteStorageLink {
         storageDir.writeSecureString("database_path", databaseInterface.getPath());
         storageDir.writeSecureString("database_branch", databaseInterface.getBranch());
 
-        storageDir.writeSecureString("server_user", serverUser);
-
-        if (remoteConnection != null) {
-            String url = remoteConnection.getRemoteRequest().getUrl();
-            storageDir.writeSecureString("server", parseServer(url));
-        }
+        storageDir.writeSecureString("server_user", connectionInfo.serverUser);
+        storageDir.writeSecureString("server", connectionInfo.server);
     }
 
-    private String parseServer(String url) {
-        String[] split = url.split("//");
-        String right = split[1];
-        return right.split("/")[0];
-    }
 }

@@ -121,12 +121,11 @@ public class Profile extends UserData {
             entry.getStorageDir().commit();
     }
 
-    public void setEmptyRemotes(String server, String serverUser) throws IOException, CryptoException {
-        IRemoteRequest remoteRequest = RemoteRequestFactory.getRemoteRequest(server);
+    public void setEmptyRemotes(String server, String serverUser, ContactPrivate myself) throws IOException, CryptoException {
         for (RemoteStorageLink link : remoteStorageLinks.values()) {
-            if (link.getRemoteConnection() != null)
+            if (link.getConnectionInfo() != null)
                 continue;
-            link.setTo(new RemoteConnection(remoteRequest), serverUser);
+            link.setConnectionInfo(server, serverUser, myself);
             link.write();
         }
     }

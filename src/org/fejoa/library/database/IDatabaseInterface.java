@@ -21,10 +21,12 @@ public interface IDatabaseInterface {
     public String getTip() throws IOException;
     public void updateTip(String commit) throws IOException;
 
+    public void remove(String path) throws IOException;
+
     // sync
     public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;
     public void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException;
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws Exception;
+    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException;
     //! import pack, tries to merge and update the tip
     public void importPack(byte pack[], String baseCommit, String endCommit, int format) throws IOException;
 }

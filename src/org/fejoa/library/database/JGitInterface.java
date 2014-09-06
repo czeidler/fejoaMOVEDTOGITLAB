@@ -326,6 +326,11 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
+    public void remove(String path) throws IOException {
+        throw new IOException("not implemented!");
+    }
+
+    @Override
     public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException {
         String refPath = new String(path);
         refPath += "/refs/remotes/";
@@ -363,7 +368,7 @@ public class JGitInterface implements IDatabaseInterface {
     }
 
     @Override
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws Exception {
+    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException {
         PackManager packManager = new PackManager(this, repository);
         return packManager.exportPack(startCommit, endCommit, ignoreCommit, -1);
     }

@@ -222,12 +222,12 @@ class PackManager {
         return packageData.toByteArray();
     }
 
-    public byte[] exportPack(String commitOldest, String commitLatest, String ignoreCommit, int format) throws Exception {
+    public byte[] exportPack(String commitOldest, String commitLatest, String ignoreCommit, int format) throws IOException {
         String commitEnd = new String(commitLatest);
         if (commitLatest.equals(""))
             commitEnd = database.getTip();
         if (commitEnd.equals(""))
-            throw new Exception("no tip found");
+            throw new IOException("no tip found");
 
         List<String> blobs = new ArrayList<>();
         collectMissingBlobs(commitOldest, commitEnd, ignoreCommit, blobs, -1);

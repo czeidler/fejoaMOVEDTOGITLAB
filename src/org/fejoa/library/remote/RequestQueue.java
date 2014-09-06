@@ -109,7 +109,12 @@ public class RequestQueue {
 
     public RequestQueue(IIdleJob idleJob) {
         this.idleJob = idleJob;
-        idleJobSubscription = run(idleJob.getObservable(), idleJob.getObserver());
+        start();
+    }
+
+    private void start() {
+        if (idleJob != null)
+            idleJobSubscription = queueJobLocked(idleJob.getObservable(), idleJob.getObserver());
     }
 
     class RequestObserver<T> implements Observer<T> {
@@ -151,7 +156,7 @@ public class RequestQueue {
             queueLock.lock();
             queueSize--;
             // if no job is running start the idle job
-            if (queueSize == 0) {
+            if (queueSize == 0 && idleJob != null) {
                 idleJobSubscription = null;
                 idleJobSubscription = queueJob(idleJob.getObservable(), idleJob.getObserver());
             }
@@ -161,7 +166,7 @@ public class RequestQueue {
         }
     }
 
-    private <T> Subscription queueJob(Observable<T> observable, Observer<T> observer) {
+    private <T> Subscription queueJob(Observable<T> observable, Observer<? super T> observer) {
         if (queueSize == 1 && idleJobSubscription != null) {
             idleJobSubscription.unsubscribe();
             idleJobSubscription = null;
@@ -169,10 +174,10 @@ public class RequestQueue {
 
         queueSize++;
         Observable<T> configuredObservable = config(observable);
-        return configuredObservable.subscribe(new RequestObserver<T>(observer));
+        return configuredObservable.subscribe(new RequestObserver<>(observer));
     }
 
-    public <T> Subscription run(Observable<T> observable, Observer<T> observer) {
+    private <T> Subscription queueJobLocked(Observable<T> observable, Observer<? super T> observer) {
         try {
             queueLock.lock();
 
@@ -180,5 +185,14 @@ public class RequestQueue {
         } finally {
             queueLock.unlock();
         }
+    }
+
+    public <T> Observable<T> queue(final Observable<T> observable) {
+        return Observable.create(new Observable.OnSubscribeFunc<T>() {
+            @Override
+            public Subscription onSubscribe(Observer<? super T> observer) {
+                return queueJobLocked(observable, observer);
+            }
+        });
     }
 }

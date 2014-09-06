@@ -12,17 +12,48 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
+import rx.util.functions.Func1;
 
 import java.util.*;
 
 
+class SharedConnection {
+    private IRemoteRequest remoteRequest;
+    private Map<ContactPrivate, RoleManager> contactRoles = new HashMap<>();
+
+    public SharedConnection(String server) {
+        String fullAddress = "http://" + server + "/php_server/portal.php";
+        remoteRequest = new HTMLRequest(fullAddress);
+    }
+
+    public RoleManager getRoleManager(ContactPrivate myself) {
+        if (!contactRoles.containsKey(myself)) {
+            RoleManager roleManager = new RoleManager(this);
+            contactRoles.put(myself, roleManager);
+            return roleManager;
+        }
+        return contactRoles.get(myself);
+    }
+
+    Observable<IRemoteRequest> getRemoteRequest() {
+        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
+            @Override
+            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
+                observer.onNext(remoteRequest);
+                observer.onCompleted();
+                return Subscriptions.empty();
+            }
+        });
+    }
+}
+
 class RoleManager {
-    final private IRemoteRequest remoteRequest;
+    final private SharedConnection sharedConnection;
     final private RequestQueue requestQueue;
     final private List<String> roles = Collections.synchronizedList(new ArrayList<String>());
 
-    public RoleManager(IRemoteRequest remoteRequest) {
-        this.remoteRequest = remoteRequest;
+    public RoleManager(SharedConnection sharedConnection) {
+        this.sharedConnection = sharedConnection;
         requestQueue = new RequestQueue(null);
     }
 
@@ -38,56 +69,52 @@ class RoleManager {
         }
     }
 
-    public Observable<byte[]> sendQueued(byte data[], ConnectionInfo info) {
-        return requestQueue.queue(send(data, info));
-    }
-
-    private Observable<byte[]> send(final byte data[], final ConnectionInfo info) {
-        return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
+    public <T> Observable<T> sendQueued(final ConnectionInfo info, final Func1<IRemoteRequest, Observable<T>> job) {
+        return Observable.create(new Observable.OnSubscribeFunc<T>() {
             @Override
-            public Subscription onSubscribe(final Observer<? super byte[]> observer) {
-                boolean loggedIn = loginSynced(info.myself, info.serverUser);
-                if (!loggedIn) {
-                    observer.onError(new Exception("Failed to login!"));
-                    return null;
-                }
-
-                return remoteRequest.send(data).subscribe(observer);
+            public Subscription onSubscribe(Observer<? super T> observer) {
+                Observable<T> observable = sharedConnection.getRemoteRequest().mapMany(
+                        new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
+                            @Override
+                            public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
+                                return login(remoteRequest, info.myself, info.serverUser);
+                            }
+                        }).mapMany(job);
+                return requestQueue.queue(observable).subscribe(observer);
             }
         });
     }
 
-    public boolean loginSynced(ContactPrivate loginUser, String serverUser) {
-        final boolean[] result = new boolean[1];
-        login(loginUser, serverUser).subscribe(new Observer<Boolean>() {
+    public Observable<IRemoteRequest> getPreparedRemoteRequest(final ConnectionInfo info) {
+        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
             @Override
-            public void onCompleted() {
-
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                result[0] = false;
-            }
-
-            @Override
-            public void onNext(Boolean args) {
-                result[0] = args;
+            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
+                Observable<IRemoteRequest> observable = sharedConnection.getRemoteRequest().mapMany(
+                        new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
+                            @Override
+                            public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
+                                return login(remoteRequest, info.myself, info.serverUser);
+                            }
+                        });
+                return observable.subscribe(observer);
             }
         });
-        return result[0];
     }
 
-    public Observable<Boolean> login(final ContactPrivate loginUser, final String serverUser) {
+    public <T> Observable<T> queueJob(Observable<T> observable) {
+        return requestQueue.queue(observable);
+    }
+
+    private Observable<IRemoteRequest> login(final IRemoteRequest remoteRequest, final ContactPrivate loginUser, final String serverUser) {
         final String role = loginUser.getUid() + ":" + serverUser;
         if (hasRole(role))
-            return Observable.just(true);
+            return Observable.just(remoteRequest);
 
-        return Observable.create(new Observable.OnSubscribeFunc<Boolean>() {
+        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
             @Override
-            public Subscription onSubscribe(final Observer<? super Boolean> observer) {
+            public Subscription onSubscribe(final Observer<? super IRemoteRequest> observer) {
                 if (hasRole(role)) {
-                    observer.onNext(true);
+                    observer.onNext(remoteRequest);
                     observer.onCompleted();
                     return Subscriptions.empty();
                 }
@@ -104,10 +131,12 @@ class RoleManager {
                     }
 
                     @Override
-                    public void onNext(Boolean signed) {
-                        if (signed)
+                    public void onNext(Boolean signedIn) {
+                        if (signedIn) {
                             addRole(role);
-                        observer.onNext(signed);
+                            observer.onNext(remoteRequest);
+                        } else
+                            observer.onError(new Exception("failed to log in"));
                     }
                 });
                 return Subscriptions.empty();
@@ -116,39 +145,45 @@ class RoleManager {
     }
 }
 
-class ConnectionInfo {
-    public String server;
-    public String serverUser;
-    public ContactPrivate myself;
-}
-
-class RemoteConnection {
-    final ConnectionManager manager;
-    final ConnectionInfo info;
-
-    public RemoteConnection(ConnectionManager manager, ConnectionInfo info) {
-        this.manager = manager;
-        this.info = info;
-    }
-
-    public Observable<byte[]> send(byte[] data) {
-        return manager.send(data, info);
-    }
-}
-
 public class ConnectionManager {
-    final private Map<String, RoleManager> servers = new HashMap<>();
+    static final private ConnectionManager connectionManager = null;
+    static public ConnectionManager get() {
+        if (connectionManager != null)
+            return connectionManager;
+        ConnectionManager manager = new ConnectionManager();
+        return manager;
+    }
 
-    public Observable<byte[]> send(byte data[], ConnectionInfo info) {
-        RoleManager roleManager;
-        if (!servers.containsKey(info.server)) {
-            String fullAddress = "http://" + info.server + "/php_server/portal.php";
-            roleManager = new RoleManager(new HTMLRequest(fullAddress));
-            servers.put(info.server, roleManager);
-        } else
-            roleManager = servers.get(info.server);
+    final private Map<String, SharedConnection> servers = new HashMap<>();
 
-        return roleManager.sendQueued(data, info);
+    private ConnectionManager() {
+    }
+
+    private SharedConnection getContactRoles(String server) {
+        SharedConnection sharedConnection;
+        if (!servers.containsKey(server)) {
+            sharedConnection = new SharedConnection(server);
+            servers.put(server, sharedConnection);
+            return sharedConnection;
+        }
+        return servers.get(server);
+    }
+
+    private RoleManager getRoleManager(ConnectionInfo info) {
+        SharedConnection sharedConnection = getContactRoles(info.server);
+        return sharedConnection.getRoleManager(info.myself);
+    }
+
+    public <T> Observable<T> sendQueued(ConnectionInfo info, Func1<IRemoteRequest, Observable<T>> job) {
+        return getRoleManager(info).sendQueued(info, job);
+    }
+
+    public Observable<IRemoteRequest> getPreparedRemoteRequest(ConnectionInfo info) {
+        return getRoleManager(info).getPreparedRemoteRequest(info);
+    }
+
+    public <T> Observable<T> queueJob(ConnectionInfo info, Observable<T> observable) {
+        return getRoleManager(info).queueJob(observable);
     }
 
     public RemoteConnection getConnection(ConnectionInfo info) {

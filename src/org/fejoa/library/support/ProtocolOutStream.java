@@ -13,6 +13,8 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.io.Writer;
 
 
@@ -52,5 +54,13 @@ public class ProtocolOutStream {
         Element element = createElement("iq");
         element.setAttribute("type", type);
         return element;
+    }
+
+    public byte[] toBytes() throws TransformerException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintWriter writer = new PrintWriter(out);
+        write(writer);
+
+        return out.toByteArray();
     }
 }

@@ -11,5 +11,5 @@ import rx.Observable;
 
 
 public interface IAuthenticationRequest {
-    public Observable<Boolean> send(IRemoteRequest remoteRequest);
+    public Observable<RemoteConnectionJob.Result> auth(RemoteConnection connection);
 }

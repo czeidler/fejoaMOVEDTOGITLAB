@@ -19,14 +19,10 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action1;
-import rx.util.functions.Func1;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,59 +41,54 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         this.user = loginUser;
     }
 
-    @Override
-    public Observable<Boolean> send(final IRemoteRequest remoteRequest) {
+    public Observable<RemoteConnectionJob.Result> auth(final RemoteConnection connection) {
+        LoginRequest loginRequest = new LoginRequest();
+        SignIn signIn = new SignIn(loginRequest);
+        loginRequest.setFollowUpJob(signIn);
 
-            return Observable.create(new Observable.OnSubscribeFunc<Boolean>() {
-                @Override
-                public Subscription onSubscribe(final Observer<? super Boolean> observer) {
-                    String signatureToken = null;
-                    try {
-                        signatureToken = sendLoginRequest(remoteRequest);
-                        boolean result = signIn(signatureToken, remoteRequest);
-                        observer.onNext(result);
-                    } catch (Exception e) {
-                        observer.onError(e);
-                    }
-                    observer.onCompleted();
-
-                    return Subscriptions.empty();
-                }
-            });
+        return connection.queueJob(loginRequest);
     }
 
-    private String sendLoginRequest(IRemoteRequest remoteRequest) throws ParserConfigurationException,
-            TransformerException, IOException {
-        ProtocolOutStream outStream = new ProtocolOutStream();
-        Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
+    class LoginRequest extends RemoteConnectionJob {
+        public String signToken = "";
 
-        Element authStanza = outStream.createElement(AUTH_STANZA);
-        authStanza.setAttribute("type", "signature");
-        authStanza.setAttribute("loginUser", user.getUid());
-        authStanza.setAttribute("serverUser", serverUser);
-        iqStanza.appendChild(authStanza);
+        @Override
+        public byte[] getRequest() throws Exception {
+            ProtocolOutStream outStream = new ProtocolOutStream();
+            Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
 
-        outStream.addElement(iqStanza);
+            Element authStanza = outStream.createElement(AUTH_STANZA);
+            authStanza.setAttribute("type", "signature");
+            authStanza.setAttribute("loginUser", user.getUid());
+            authStanza.setAttribute("serverUser", serverUser);
+            iqStanza.appendChild(authStanza);
 
-        byte reply[] = RemoteConnection.send(remoteRequest, outStream);
+            outStream.addElement(iqStanza);
+            return outStream.toBytes();
+        }
 
-        IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
-        UserAuthHandler userAuthHandler = new UserAuthHandler();
-        iqHandler.addChildHandler(userAuthHandler);
+        @Override
+        public Result handleResponse(byte[] reply) throws Exception {
+            IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
+            UserAuthHandler userAuthHandler = new UserAuthHandler();
+            iqHandler.addChildHandler(userAuthHandler);
 
-        ProtocolInStream inStream = new ProtocolInStream(reply);
-        inStream.addHandler(iqHandler);
-        inStream.parse();
+            ProtocolInStream inStream = new ProtocolInStream(reply);
+            inStream.addHandler(iqHandler);
+            inStream.parse();
 
-        if (!userAuthHandler.hasBeenHandled())
-            throw new IOException();
+            if (!userAuthHandler.hasBeenHandled())
+                throw new IOException();
 
-        if (userAuthHandler.status.equals("i_dont_know_you"))
-            throw new IOException("no contact");
-        if (!userAuthHandler.status.equals("sign_this_token"))
-            throw new IOException("no sign token");
+            if (userAuthHandler.status.equals("i_dont_know_you"))
+                throw new IOException("no contact");
+            if (!userAuthHandler.status.equals("sign_this_token"))
+                throw new IOException("no sign token");
 
-        return userAuthHandler.signToken;
+            signToken = userAuthHandler.signToken;
+
+            return new Result(true);
+        }
     }
 
     class UserAuthHandler extends InStanzaHandler {
@@ -149,37 +140,49 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         }
     };
 
-    private boolean signIn(String signatureToken, final IRemoteRequest remoteRequest) throws Exception {
-        byte signature[] = user.sign(user.getMainKeyId(), signatureToken.getBytes());
+    class SignIn extends RemoteConnectionJob {
+        final private LoginRequest loginRequest;
 
-        ProtocolOutStream outStream = new ProtocolOutStream();
-        Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_SET);
-        outStream.addElement(iqStanza);
-        Element authStanza =  outStream.createElement(AUTH_SIGNED_STANZA);
-        authStanza.setAttribute("signature", Base64.encodeBytes(signature));
-        authStanza.setAttribute("serverUser", serverUser);
-        authStanza.setAttribute("loginUser", user.getUid());
-        iqStanza.appendChild(authStanza);
+        public SignIn(LoginRequest loginRequest) {
+            this.loginRequest = loginRequest;
+        }
 
-        byte reply[] = RemoteConnection.send(remoteRequest, outStream);
+        @Override
+        public byte[] getRequest() throws Exception {
+            byte signature[] = user.sign(user.getMainKeyId(), loginRequest.signToken.getBytes());
 
-        IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
-        UserAuthResultHandler userAuthResultHandler = new UserAuthResultHandler();
-        AuthResultRoleHandler roleHandler = new AuthResultRoleHandler();
-        userAuthResultHandler.addChildHandler(roleHandler);
-        iqHandler.addChildHandler(userAuthResultHandler);
+            ProtocolOutStream outStream = new ProtocolOutStream();
+            Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_SET);
+            outStream.addElement(iqStanza);
+            Element authStanza = outStream.createElement(AUTH_SIGNED_STANZA);
+            authStanza.setAttribute("signature", Base64.encodeBytes(signature));
+            authStanza.setAttribute("serverUser", serverUser);
+            authStanza.setAttribute("loginUser", user.getUid());
+            iqStanza.appendChild(authStanza);
 
-        ProtocolInStream inStream = new ProtocolInStream(reply);
-        inStream.addHandler(iqHandler);
-        inStream.parse();
+            return outStream.toBytes();
+        }
 
-        if (!userAuthResultHandler.hasBeenHandled())
-            throw new Exception();
+        @Override
+        public Result handleResponse(byte[] reply) throws Exception {
+            IqInStanzaHandler iqHandler = new IqInStanzaHandler(ProtocolOutStream.IQ_RESULT);
+            UserAuthResultHandler userAuthResultHandler = new UserAuthResultHandler();
+            AuthResultRoleHandler roleHandler = new AuthResultRoleHandler();
+            userAuthResultHandler.addChildHandler(roleHandler);
+            iqHandler.addChildHandler(userAuthResultHandler);
 
-        roles = roleHandler.roles;
-        if (roles.size() == 0)
-            return false;
+            ProtocolInStream inStream = new ProtocolInStream(reply);
+            inStream.addHandler(iqHandler);
+            inStream.parse();
 
-        return true;
+            if (!userAuthResultHandler.hasBeenHandled())
+                return new RemoteConnectionJob.Result(false);
+
+            roles = roleHandler.roles;
+            if (roles.size() == 0)
+                return new RemoteConnectionJob.Result(false);
+
+            return new RemoteConnectionJob.Result(true);
+        }
     }
 }

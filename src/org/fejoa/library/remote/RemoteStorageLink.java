@@ -76,8 +76,10 @@ public class RemoteStorageLink {
         storageDir.writeSecureString("database_path", databaseInterface.getPath());
         storageDir.writeSecureString("database_branch", databaseInterface.getBranch());
 
-        storageDir.writeSecureString("server_user", connectionInfo.serverUser);
-        storageDir.writeSecureString("server", connectionInfo.server);
+        if (connectionInfo != null) {
+            storageDir.writeSecureString("server_user", connectionInfo.serverUser);
+            storageDir.writeSecureString("server", connectionInfo.server);
+        }
     }
 
 }

@@ -20,8 +20,6 @@ import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,13 +51,13 @@ public class SignatureAuthentication implements IAuthenticationRequest {
                     byte[] reply = RemoteRequestHelper.sendSync(remoteRequest, request);
                     if (reply == null)
                         throw new IOException("network error");
-                    if (!loginRequest.handleResponse(reply).done)
+                    if (loginRequest.handleResponse(reply).status == RemoteConnectionJob.Result.ERROR)
                         throw new IOException("bad response");
                     request = signIn.getRequest();
                     reply = RemoteRequestHelper.sendSync(remoteRequest, request);
                     if (reply == null)
                         throw new IOException("network error");
-                    boolean done = signIn.handleResponse(reply).done;
+                    boolean done = signIn.handleResponse(reply).status == RemoteConnectionJob.Result.DONE;
                     observer.onNext(done);
                     observer.onCompleted();
                 } catch (Exception e) {
@@ -110,7 +108,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
             signToken = userAuthHandler.signToken;
 
-            return new Result(true);
+            return new Result(RemoteConnectionJob.Result.DONE);
         }
     }
 
@@ -199,13 +197,13 @@ public class SignatureAuthentication implements IAuthenticationRequest {
             inStream.parse();
 
             if (!userAuthResultHandler.hasBeenHandled())
-                return new RemoteConnectionJob.Result(false);
+                return new RemoteConnectionJob.Result(Result.ERROR);
 
             roles = roleHandler.roles;
             if (roles.size() == 0)
-                return new RemoteConnectionJob.Result(false);
+                return new RemoteConnectionJob.Result(Result.ERROR);
 
-            return new RemoteConnectionJob.Result(true);
+            return new RemoteConnectionJob.Result(Result.DONE);
         }
     }
 }

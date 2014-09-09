@@ -121,7 +121,7 @@ public class RequestQueue {
         private Observer<T> child;
 
         public RequestObserver(Observer<T> child) {
-
+            this.child = child;
         }
 
         @Override

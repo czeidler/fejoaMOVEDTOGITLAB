@@ -129,7 +129,7 @@ public class ServerSync {
                 throw new IOException("invalid server response");
 
             if (syncPullData.tip.equals(localTipCommit))
-                return new Result(true);
+                return new Result(Result.DONE);
 
             // see if the server is ahead by checking if we got packages
             if (syncPullData.pack != null && syncPullData.pack.length > 0) {
@@ -138,12 +138,12 @@ public class ServerSync {
                 database.importPack(syncPullData.pack, lastSyncCommit, syncPullData.tip, -1);
 
                 localTipCommit = database.getTip();
-                // done? otherwise it was a merge and we have to push our merge
+                // status? otherwise it was a merge and we have to push our merge
                 if (localTipCommit.equals(lastSyncCommit))
-                    return new Result(true);
+                    return new Result(Result.DONE);
             }
 
-            return new Result(false);
+            return new Result(Result.CONTINUE);
         }
     }
 
@@ -183,13 +183,13 @@ public class ServerSync {
             inStream.parse();
 
             if (!resultHandler.hasBeenHandled())
-                return new Result(false);
+                return new Result(Result.ERROR);
 
             IDatabaseInterface database = remoteStorageLink.getDatabaseInterface();
             String localTipCommit = database.getTip();
             database.updateLastSyncCommit(remoteStorageLink.getUid(), database.getBranch(), localTipCommit);
 
-            return new Result(true);
+            return new Result(Result.DONE);
         }
     }
 }

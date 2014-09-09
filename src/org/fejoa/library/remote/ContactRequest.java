@@ -158,13 +158,13 @@ public class ContactRequest {
             inStream.parse();
 
             if (!requestHandler.hasBeenHandled())
-                return new Result(false);
+                return new Result(Result.ERROR);
 
             if (!requestHandler.status.equals("ok"))
-                return new Result(false);
+                return new Result(Result.ERROR, requestHandler.status);
 
             if (!publicKeyHandler.hasBeenHandled())
-                return new Result(false);
+                return new Result(Result.ERROR);
 
             ContactPublic contact = userIdentity.addNewContact(requestHandler.uid);
             contact.addKey(requestHandler.keyId, CryptoHelper.publicKeyFromPem(publicKeyHandler.publicKey));
@@ -174,7 +174,7 @@ public class ContactRequest {
             // commit changes
             userIdentity.getStorageDir().getDatabase().commit();
 
-            return new Result(true);
+            return new Result(Result.DONE);
         }
     }
 }

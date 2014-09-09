@@ -68,9 +68,11 @@ public class RemoteConnection {
                     @Override
                     public void onNext(byte[] reply) {
                         try {
+                            String test = new String(reply);
+                            System.out.print(test);
                             RemoteConnectionJob.Result result = job.handleResponse(reply);
                             RemoteConnectionJob followUpJob = job.getFollowUpJob();
-                            if (!result.done || followUpJob == null) {
+                            if (result.status != RemoteConnectionJob.Result.CONTINUE || followUpJob == null) {
                                 observer.onNext(result);
                                 observer.onCompleted();
                                 return;

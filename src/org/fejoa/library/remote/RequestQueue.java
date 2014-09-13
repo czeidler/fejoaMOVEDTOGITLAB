@@ -99,7 +99,7 @@ class RequestQueue {
     }
 
     private Scheduler subscribeScheduler() {
-        return Schedulers.newThread();
+        return Schedulers.threadPoolForComputation();
     }
 
     private Scheduler observeScheduler() {
@@ -142,7 +142,8 @@ class RequestQueue {
         if (queue.size() == 0) {
             if (idleJob == null)
                 return;
-            runIdleJob();
+            if (idleJobSubscription == null)
+                runIdleJob();
             return;
         }
 
@@ -184,4 +185,19 @@ class RequestQueue {
             queueLock.unlock();
         }
     }
+
+    public void shutdown(boolean force) {
+        setIdleJob(null);
+        if (!force)
+            return;
+        try {
+            queueLock.lock();
+            queue.clear();
+            if (runningEntry != null)
+                runningEntry.subscription.unsubscribe();
+        } finally {
+            queueLock.unlock();
+        }
+    }
+
 }

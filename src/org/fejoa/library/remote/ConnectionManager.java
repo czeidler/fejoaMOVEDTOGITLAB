@@ -47,6 +47,12 @@ class SharedConnection {
             }
         });
     }
+
+    public void shutdown(boolean force) {
+        for (RoleManager roleManager : contactRoles.values())
+            roleManager.shutdown(force);
+        contactRoles.clear();
+    }
 }
 
 class RoleManager {
@@ -155,6 +161,11 @@ class RoleManager {
             }
         });
     }
+
+    public void shutdown(boolean force) {
+        requestQueue.shutdown(force);
+        roles.clear();
+    }
 }
 
 public class ConnectionManager {
@@ -209,6 +220,12 @@ public class ConnectionManager {
     public void startWatching(RemoteStorageLink link) {
         ConnectionInfo info = link.getConnectionInfo();
         getRoleManager(info).startWatching(link);
+    }
+
+    public void shutdown(boolean force) {
+        for (SharedConnection connection : servers.values())
+            connection.shutdown(force);
+        servers.clear();
     }
 }
 

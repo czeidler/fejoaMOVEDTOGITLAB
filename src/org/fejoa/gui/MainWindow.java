@@ -73,6 +73,7 @@ public class MainWindow extends JDialog {
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
+                ConnectionManager.get().shutdown(true);
                 dispose();
             }
 

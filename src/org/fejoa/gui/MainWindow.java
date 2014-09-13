@@ -100,9 +100,10 @@ public class MainWindow extends JDialog {
     }
 
     private void start() {
-        setStatus("start auth");
+        setStatus("start watching");
 
-        final RemoteStorageLink link = profile.getRemoteStorageLinks().values().iterator().next();
+        Collection<RemoteStorageLink> links = profile.getRemoteStorageLinks().values();
+        RemoteStorageLink link = links.iterator().next();
 
         ConnectionManager.get().setWatchListener(link.getConnectionInfo(), new ServerWatcher.IListener() {
             @Override
@@ -111,7 +112,9 @@ public class MainWindow extends JDialog {
                     syncBranch(link);
             }
         });
-        ConnectionManager.get().startWatching(link);
+
+        for (RemoteStorageLink l : links)
+            ConnectionManager.get().startWatching(l);
     }
 
     private void syncBranch(RemoteStorageLink remoteStorageLink) {
@@ -125,7 +128,7 @@ public class MainWindow extends JDialog {
 
             @Override
             public void onError(Throwable e) {
-
+                setStatus("sync error");
             }
 
             @Override

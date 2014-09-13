@@ -10,6 +10,7 @@ package org.fejoa.library.remote;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
+import rx.subscriptions.Subscriptions;
 import rx.util.functions.Func1;
 
 
@@ -72,7 +73,7 @@ public class RemoteConnection {
                 } catch (Exception e) {
                     e.printStackTrace();
                     observer.onError(e);
-                    return null;
+                    return Subscriptions.empty();
                 }
 
                 currentSubscription.child = sendBytes(request).subscribe(new Observer<byte[]>() {

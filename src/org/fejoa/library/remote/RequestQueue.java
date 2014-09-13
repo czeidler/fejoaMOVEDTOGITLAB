@@ -76,7 +76,7 @@ class RequestQueue {
                 return new Subscription() {
                     @Override
                     public void unsubscribe() {
-                        unQueueEntry(entry);
+                        onUnsubscribe(entry);
                     }
                 };
             }
@@ -86,14 +86,13 @@ class RequestQueue {
     public void setIdleJob(IIdleJob job) {
         try {
             queueLock.lock();
-            if (idleJobSubscription != null) {
-                idleJobSubscription.unsubscribe();
-                idleJobSubscription = null;
-            }
             this.idleJob = job;
 
-            if (idleJob != null)
+            if (idleJobSubscription != null) {
+                stopIdleJob();
+            } else
                 schedule();
+
         } finally {
             queueLock.unlock();
         }
@@ -107,6 +106,12 @@ class RequestQueue {
         return SwingScheduler.getInstance();
     }
 
+    private void stopIdleJob() {
+        idleJobSubscription.unsubscribe();
+        idleJobSubscription = null;
+        onJobFinished();
+    }
+
     private <T> void runEntry(QueueEntry<T> entry) {
         entry.subscription = entry.observable.subscribeOn(subscribeScheduler()).observeOn(observeScheduler())
                 .subscribe(entry.observer);
@@ -117,8 +122,6 @@ class RequestQueue {
         try {
             queueLock.lock();
             runningEntry = null;
-            // set the subscription to null in case it was the idle job
-            idleJobSubscription = null;
             schedule();
         } finally {
             queueLock.unlock();
@@ -134,7 +137,7 @@ class RequestQueue {
     }
 
     private void schedule() {
-        if (runningEntry != null)
+        if (idleJobSubscription == null && runningEntry != null)
             return;
         if (queue.size() == 0) {
             if (idleJob == null)
@@ -143,14 +146,13 @@ class RequestQueue {
             return;
         }
 
-        // non-empty queue start entry
-
         // if idle job is running just cancel it, that will trigger working the queue
         if (idleJobSubscription != null) {
-            idleJobSubscription.unsubscribe();
+            stopIdleJob();
             return;
         }
 
+        // non-empty queue start entry
         QueueEntry entry = queue.remove(0);
         runEntry(entry);
     }
@@ -163,18 +165,20 @@ class RequestQueue {
         } finally {
             queueLock.unlock();
         }
-        schedule();
     }
 
-    private <T> void unQueueEntry(QueueEntry<T> entry) {
+    private <T> void onUnsubscribe(QueueEntry<T> entry) {
         try {
             queueLock.lock();
 
             if (entry.subscription == null) {
                 queue.remove(entry);
+                schedule();
                 return;
-            } else
+            } else {
                 entry.subscription.unsubscribe();
+                onJobFinished();
+            }
 
         } finally {
             queueLock.unlock();

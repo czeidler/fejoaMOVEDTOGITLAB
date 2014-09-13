@@ -19,6 +19,7 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
+import rx.util.functions.Func1;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,32 +30,31 @@ public class SignatureAuthentication implements IAuthenticationRequest {
     final String AUTH_STANZA = "auth";
     final String AUTH_SIGNED_STANZA = "auth_signed";
 
-    final private String serverUser;
-    final ContactPrivate user;
+    final ConnectionInfo connectionInfo;
 
     private List<String> roles;
 
-    public SignatureAuthentication(ContactPrivate loginUser, String serverUser) {
-        this.serverUser = serverUser;
-        this.user = loginUser;
+    public SignatureAuthentication(ConnectionInfo info) {
+        this.connectionInfo = info;
     }
 
     public Observable<Boolean> auth(final IRemoteRequest remoteRequest) {
         final LoginRequest loginRequest = new LoginRequest();
         final SignIn signIn = new SignIn(loginRequest);
+        loginRequest.setFollowUpJob(signIn);
 
         return Observable.create(new Observable.OnSubscribeFunc<Boolean>() {
             @Override
             public Subscription onSubscribe(Observer<? super Boolean> observer) {
                 try {
                     byte[] request = loginRequest.getRequest();
-                    byte[] reply = RemoteRequestHelper.sendSync(remoteRequest, request);
+                    byte[] reply = remoteRequest.send(request);
                     if (reply == null)
                         throw new IOException("network error");
                     if (loginRequest.handleResponse(reply).status == RemoteConnectionJob.Result.ERROR)
                         throw new IOException("bad response");
                     request = signIn.getRequest();
-                    reply = RemoteRequestHelper.sendSync(remoteRequest, request);
+                    reply = remoteRequest.send(request);
                     if (reply == null)
                         throw new IOException("network error");
                     boolean done = signIn.handleResponse(reply).status == RemoteConnectionJob.Result.DONE;
@@ -66,6 +66,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
                     return Subscriptions.empty();
                 }
                 return Subscriptions.empty();
+
             }
         });
     }
@@ -80,8 +81,8 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
             Element authStanza = outStream.createElement(AUTH_STANZA);
             authStanza.setAttribute("type", "signature");
-            authStanza.setAttribute("loginUser", user.getUid());
-            authStanza.setAttribute("serverUser", serverUser);
+            authStanza.setAttribute("loginUser", connectionInfo.myself.getUid());
+            authStanza.setAttribute("serverUser", connectionInfo.serverUser);
             iqStanza.appendChild(authStanza);
 
             outStream.addElement(iqStanza);
@@ -170,15 +171,16 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
         @Override
         public byte[] getRequest() throws Exception {
-            byte signature[] = user.sign(user.getMainKeyId(), loginRequest.signToken.getBytes());
+            ContactPrivate myself = connectionInfo.myself;
+            byte signature[] = myself.sign(myself.getMainKeyId(), loginRequest.signToken.getBytes());
 
             ProtocolOutStream outStream = new ProtocolOutStream();
             Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_SET);
             outStream.addElement(iqStanza);
             Element authStanza = outStream.createElement(AUTH_SIGNED_STANZA);
             authStanza.setAttribute("signature", Base64.encodeBytes(signature));
-            authStanza.setAttribute("serverUser", serverUser);
-            authStanza.setAttribute("loginUser", user.getUid());
+            authStanza.setAttribute("serverUser", connectionInfo.serverUser);
+            authStanza.setAttribute("loginUser", myself.getUid());
             iqStanza.appendChild(authStanza);
 
             return outStream.toBytes();

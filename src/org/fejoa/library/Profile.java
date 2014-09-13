@@ -10,9 +10,6 @@ package org.fejoa.library;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.mailbox.Mailbox;
-import org.fejoa.library.remote.IRemoteRequest;
-import org.fejoa.library.remote.RemoteConnection;
-import org.fejoa.library.remote.RemoteRequestFactory;
 import org.fejoa.library.remote.RemoteStorageLink;
 
 import javax.crypto.SecretKey;

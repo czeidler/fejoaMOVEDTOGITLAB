@@ -22,7 +22,7 @@ public class RemoteConnection {
         this.info = info;
     }
 
-    public Observable<IRemoteRequest> getPreparedRemoteRequest() {
+    private Observable<IRemoteRequest> getPreparedRemoteRequest() {
         return manager.getPreparedRemoteRequest(info);
     }
 
@@ -31,17 +31,38 @@ public class RemoteConnection {
     }
 
     public Observable<byte[]> queueBytes(final byte[] data) {
+        return queueObservable(sendBytes(data));
+    }
+
+    private Observable<byte[]> sendBytes(final byte[] data) {
         Observable<byte[]> out = getPreparedRemoteRequest().mapMany(
                 new Func1<IRemoteRequest, Observable<byte[]>>() {
                     @Override
                     public Observable<byte[]> call(IRemoteRequest remoteRequest) {
-                        return remoteRequest.send(data);
+                        return RemoteRequestHelper.send(remoteRequest, data);
                     }
                 });
-        return queueObservable(out);
+        return out;
     }
 
+    private CurrentSubscription currentSubscription = new CurrentSubscription();
+    class CurrentSubscription implements Subscription {
+        public Subscription child = null;
+
+        @Override
+        public void unsubscribe() {
+            // child could be set to null from a different thread so copy it to a local variable
+            Subscription currentChild = child;
+            if (currentChild != null)
+                currentChild.unsubscribe();
+        }
+    };
+
     public Observable<RemoteConnectionJob.Result> queueJob(final RemoteConnectionJob job) {
+        return queueObservable(runJob(job));
+    }
+
+    public Observable<RemoteConnectionJob.Result> runJob(final RemoteConnectionJob job) {
         return Observable.create(new Observable.OnSubscribeFunc<RemoteConnectionJob.Result>() {
             @Override
             public Subscription onSubscribe(final Observer<? super RemoteConnectionJob.Result> observer) {
@@ -54,7 +75,7 @@ public class RemoteConnection {
                     return null;
                 }
 
-                queueBytes(request).subscribe(new Observer<byte[]>() {
+                currentSubscription.child = sendBytes(request).subscribe(new Observer<byte[]>() {
                     @Override
                     public void onCompleted() {
 
@@ -68,8 +89,6 @@ public class RemoteConnection {
                     @Override
                     public void onNext(byte[] reply) {
                         try {
-                            String test = new String(reply);
-                            System.out.print(test);
                             RemoteConnectionJob.Result result = job.handleResponse(reply);
                             RemoteConnectionJob followUpJob = job.getFollowUpJob();
                             if (result.status != RemoteConnectionJob.Result.CONTINUE || followUpJob == null) {
@@ -77,7 +96,7 @@ public class RemoteConnection {
                                 observer.onCompleted();
                                 return;
                             }
-                            queueJob(followUpJob).subscribe(observer);
+                            currentSubscription.child = runJob(followUpJob).subscribe(observer);
                         } catch (Exception e) {
                             e.printStackTrace();
                             observer.onError(e);
@@ -86,7 +105,7 @@ public class RemoteConnection {
                     }
                 });
 
-                return null;
+                return currentSubscription;
             }
         });
     }

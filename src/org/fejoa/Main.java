@@ -115,7 +115,7 @@ public class Main {
                     myself.setServer(server);
                     myself.write();
 
-                    profile.setEmptyRemotes(server, userName);
+                    profile.setEmptyRemotes(server, userName, myself);
                     profile.commit();
                 } catch (Exception e) {
                     System.exit(-1);

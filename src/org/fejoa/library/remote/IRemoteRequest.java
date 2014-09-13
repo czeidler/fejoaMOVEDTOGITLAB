@@ -10,6 +10,7 @@ package org.fejoa.library.remote;
 import org.fejoa.library.support.ProtocolOutStream;
 import rx.Observable;
 import rx.Observer;
+import rx.Subscription;
 
 import javax.xml.transform.TransformerException;
 import java.io.ByteArrayOutputStream;
@@ -19,7 +20,8 @@ import java.io.PrintWriter;
 
 public interface IRemoteRequest {
     public String getUrl();
-    public Observable<byte[]> send(byte data[]);
+    public byte[] send(byte data[]) throws IOException;
+    public void cancel();
 }
 
 class RemoteRequestHelper {
@@ -29,28 +31,42 @@ class RemoteRequestHelper {
         PrintWriter writer = new PrintWriter(out);
         outStream.write(writer);
 
-        return remoteRequest.send(out.toByteArray());
+        return send(remoteRequest, out.toByteArray());
     }
 
-    static public byte[] sendSync(final IRemoteRequest remoteRequest, byte[] bytes) {
-        final byte[][] result = {null};
-        remoteRequest.send(bytes).subscribe(new Observer<byte[]>() {
+    static public Observable<byte[]> send(final IRemoteRequest remoteRequest, final byte[] bytes) {
+        return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
             @Override
-            public void onCompleted() {
+            public Subscription onSubscribe(final Observer<? super byte[]> receiver) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        byte receivedData[];
+                        try {
+                            String out = new String(bytes);
+                            System.out.print(out);
+                            receivedData = remoteRequest.send(bytes);
 
-            }
+                        } catch (IOException e) {
+                            receiver.onError(e);
+                            return;
+                        }
 
-            @Override
-            public void onError(Throwable e) {
+                        String test = new String(receivedData);
+                        System.out.print(test);
 
-            }
+                        receiver.onNext(receivedData);
+                        receiver.onCompleted();
+                    }
+                }).start();
 
-            @Override
-            public void onNext(byte[] args) {
-                result[0] = args;
+                return new Subscription() {
+                    @Override
+                    public void unsubscribe() {
+                        remoteRequest.cancel();
+                    }
+                };
             }
         });
-
-        return result[0];
     }
 }

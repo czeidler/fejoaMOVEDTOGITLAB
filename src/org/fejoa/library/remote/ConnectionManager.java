@@ -18,12 +18,11 @@ import java.util.*;
 
 
 class SharedConnection {
-    private IRemoteRequest remoteRequest;
+    private String server;
     private Map<ContactPrivate, RoleManager> contactRoles = new HashMap<>();
 
     public SharedConnection(String server) {
-        String fullAddress = "http://" + server + "/php_server/portal.php";
-        remoteRequest = new HTMLRequest(fullAddress);
+        this.server = server;
     }
 
     public RoleManager getRoleManager(ContactPrivate myself) {
@@ -39,6 +38,9 @@ class SharedConnection {
         return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
             @Override
             public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
+                String fullAddress = "http://" + server + "/php_server/portal.php";
+                HTMLRequest remoteRequest = new HTMLRequest(fullAddress);
+
                 observer.onNext(remoteRequest);
                 observer.onCompleted();
                 return Subscriptions.empty();
@@ -50,11 +52,21 @@ class SharedConnection {
 class RoleManager {
     final private SharedConnection sharedConnection;
     final private RequestQueue requestQueue;
+    final private ServerWatcher serverWatcher = new ServerWatcher();
     final private List<String> roles = Collections.synchronizedList(new ArrayList<String>());
 
     public RoleManager(SharedConnection sharedConnection) {
         this.sharedConnection = sharedConnection;
         requestQueue = new RequestQueue(null);
+    }
+
+    public void setListener(ServerWatcher.IListener listener) {
+        serverWatcher.setListener(listener);
+    }
+
+    public void startWatching(RemoteStorageLink link) {
+        serverWatcher.addLink(link);
+        requestQueue.setIdleJob(serverWatcher);
     }
 
     private boolean hasRole(String role) {
@@ -77,7 +89,7 @@ class RoleManager {
                         new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
                             @Override
                             public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
-                                return login(remoteRequest, info.myself, info.serverUser);
+                                return login(remoteRequest, info);
                             }
                         }).mapMany(job);
                 return requestQueue.queue(observable).subscribe(observer);
@@ -93,7 +105,7 @@ class RoleManager {
                         new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
                             @Override
                             public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
-                                return login(remoteRequest, info.myself, info.serverUser);
+                                return login(remoteRequest, info);
                             }
                         });
                 return observable.subscribe(observer);
@@ -105,8 +117,8 @@ class RoleManager {
         return requestQueue.queue(observable);
     }
 
-    private Observable<IRemoteRequest> login(final IRemoteRequest remoteRequest, final ContactPrivate loginUser, final String serverUser) {
-        final String role = loginUser.getUid() + ":" + serverUser;
+    private Observable<IRemoteRequest> login(final IRemoteRequest remoteRequest, final ConnectionInfo info) {
+        final String role = info.myself.getUid() + ":" + info.serverUser;
         if (hasRole(role))
             return Observable.just(remoteRequest);
 
@@ -118,7 +130,7 @@ class RoleManager {
                     observer.onCompleted();
                     return Subscriptions.empty();
                 }
-                SignatureAuthentication authentication = new SignatureAuthentication(loginUser, serverUser);
+                SignatureAuthentication authentication = new SignatureAuthentication(info);
                 authentication.auth(remoteRequest).subscribe(new Observer<Boolean>() {
                     @Override
                     public void onCompleted() {
@@ -146,12 +158,12 @@ class RoleManager {
 }
 
 public class ConnectionManager {
-    static final private ConnectionManager connectionManager = null;
+    static private ConnectionManager connectionManager = null;
     static public ConnectionManager get() {
         if (connectionManager != null)
             return connectionManager;
-        ConnectionManager manager = new ConnectionManager();
-        return manager;
+        connectionManager = new ConnectionManager();
+        return connectionManager;
     }
 
     final private Map<String, SharedConnection> servers = new HashMap<>();
@@ -188,6 +200,15 @@ public class ConnectionManager {
 
     public RemoteConnection getConnection(ConnectionInfo info) {
         return new RemoteConnection(this, info);
+    }
+
+    public void setWatchListener(ConnectionInfo info, ServerWatcher.IListener listener) {
+        getRoleManager(info).setListener(listener);
+    }
+
+    public void startWatching(RemoteStorageLink link) {
+        ConnectionInfo info = link.getConnectionInfo();
+        getRoleManager(info).startWatching(link);
     }
 }
 

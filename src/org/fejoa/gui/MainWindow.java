@@ -7,22 +7,18 @@
  */
 package org.fejoa.gui;
 
-import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
 import org.fejoa.library.mailbox.Mailbox;
-import org.fejoa.library.remote.HTMLRequest;
-import org.fejoa.library.remote.RemoteConnection;
-import org.fejoa.library.remote.RemoteStorageLink;
-import org.fejoa.library.remote.ServerSync;
+import org.fejoa.library.remote.*;
 import rx.Observer;
-import rx.concurrency.Schedulers;
-import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.*;
+import java.util.List;
 
 
 public class MainWindow extends JDialog {
@@ -106,66 +102,40 @@ public class MainWindow extends JDialog {
     private void start() {
         setStatus("start auth");
 
-        ContactPrivate myself = profile.getUserIdentityList().get(0).getMyself();
-        String server = myself.getServer();
-        String fullAddress = "http://" + server + "/php_server/portal.php";
-
-        RemoteConnection remoteConnection = new RemoteConnection(new HTMLRequest(fullAddress));
-        remoteConnection.requestAuthentication(myself, "lec")
-                .subscribeOn(Schedulers.threadPoolForIO())
-                .observeOn(SwingScheduler.getInstance())
-                .subscribe(new Observer<Boolean>() {
-                    boolean connected = false;
-                    @Override
-                    public void onCompleted() {
-                        setStatus("auth done: " + connected);
-                        if (connected)
-                            startSync();
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        setStatus("auth failed");
-                    }
-
-                    @Override
-                    public void onNext(Boolean connected) {
-                        this.connected = connected;
-                        if (connected)
-                            setStatus("auth ok");
-                        else
-                            setStatus("auth failed");
-                    }
-                });
-    }
-
-    private void startSync() {
-        setStatus("start sync");
-
         final RemoteStorageLink link = profile.getRemoteStorageLinks().values().iterator().next();
-        ServerSync serverSync = new ServerSync(link);
-        serverSync.sync()
-                .subscribeOn(Schedulers.threadPoolForIO())
-                .observeOn(SwingScheduler.getInstance())
-                .subscribe(new Observer<Boolean>() {
-                    @Override
-                    public void onCompleted() {
 
-                    }
-
-                    @Override
-                    public void onError(Throwable throwable) {
-                        setStatus("sync error");
-                    }
-
-                    @Override
-                    public void onNext(Boolean connected) {
-                        if (connected)
-                            setStatus("sync ok: " + link.getDatabaseInterface().getBranch().toString());
-                        else
-                            setStatus("sync failed");
-                    }
-                });
+        ConnectionManager.get().setWatchListener(link.getConnectionInfo(), new ServerWatcher.IListener() {
+            @Override
+            public void onBranchesUpdated(List<RemoteStorageLink> links) {
+                for (RemoteStorageLink link : links)
+                    syncBranch(link);
+            }
+        });
+        ConnectionManager.get().startWatching(link);
     }
 
+    private void syncBranch(RemoteStorageLink remoteStorageLink) {
+        final String branch = remoteStorageLink.getDatabaseInterface().getBranch();
+        ServerSync serverSync = new ServerSync(remoteStorageLink);
+        serverSync.sync().subscribe(new Observer<RemoteConnectionJob.Result>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(RemoteConnectionJob.Result result) {
+                if (result.status == RemoteConnectionJob.Result.DONE)
+                    setStatus(branch + ": sync ok");
+                else
+                    setStatus(branch + ": sync failed");
+            }
+        });
+    }
 }
+

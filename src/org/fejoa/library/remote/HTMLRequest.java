@@ -8,11 +8,6 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.support.StreamHelper;
-import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-import rx.subscriptions.Subscriptions;
-import rx.util.functions.Func1;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -20,7 +15,9 @@ import java.net.URL;
 
 
 public class HTMLRequest implements IRemoteRequest {
+    //static private HttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
     private String url;
+    private HttpURLConnection httpPost;
 
     public HTMLRequest(String url) {
         this.url = url;
@@ -32,41 +29,64 @@ public class HTMLRequest implements IRemoteRequest {
     }
 
     @Override
-    public Observable<byte[]> send(final byte data[]) {
-        return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
-            @Override
-            public Subscription onSubscribe(final Observer<? super byte[]> receiver) {
-                byte receivedData[] = new byte[0];
-                try {
-                    receivedData = getHTML(url, data);
-                } catch (IOException e) {
-                    receiver.onError(e);
-                }
-
-                receiver.onNext(receivedData);
-                receiver.onCompleted();
-
-                return Subscriptions.empty();
-            }
-        });
+    public byte[] send(byte[] data) throws IOException {
+        return getHTML(data);
     }
 
-    private byte[] getHTML(String urlToRead, byte data[]) throws IOException {
+    @Override
+    public void cancel() {
+        if (httpPost != null)
+            httpPost.disconnect();
+        httpPost = null;
+    }
+/*
+    private byte[] getHTML(byte data[]) throws IOException {
+        HttpClient httpClient = new DefaultHttpClient();
+        HttpClients.custom().setConnectionManager(connectionManager);
+
+        httpPost = new HttpPost(url);
+
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+        builder.addBinaryBody("transfer_data", data, ContentType.DEFAULT_BINARY, "transfer_data.txt");
+
+        httpPost.setEntity(builder.build());
+        HttpResponse response = httpClient.execute(httpPost);
+
+        if(response.getStatusLine().getStatusCode() != 200)
+            throw new IOException("Unexpected status code: "+response.getStatusLine().getStatusCode());
+
+        ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
+        BufferedInputStream bufferedInputStream = null;
+
+        try {
+            bufferedInputStream = new BufferedInputStream(response.getEntity().getContent());
+            StreamHelper.copy(bufferedInputStream, receivedData);
+        } finally {
+            if (bufferedInputStream != null)
+                bufferedInputStream.close();
+        }
+        return receivedData.toByteArray();
+    }
+*/
+
+    private byte[] getHTML(byte data[]) throws IOException {
+        httpPost = (HttpURLConnection)(new URL(url)).openConnection();
+
         // creates a unique boundary based on time stamp
         final String boundary = "===" + System.currentTimeMillis() + "===";
         final String LINE_FEED = "\r\n";
-        final URL url = new URL(urlToRead);
-        final HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+        ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
         BufferedInputStream bufferedInputStream = null;
-        ByteArrayOutputStream receivedData = null;
-        try {
-            connection.setUseCaches(false);
-            connection.setDoOutput(true); // indicates POST method
-            connection.setDoInput(true);
-            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-            connection.setRequestProperty("Accept-Charset", "utf-8");
 
-            OutputStream outputStream = connection.getOutputStream();
+        try {
+            httpPost.setUseCaches(false);
+            httpPost.setDoOutput(true); // indicates POST method
+            httpPost.setDoInput(true);
+            httpPost.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            httpPost.setRequestProperty("Accept-Charset", "utf-8");
+
+            OutputStream outputStream = httpPost.getOutputStream();
             PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true);
 
             // header
@@ -94,19 +114,19 @@ public class HTMLRequest implements IRemoteRequest {
             writer.close();
 
             // receive
-            int status = connection.getResponseCode();
+            int status = httpPost.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) {
                 throw new IOException("Bad server response: " + status);
             }
 
-            receivedData = new ByteArrayOutputStream();
-            bufferedInputStream = new BufferedInputStream(connection.getInputStream());
+            bufferedInputStream = new BufferedInputStream(httpPost.getInputStream());
             StreamHelper.copy(bufferedInputStream, receivedData);
         } finally {
             if (bufferedInputStream != null)
                 bufferedInputStream.close();
-            connection.disconnect();
+            httpPost = null;
         }
         return receivedData.toByteArray();
     }
+
 }

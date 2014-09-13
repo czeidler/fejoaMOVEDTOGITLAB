@@ -66,9 +66,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
 
     public final static String WATCH_BRANCHES_STANZA = "watch_branches";
 
-    private RequestQueue requestQueue;
     final private List<RemoteStorageLink> remoteStorageLinkList = new ArrayList<>();
-    private boolean started = false;
     private IListener listener;
 
     public ServerWatcher() {
@@ -86,17 +84,6 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
             remoteStorageLinkList.add(0, link);
         else
             remoteStorageLinkList.add(link);
-
-        if (started)
-            requestQueue.setIdleJob(this);
-    }
-
-    public void start(RequestQueue requestQueue) {
-        if (started)
-            return;
-        this.requestQueue = requestQueue;
-        started = true;
-        requestQueue.setIdleJob(this);
     }
 
     @Override

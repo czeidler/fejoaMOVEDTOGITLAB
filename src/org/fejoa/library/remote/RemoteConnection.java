@@ -46,7 +46,6 @@ public class RemoteConnection {
         return out;
     }
 
-    private CurrentSubscription currentSubscription = new CurrentSubscription();
     class CurrentSubscription implements Subscription {
         public Subscription child = null;
 
@@ -76,6 +75,7 @@ public class RemoteConnection {
                     return Subscriptions.empty();
                 }
 
+                final CurrentSubscription currentSubscription = new CurrentSubscription();
                 currentSubscription.child = sendBytes(request).subscribe(new Observer<byte[]>() {
                     @Override
                     public void onCompleted() {

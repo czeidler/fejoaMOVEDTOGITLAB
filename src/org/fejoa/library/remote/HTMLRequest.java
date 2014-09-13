@@ -7,13 +7,23 @@
  */
 package org.fejoa.library.remote;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-
+/*
 public class HTMLRequest implements IRemoteRequest {
     //static private HttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
     private String url;
@@ -39,36 +49,6 @@ public class HTMLRequest implements IRemoteRequest {
             httpPost.disconnect();
         httpPost = null;
     }
-/*
-    private byte[] getHTML(byte data[]) throws IOException {
-        HttpClient httpClient = new DefaultHttpClient();
-        HttpClients.custom().setConnectionManager(connectionManager);
-
-        httpPost = new HttpPost(url);
-
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        builder.addBinaryBody("transfer_data", data, ContentType.DEFAULT_BINARY, "transfer_data.txt");
-
-        httpPost.setEntity(builder.build());
-        HttpResponse response = httpClient.execute(httpPost);
-
-        if(response.getStatusLine().getStatusCode() != 200)
-            throw new IOException("Unexpected status code: "+response.getStatusLine().getStatusCode());
-
-        ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
-        BufferedInputStream bufferedInputStream = null;
-
-        try {
-            bufferedInputStream = new BufferedInputStream(response.getEntity().getContent());
-            StreamHelper.copy(bufferedInputStream, receivedData);
-        } finally {
-            if (bufferedInputStream != null)
-                bufferedInputStream.close();
-        }
-        return receivedData.toByteArray();
-    }
-*/
 
     private byte[] getHTML(byte data[]) throws IOException {
         httpPost = (HttpURLConnection)(new URL(url)).openConnection();
@@ -127,6 +107,75 @@ public class HTMLRequest implements IRemoteRequest {
             httpPost = null;
         }
         return receivedData.toByteArray();
+    }
+}*/
+
+public class HTMLRequest implements IRemoteRequest {
+    private PoolingHttpClientConnectionManager cm;
+    static private BasicCookieStore cookieStore = new BasicCookieStore();
+    private String url;
+    private HttpPost httpPost;
+
+    public HTMLRequest(String url) {
+        this.url = url;
+    }
+
+    @Override
+    public String getUrl() {
+        return url;
+    }
+
+    @Override
+    public byte[] send(byte[] data) throws IOException {
+        return getHTML(data);
+    }
+
+    @Override
+    public void cancel() {
+        if (httpPost != null)
+            httpPost.abort();
+        httpPost = null;
+    }
+
+    private PoolingHttpClientConnectionManager getCm() {
+        if (cm == null)
+            cm = new PoolingHttpClientConnectionManager();
+        return cm;
+    }
+
+    private byte[] getHTML(byte data[]) throws IOException {
+        /*CloseableHttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(getCm())
+                .build();*/
+        DefaultHttpClient httpClient = new DefaultHttpClient();
+        httpClient.setCookieStore(cookieStore);
+        httpPost = new HttpPost(url);
+
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+        builder.addBinaryBody("transfer_data", data, ContentType.DEFAULT_BINARY, "transfer_data.txt");
+
+        httpPost.setEntity(builder.build());
+        try {
+            HttpResponse response = httpClient.execute(httpPost);
+
+            if (response.getStatusLine().getStatusCode() != 200)
+                throw new IOException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+
+            ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
+            BufferedInputStream bufferedInputStream = null;
+
+            try {
+                bufferedInputStream = new BufferedInputStream(response.getEntity().getContent());
+                StreamHelper.copy(bufferedInputStream, receivedData);
+            } finally {
+                if (bufferedInputStream != null)
+                    bufferedInputStream.close();
+            }
+            return receivedData.toByteArray();
+        } finally {
+            httpPost.releaseConnection();
+        }
     }
 
 }

@@ -105,22 +105,25 @@ public class ContactRequest {
     final static public String CONTACT_REQUEST_STANZA = "contact_request";
     final static public String PUBLIC_KEY_STANZA = "public_key";
 
-    private RemoteConnection remoteConnection;
-    private String serverUser;
+    private ConnectionInfo connectionInfo;
     private UserIdentity userIdentity;
 
-    public ContactRequest(RemoteConnection connection, String remoteServerUser, UserIdentity identity) {
-        this.remoteConnection = connection;
-        this.serverUser = remoteServerUser;
+    public ContactRequest(ConnectionInfo info, UserIdentity identity) {
+        this.connectionInfo = info;
         this.userIdentity = identity;
     }
 
     public Observable<RemoteConnectionJob.Result> send() {
+        RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
         ContactRequestJob job = new ContactRequestJob();
         return remoteConnection.queueJob(job);
     }
 
-    class ContactRequestJob extends RemoteConnectionJob {
+    public RemoteConnectionJob getContactRequestJob() {
+        return new ContactRequestJob();
+    }
+
+    public class ContactRequestJob extends RemoteConnectionJob {
         @Override
         public byte[] getRequest() throws Exception {
             ProtocolOutStream outStream = new ProtocolOutStream();
@@ -133,7 +136,7 @@ public class ContactRequest {
             KeyId keyId = userIdentity.getMyself().getMainKeyId();
             KeyPair keyPair = userIdentity.getMyself().getKeyPair(keyId.getKeyId());
 
-            requestStanza.setAttribute("serverUser", serverUser);
+            requestStanza.setAttribute("serverUser", connectionInfo.serverUser);
             requestStanza.setAttribute("uid", myself.getUid());
             requestStanza.setAttribute("keyId", keyId.getKeyId());
             requestStanza.setAttribute("address", myself.getAddress());

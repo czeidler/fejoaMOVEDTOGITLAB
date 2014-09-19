@@ -27,7 +27,6 @@ public class MessageBranchInfo {
         public String uid;
     };
 
-
     public void load(ParcelCrypto parcelCrypto, IContactFinder contactFinder, byte[] pack) throws IOException,
             CryptoException {
         newlyCreated = false;

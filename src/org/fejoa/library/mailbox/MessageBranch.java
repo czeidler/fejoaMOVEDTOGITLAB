@@ -117,6 +117,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         }
     }
 
+    public UserIdentity getIdentity() {
+        return identity;
+    }
+
     private void addMessageToList(Message message) {
         messages.add(message);
         notifyMessageAdded(message);

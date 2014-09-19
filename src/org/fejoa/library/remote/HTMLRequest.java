@@ -132,9 +132,9 @@ public class HTMLRequest implements IRemoteRequest {
 
     @Override
     public void cancel() {
-        if (httpPost != null)
-            httpPost.abort();
-        httpPost = null;
+        HttpPost httpPostStrongRef = httpPost;
+        if (httpPostStrongRef != null)
+            httpPostStrongRef.abort();
     }
 
     private PoolingHttpClientConnectionManager getCm() {
@@ -175,6 +175,7 @@ public class HTMLRequest implements IRemoteRequest {
             return receivedData.toByteArray();
         } finally {
             httpPost.releaseConnection();
+            httpPost = null;
         }
     }
 

@@ -8,7 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="org.eclipse.jgit:org.eclipse.jgit:2.3.1.201302201838-r" level="project" />
-    <orderEntry type="library" name="com.netflix.rxjava:rxjava-clojure:0.6.0" level="project" />
     <orderEntry type="module-library">
       <library>
         <CLASSES>
@@ -19,6 +18,14 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="bouncycastle:bcprov-jdk16:140" level="project" />
+    <orderEntry type="library" name="com.netflix.rxjava:rxjava-core:0.14.7" level="project" />
+    <orderEntry type="library" name="com.netflix.rxjava:rxjava-swing:0.14.2" level="project" />
+    <orderEntry type="library" name="org.apache.httpcomponents:httpclient:4.2.3" level="project" />
+    <orderEntry type="library" name="org.apache.httpcomponents:httpcore:4.3.2" level="project" />
+    <orderEntry type="library" name="org.apache.httpcomponents:httpmime:4.3.5" level="project" />
+    <orderEntry type="library" name="org.apache.commons:com.springsource.org.apache.commons.logging:1.1.1" level="project" />
+    <orderEntry type="library" name="gson-2.2.4" level="project" />
+    <orderEntry type="library" name="org.json:com.springsource.org.json:1.0.0" level="project" />
   </component>
 </module>
 

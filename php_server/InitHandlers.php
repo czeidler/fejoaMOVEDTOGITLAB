@@ -1,0 +1,103 @@
+<?php
+
+include_once 'AuthHandler.php';
+include_once 'ContactRequestHandler.php';
+include_once 'MessageHandler.php';
+include_once 'SyncHandler.php';
+include_once 'WatchBranchHandler.php';
+
+include_once 'JSONPublishBranchHandler.php';
+
+
+function initSyncHandlers($XMLHandler) {
+	$userDir = Session::get()->getAccountUser();
+	if (!file_exists ($userDir))
+		mkdir($userDir);
+	$database = new GitDatabase($userDir."/.git");
+
+	// pull
+	$pullIqGetHandler = new InIqStanzaHandler(IqType::$kGet);
+	$pullHandler = new SyncPullStanzaHandler($XMLHandler->getInStream(), $database);
+	$pullIqGetHandler->addChild($pullHandler);
+	$XMLHandler->addHandler($pullIqGetHandler);
+
+	// push
+	$pushIqGetHandler = new InIqStanzaHandler(IqType::$kSet);
+	$pushHandler = new SyncPushStanzaHandler($XMLHandler->getInStream(), $database);
+	$pushIqGetHandler->addChild($pushHandler);
+	$XMLHandler->addHandler($pushIqGetHandler);
+}
+
+// handle the initial sign in request and send out a sign request
+function initAccountAuthHandler($XMLHandler) {
+	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
+	$handler = new AccountAuthStanzaHandler($XMLHandler->getInStream());
+	$iqHandler->addChild($handler);
+	$XMLHandler->addHandler($iqHandler);
+}
+
+// handle the sign response requested from the AccountAuthStanzaHandler
+function initAccountAuthSignedHandler($XMLHandler) {
+	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
+	$handler = new AccountAuthSignedStanzaHandler($XMLHandler->getInStream());
+	$iqHandler->addChild($handler);
+	$XMLHandler->addHandler($iqHandler);
+}
+
+
+function initWatchBranchesStanzaHandler($XMLHandler) {
+	$iqHandler = new InIqStanzaHandler(IqType::$kGet);
+	$handler = new WatchBranchesStanzaHandler($XMLHandler->getInStream());
+	$iqHandler->addChild($handler);
+	$XMLHandler->addHandler($iqHandler);
+}
+
+
+function initContactRequestStanzaHandler($XMLHandler) {
+	$iqHandler = new InIqStanzaHandler(IqType::$kGet);
+	$handler = new ContactRequestStanzaHandler($XMLHandler->getInStream());
+	$iqHandler->addChild($handler);
+	$XMLHandler->addHandler($iqHandler);
+}
+
+
+function initAuthHandlers($XMLHandler) {
+	// auth
+	initAccountAuthHandler($XMLHandler);
+	initAccountAuthSignedHandler($XMLHandler);	
+
+	$logoutIqSetHandler = new InIqStanzaHandler(IqType::$kSet);
+	$logoutHandler = new LogoutStanzaHandler($XMLHandler->getInStream());
+	$logoutIqSetHandler->addChild($logoutHandler);
+	$XMLHandler->addHandler($logoutIqSetHandler);
+}
+
+function initMessageHandlers($XMLHandler) {
+	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
+	$handler = new MessageStanzaHandler($XMLHandler->getInStream());
+	$iqHandler->addChild($handler);
+	$XMLHandler->addHandler($iqHandler);	
+}
+
+
+class InitHandlers {
+	static public function initPrivateHandlers($XMLHandler, $JSONDispatcher) {
+		initSyncHandlers($XMLHandler);
+		initAuthHandlers($XMLHandler);
+		initMessageHandlers($XMLHandler);
+		initWatchBranchesStanzaHandler($XMLHandler);
+		initContactRequestStanzaHandler($XMLHandler);
+
+		$JSONDispatcher->addHandler(new JSONPublishBranchHandler());
+	}
+
+	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {
+		initAuthHandlers($XMLHandler);
+		initMessageHandlers($XMLHandler);
+		initContactRequestStanzaHandler($XMLHandler);
+
+		$JSONDispatcher->addHandler(new JSONPublishBranchHandler());
+	}
+}
+
+?>

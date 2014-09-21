@@ -15,6 +15,12 @@ import java.io.IOException;
 import java.security.PublicKey;
 
 
+/**
+ * MessageChannel is the private part of a MessageBranch.
+ *
+ * It is stored in the mailbox branch.
+ *
+ */
 public class MessageChannel extends Channel {
     private MessageBranch branch;
 

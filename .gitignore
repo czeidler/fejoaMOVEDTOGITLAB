@@ -1,0 +1,19 @@
+# build files
+out/*
+gen/*
+LabletTests/gen/*
+target/*
+
+# IDEA project files
+workspace.xml
+build.xml
+local.properties
+Project_Default.xml
+profiles_settings.xml
+
+# other files
+ant.properties
+proguard-project.txt
+
+# dolphin (KDE file manager)
+.directory

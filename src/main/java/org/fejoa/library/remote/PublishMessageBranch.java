@@ -9,9 +9,8 @@ package org.fejoa.library.remote;
 
 import org.fejoa.library.Contact;
 import org.fejoa.library.UserIdentity;
-import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageBranchInfo;
-import org.json.JSONArray;
+import org.fejoa.library.mailbox.MessageChannel;
 import org.json.JSONObject;
 import rx.Observable;
 
@@ -21,16 +20,16 @@ import java.util.List;
 
 
 public class PublishMessageBranch {
-    private MessageBranch messageBranch;
+    private MessageChannel messageChannel;
 
-    public PublishMessageBranch(MessageBranch messageBranch) {
-        this.messageBranch = messageBranch;
+    public PublishMessageBranch(MessageChannel messageChannel) {
+        this.messageChannel = messageChannel;
     }
 
     public Observable<RemoteConnectionJob.Result> publish() {
-        MessageBranchInfo info = messageBranch.getMessageBranchInfo();
+        MessageBranchInfo info = messageChannel.getBranch().getMessageBranchInfo();
         List<MessageBranchInfo.Participant> participantList = info.getParticipants();
-        UserIdentity userIdentity = messageBranch.getIdentity();
+        UserIdentity userIdentity = messageChannel.getBranch().getIdentity();
 
         List<Observable<RemoteConnectionJob.Result>> observableList = new ArrayList<>();
         for (MessageBranchInfo.Participant participant : participantList) {
@@ -46,7 +45,7 @@ public class PublishMessageBranch {
                 String serverUser = parts[0];
 
                 connectionInfo = new ConnectionInfo(server, serverUser, userIdentity.getMyself());
-                ContactRequest contactRequest = new ContactRequest(connectionInfo, messageBranch.getIdentity());
+                ContactRequest contactRequest = new ContactRequest(connectionInfo, messageChannel.getBranch().getIdentity());
 
                 remoteConnectionJob = contactRequest.getContactRequestJob();
             } else if (connectionInfo != null) {
@@ -73,7 +72,7 @@ public class PublishMessageBranch {
         @Override
         public byte[] getRequest() throws Exception {
             return jsonRPC.call("publish_branch",
-                    new JsonRPC.Argument("branch", messageBranch.getMessageBranchInfo().getUid())).getBytes();
+                    new JsonRPC.Argument("branch", messageChannel.getBranchName())).getBytes();
         }
 
         @Override

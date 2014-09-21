@@ -7,7 +7,6 @@
  */
 package org.fejoa.library.remote;
 
-import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -19,10 +18,10 @@ public class JsonRPC {
     private int jsonId = 0;
 
     static public class Argument {
-        public Argument(String name, Object value) {
+        /*public Argument(String name, Object value) {
             this.name = name;
             this.value = new Gson().toJson(value);
-        }
+        }*/
 
         public Argument(String name, int value) {
             this.name = name;

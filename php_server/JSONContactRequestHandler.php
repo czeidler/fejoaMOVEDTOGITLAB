@@ -1,7 +1,7 @@
 <?php
 
 include_once 'Contact.php';
-include_once 'JSONHandler.php';
+include_once 'JSONProtocol.php';
 
 
 class JSONContactRequestHandler extends JSONHandler {

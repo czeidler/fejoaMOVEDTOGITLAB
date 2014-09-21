@@ -7,6 +7,7 @@
  */
 package org.fejoa.gui;
 
+import org.fejoa.library.INotifications;
 import org.fejoa.library.Profile;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.remote.*;
@@ -21,6 +22,24 @@ import java.util.*;
 import java.util.List;
 
 
+class LabelNotifications implements INotifications {
+    final private JLabel statusLabel;
+
+    public LabelNotifications(JLabel statusLabel) {
+        this.statusLabel = statusLabel;
+    }
+
+    @Override
+    public void info(String message) {
+        statusLabel.setText("Info: " + message);
+    }
+
+    @Override
+    public void error(String error) {
+        statusLabel.setText("Error: " + error);
+    }
+}
+
 public class MainWindow extends JDialog {
     private JPanel contentPane;
     private JLabel statusLabel;
@@ -29,6 +48,8 @@ public class MainWindow extends JDialog {
     private JPanel threadPanel;
     private JPanel messageCardPanel;
     private JPanel channelsPanel;
+
+    final private LabelNotifications notifications;
     private SendNewMessageFrame sendMessageObject;
     private ThreadView threadViewObject;
     final private Profile profile;
@@ -36,21 +57,19 @@ public class MainWindow extends JDialog {
     // we need a strong reference
     final private MessageChannelAdapter messageChannelAdapter;
 
-    private void setStatus(String status) {
-        statusLabel.setText(status);
-    }
-
     final String NEW_MESSAGE_CARD = "new message";
     final String THREAD_CARD = "thread";
 
     public MainWindow(Profile profile) {
         this.profile = profile;
 
+        notifications = new LabelNotifications(statusLabel);
+
         setContentPane(contentPane);
         setModal(true);
 
         Mailbox mailbox = profile.getMainMailbox();
-        threadViewObject = new ThreadView(mailbox);
+        threadViewObject = new ThreadView(mailbox, notifications);
         messageCardPanel.add(threadViewObject.getPanel(), THREAD_CARD);
 
         messageChannelAdapter = new MessageChannelAdapter(mailbox);
@@ -101,7 +120,7 @@ public class MainWindow extends JDialog {
     }
 
     private void start() {
-        setStatus("start watching");
+        notifications.info("start watching");
 
         Collection<RemoteStorageLink> links = profile.getRemoteStorageLinks().values();
         RemoteStorageLink link = links.iterator().next();
@@ -129,15 +148,15 @@ public class MainWindow extends JDialog {
 
             @Override
             public void onError(Throwable e) {
-                setStatus("sync error");
+                notifications.error("sync error");
             }
 
             @Override
             public void onNext(RemoteConnectionJob.Result result) {
                 if (result.status == RemoteConnectionJob.Result.DONE)
-                    setStatus(branch + ": sync ok");
+                    notifications.info(branch + ": sync ok");
                 else
-                    setStatus(branch + ": sync failed");
+                    notifications.error(branch + ": sync failed");
             }
         });
     }

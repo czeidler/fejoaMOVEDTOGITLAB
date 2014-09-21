@@ -2,6 +2,11 @@ package org.fejoa.library.mailbox;
 
 
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.remote.ConnectionManager;
+import org.fejoa.library.remote.PublishMessageBranch;
+import org.fejoa.library.remote.RemoteConnectionJob;
+import rx.Observable;
+import rx.Observer;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,5 +47,10 @@ public class Messenger {
         messageBranch.commit();
 
         mailbox.commit();
+    }
+
+    public Observable<RemoteConnectionJob.Result> publishMessageChannel(MessageChannel channel) {
+        PublishMessageBranch publishMessageBranch = new PublishMessageBranch(channel);
+        return publishMessageBranch.publish();
     }
 }

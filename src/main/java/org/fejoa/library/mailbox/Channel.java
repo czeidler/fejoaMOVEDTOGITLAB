@@ -54,6 +54,11 @@ public abstract class Channel {
         parcelCrypto = secureEnvelopeReader.getParcelCrypto();
     }
 
+    public byte[] sign(String token) throws CryptoException {
+        ICryptoInterface crypto = Crypto.get();
+        return crypto.sign(token.getBytes(), signatureKey);
+    }
+
     protected void create() throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));

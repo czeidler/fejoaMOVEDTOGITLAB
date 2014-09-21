@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.remote;
 
+import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.Contact;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.mailbox.MessageBranchInfo;
@@ -14,7 +15,6 @@ import org.fejoa.library.mailbox.MessageChannel;
 import org.json.JSONObject;
 import rx.Observable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,11 +53,12 @@ public class PublishMessageBranch {
                         userIdentity.getMyself());
             }
 
-            PublishMessageBranchJob publishMessageBranchJob = new PublishMessageBranchJob();
+            InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
+                    connectionInfo);
             if (remoteConnectionJob != null)
-                remoteConnectionJob.setFollowUpJob(publishMessageBranchJob);
+                remoteConnectionJob.setFollowUpJob(initPublishMessageBranchJob);
             else
-                remoteConnectionJob = publishMessageBranchJob;
+                remoteConnectionJob = initPublishMessageBranchJob;
 
             final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
             observableList.add(remoteConnection.queueJob(remoteConnectionJob));
@@ -66,32 +67,79 @@ public class PublishMessageBranch {
         return Observable.merge(Observable.from(observableList));
     }
 
-    class PublishMessageBranchJob extends RemoteConnectionJob {
-        private JsonRPC jsonRPC = new JsonRPC();
+    class InitPublishMessageBranchJob extends JsonRemoteConnectionJob {
+        final private MessageChannel messageChannel;
+        final private ConnectionInfo connectionInfo;
+
+        public InitPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo) {
+            this.messageChannel = messageChannel;
+            this.connectionInfo = connectionInfo;
+        }
 
         @Override
         public byte[] getRequest() throws Exception {
-            return jsonRPC.call("publish_branch",
+            return jsonRPC.call("init_publish_branch",
                     new JsonRPC.Argument("branch", messageChannel.getBranchName())).getBytes();
         }
 
         @Override
         public Result handleResponse(byte[] reply) throws Exception {
             JSONObject result = jsonRPC.getReturnValue(new String(reply));
-            if (result == null)
-                throw new IOException("bad return value");
+            if (getStatus(result) != 0)
+                return new Result(Result.ERROR, getMessage(result));
 
-            if (!result.has("status"))
-                throw new IOException("no status field in return");
-            String message = "";
-            if (result.has("message"))
-                message = result.getString("message");
+            byte[] signedToken = null;
+            if (result.has("authRequestToken")) {
+                String authRequestToken = result.getString("authRequestToken");
+                signedToken = messageChannel.sign(authRequestToken);
+            }
 
-            int status = result.getInt("status");
-            if (status != 0)
-                return new Result(Result.ERROR, message);
+            setFollowUpJob(new LoginPublishMessageBranchJob(messageChannel, connectionInfo, signedToken));
 
-            return new Result(Result.DONE, message);
+            return new Result(Result.DONE, getMessage(result));
+        }
+    }
+
+    class LoginPublishMessageBranchJob extends JsonRemoteConnectionJob {
+        final private MessageChannel messageChannel;
+        final private ConnectionInfo connectionInfo;
+        final private byte[] signedToken;
+
+        public LoginPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo,
+                                            byte[] signedToken) {
+            this.messageChannel = messageChannel;
+
+            this.connectionInfo = connectionInfo;
+            this.signedToken = signedToken;
+        }
+
+        @Override
+        public byte[] getRequest() throws Exception {
+            return jsonRPC.call("login_publish_branch",
+                    new JsonRPC.Argument("signed_token", Base64.encodeBytes(signedToken)),
+                    new JsonRPC.Argument("branch", messageChannel.getBranchName()),
+                    new JsonRPC.Argument("tip", messageChannel.getBranch().getMessageStorage().getDatabase().getTip()))
+                    .getBytes();
+        }
+
+        @Override
+        public Result handleResponse(byte[] reply) throws Exception {
+            JSONObject result = jsonRPC.getReturnValue(new String(reply));
+            if (getStatus(result) != 0)
+                return new Result(Result.ERROR, getMessage(result));
+
+            String localTip = messageChannel.getBranch().getMessageStorage().getDatabase().getTip();
+            String remoteTip = result.getString("remoteTip");
+            if (localTip.equals(remoteTip))
+                return new Result(Result.DONE, "branch in sync");
+
+            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage().getDatabase(), getRemoteId()));
+
+            return new Result(Result.DONE, getMessage(result));
+        }
+
+        private String getRemoteId() {
+            return connectionInfo.serverUser + "@" + connectionInfo.server + ":" + messageChannel.getBranchName();
         }
     }
 }

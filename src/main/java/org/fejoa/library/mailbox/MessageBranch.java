@@ -69,6 +69,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         return messageBranchInfo;
     }
 
+    public SecureStorageDir getMessageStorage() {
+        return messageStorage;
+    }
+
     private void loadMessageBranchInfo() throws IOException, CryptoException {
         byte[] pack = messageStorage.readBytes("i");
 

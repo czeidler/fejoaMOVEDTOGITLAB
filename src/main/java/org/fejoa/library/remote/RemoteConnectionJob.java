@@ -11,7 +11,7 @@ package org.fejoa.library.remote;
 public abstract class RemoteConnectionJob {
     static public class Result {
         static public int DONE = 0;
-        static public int CONTINUE = -1;
+        static public int CONTINUE = 1;
         static public int ERROR = -2;
         final public int status;
         final public String message;
@@ -38,6 +38,9 @@ public abstract class RemoteConnectionJob {
     }
 
     public void setFollowUpJob(RemoteConnectionJob followUpJob) {
+        // if we already have a follow up job move it to the new job
+        if (this.followUpJob != null)
+            followUpJob.setFollowUpJob(this.followUpJob);
         this.followUpJob = followUpJob;
     }
 }

@@ -91,9 +91,9 @@ public class RemoteConnection {
                     public void onNext(byte[] reply) {
                         try {
                             RemoteConnectionJob.Result result = job.handleResponse(reply);
+                            observer.onNext(result);
                             RemoteConnectionJob followUpJob = job.getFollowUpJob();
-                            if (result.status != RemoteConnectionJob.Result.CONTINUE || followUpJob == null) {
-                                observer.onNext(result);
+                            if (followUpJob == null || result.status < RemoteConnectionJob.Result.DONE) {
                                 observer.onCompleted();
                                 return;
                             }

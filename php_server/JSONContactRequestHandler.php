@@ -38,12 +38,12 @@ class JSONContactRequestHandler extends JSONHandler {
 		$myPublicKey;
 		$keyStore->readAsymmetricKey($mainKeyId, $myCertificate, $myPublicKey);
 
-		return $this->makeJSONRPCReturn($jsonId, array('status' => true, 'uid' => $myself->getUid(),
+		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'uid' => $myself->getUid(),
 			'keyId' => $mainKeyId, 'address' => $myself->getAddress(), 'public_key' => $myPublicKey));
 	}
 
 	public function makeError($jsonId, $message) {
-		return $this->makeJSONRPCReturn($jsonId, array('status' => false, 'message' => $message));
+		return $this->makeJSONRPCReturn($jsonId, array('status' => -1, 'message' => $message));
 	}
 }
 

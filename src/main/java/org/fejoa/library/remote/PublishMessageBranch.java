@@ -9,6 +9,7 @@ package org.fejoa.library.remote;
 
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.Contact;
+import org.fejoa.library.ContactPublic;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
@@ -54,7 +55,7 @@ public class PublishMessageBranch {
             }
 
             InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
-                    connectionInfo);
+                    connectionInfo, contactPublic);
             if (remoteConnectionJob != null)
                 remoteConnectionJob.setFollowUpJob(initPublishMessageBranchJob);
             else
@@ -70,15 +71,18 @@ public class PublishMessageBranch {
     class InitPublishMessageBranchJob extends JsonRemoteConnectionJob {
         final private MessageChannel messageChannel;
         final private ConnectionInfo connectionInfo;
+        final private Contact receiver;
 
-        public InitPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo) {
+        public InitPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo,
+                                           Contact receiver) {
             this.messageChannel = messageChannel;
             this.connectionInfo = connectionInfo;
+            this.receiver = receiver;
         }
 
         @Override
         public byte[] getRequest() throws Exception {
-            return jsonRPC.call("init_publish_branch",
+            return jsonRPC.call("initPublishBranch",
                     new JsonRPC.Argument("branch", messageChannel.getBranchName())).getBytes();
         }
 
@@ -88,13 +92,18 @@ public class PublishMessageBranch {
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 
-            byte[] signedToken = null;
-            if (result.has("authRequestToken")) {
-                String authRequestToken = result.getString("authRequestToken");
-                signedToken = messageChannel.sign(authRequestToken);
+            byte[] signedToken = messageChannel.sign(result.getString("authToken"));
+            boolean messageChannelNeeded = result.getBoolean("messageChannelNeeded");
+            byte[] channelPack = null;
+            String channelPEMKey = null;
+            if (messageChannelNeeded) {
+                channelPack = messageChannel.sharePack(connectionInfo.myself, connectionInfo.myself.getMainKeyId(),
+                        receiver, receiver.getMainKeyId());
+                channelPEMKey = messageChannel.shareSignatureKeyPEM();
             }
 
-            setFollowUpJob(new LoginPublishMessageBranchJob(messageChannel, connectionInfo, signedToken));
+            setFollowUpJob(new LoginPublishMessageBranchJob(messageChannel, connectionInfo, signedToken, channelPack,
+                    channelPEMKey));
 
             return new Result(Result.DONE, getMessage(result));
         }
@@ -104,21 +113,29 @@ public class PublishMessageBranch {
         final private MessageChannel messageChannel;
         final private ConnectionInfo connectionInfo;
         final private byte[] signedToken;
+        final private byte[] channelPack;
+        final private String channelPEMKey;
 
         public LoginPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo,
-                                            byte[] signedToken) {
+                                            byte[] signedToken, byte[] channelPack, String channelPEMKey) {
             this.messageChannel = messageChannel;
 
             this.connectionInfo = connectionInfo;
             this.signedToken = signedToken;
+            this.channelPack = channelPack;
+            this.channelPEMKey = channelPEMKey;
         }
 
         @Override
         public byte[] getRequest() throws Exception {
-            return jsonRPC.call("login_publish_branch",
-                    new JsonRPC.Argument("signed_token", Base64.encodeBytes(signedToken)),
-                    new JsonRPC.Argument("branch", messageChannel.getBranchName()),
-                    new JsonRPC.Argument("tip", messageChannel.getBranch().getMessageStorage().getDatabase().getTip()))
+            List<JsonRPC.Argument> arguments = new ArrayList<>();
+            arguments.add(new JsonRPC.Argument("signedToken", (signedToken == null) ? "" : Base64.encodeBytes(signedToken)));
+            arguments.add(new JsonRPC.Argument("branch", messageChannel.getBranchName()));
+            if (channelPack != null && channelPEMKey != null) {
+                arguments.add(new JsonRPC.Argument("channelHeader", Base64.encodeBytes(channelPack)));
+                arguments.add(new JsonRPC.Argument("channelSignatureKey", channelPEMKey));
+            }
+            return jsonRPC.call("loginPublishBranch", arguments.toArray(new JsonRPC.Argument[arguments.size()]))
                     .getBytes();
         }
 

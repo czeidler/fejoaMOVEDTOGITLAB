@@ -95,7 +95,7 @@ public class Profile extends UserData {
         mailbox.write(mailboxDir);
         addAndWriteMailbox(mailbox);
         mainMailbox = mailbox;
-        storageDir.writeSecureString("main_mailbox", mainMailbox.getUid());
+        storageDir.writeString("main_mailbox", mainMailbox.getUid());
 
         addAndWriteRemoteStorageLink(keyStoreBranch.getDatabase(), userIdentity.getMyself());
         addAndWriteRemoteStorageLink(userIdBranch.getDatabase(), userIdentity.getMyself());
@@ -257,7 +257,7 @@ public class Profile extends UserData {
             mailboxList.add(mailbox);
         }
 
-        String mainMailboxId = storageDir.readSecureString("main_mailbox");
+        String mainMailboxId = storageDir.readString("main_mailbox");
         for (Mailbox mailbox : mailboxList) {
             if (mailbox.getUid().equals(mainMailboxId)) {
                 mainMailbox = mailbox;

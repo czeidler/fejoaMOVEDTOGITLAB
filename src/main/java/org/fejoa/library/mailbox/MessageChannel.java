@@ -41,11 +41,19 @@ public class MessageChannel extends Channel {
         return branch;
     }
 
+    public byte[] sharePack(ContactPrivate sender, KeyId senderKey, Contact receiver, KeyId receiverKey) throws CryptoException, IOException {
+        return pack(sender, senderKey, receiver, receiverKey);
+    }
+
+    public String shareSignatureKeyPEM() {
+        return CryptoHelper.convertToPEM(signatureKeyPublic);
+    }
+
     public void write(SecureStorageDir dir, ContactPrivate sender, KeyId senderKey) throws CryptoException, IOException {
         dir.writeString("signature_key", CryptoHelper.convertToPEM(signatureKeyPublic));
         byte[] pack = pack(sender, senderKey, sender, senderKey);
         dir.writeBytes("d", pack);
-        dir.writeSecureString("database_path", dir.getDatabase().getPath());
+        dir.writeString("database_path", dir.getDatabase().getPath());
     }
 
     private void load(SecureStorageDir dir, UserIdentity identity)
@@ -54,7 +62,7 @@ public class MessageChannel extends Channel {
         byte[] data = dir.readBytes("d");
         load(identity, publicKey, data);
 
-        String databasePath = dir.readSecureString("database_path");
+        String databasePath = dir.readString("database_path");
         SecureStorageDir messageStorage = SecureStorageDirBucket.get(databasePath, getBranchName());
 
         branch = MessageBranch.loadMessageBranch(messageStorage, identity, getParcelCrypto());

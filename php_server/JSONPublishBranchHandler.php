@@ -4,47 +4,77 @@ include_once 'Contact.php';
 include_once 'JSONProtocol.php';
 
 
-class JSONPublishBranchHandler extends JSONHandler {
+class JSONInitPublishBranchHandler extends JSONHandler {
+	public function getAuthToken() {
+		return "rand".rand()."time".time();
+	}
+	
+	public function hasBranch($branch) {
+		$profile = Session::get()->getProfile($this->receiver);
+		if ($profile === null)
+			return false;
+		$mailbox = $profile->getMainMailbox();
+		if ($mailbox === null)
+			return false;
+		
+		$part1 = substr($branch, 0, 2);
+		$part2 = substr($branch, 2);
+		$part2Dirs = $mailbox->listDirectories($part1);
+		return in_array($part2, $part1Dirs);
+	}
+
 	public function call($jsonArray, $jsonId) {
-		if (strcmp($jsonArray['method'], "publish_branch") != 0)
+		if (strcmp($jsonArray['method'], "initPublishBranch") != 0)
 			return false;
 		$params = $jsonArray["params"];
 		if ($params === null)
 			return false;
 		if (!isset($params['branch']))
 			return false;
-	}
-/*
-		$userIdentity = Session::get()->getMainUserIdentity($params['serverUser']);
-		if ($userIdentity === null)
-			return $this->makeError($jsonId, "can't find server user: ".$params['serverUser']);
+		$branch = $params['branch'];
+		if ($branch == "")
+			return false;
 
-		$contact = $userIdentity->createContact($params['uid']);
-		$contact->addKeySet($params['keyId'], "", $params['public_key']);
-		$contact->setMainKeyId($params['keyId']);
-		$contact->setAddress($params['address']);
-
-		$userIdentity->commit();
+		$authToken = $this->getAuthToken()
+		$messageChannelNeeded = $this->hasBranch($branch);
 
 		// reply
-		$myself = $userIdentity->getMyself();
-		$profile = Session::get()->getProfile($this->serverUser);
-		$keyStore = $profile->getUserIdentityKeyStore($userIdentity);
-		if ($keyStore === null)
-			return $this->makeError($jsonId, "internal error");
+		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'message' = > "sign this token",
+			'authToken' => $authToken, 'messageChannelNeeded' => $messageChannelNeeded));
+	}
+}
 
-		$mainKeyId = $myself->getMainKeyId();
-		$myCertificate;
-		$myPublicKey;
-		$keyStore->readAsymmetricKey($mainKeyId, $myCertificate, $myPublicKey);
+class JSONLoginPublishBranchHandler extends JSONHandler {
+	public function loginPublishBranch($branch, $signedToken) {
+		if ($branch === null)
+			return "";
 
-		return $this->makeJSONRPCReturn($jsonId, array('status' => true, 'uid' => $myself->getUid(),
-			'keyId' => $mainKeyId, 'address' => $myself->getAddress(), 'public_key' => $myPublicKey));
+		
+		
+	}
+
+	public function call($jsonArray, $jsonId) {
+		if (strcmp($jsonArray['method'], "initPublishBranch") != 0)
+			return false;
+		$params = $jsonArray["params"];
+		if ($params === null)
+			return false;
+		if (!isset($params['signedToken']) || !isset($params['branch']))
+			return makeError($jsonId, "loginPublishBranch: bad arguments");
+
+		$remoteTip = loginPublishBranch($params['branch']), $params['signedToken'])
+		if ($remoteTip == null)
+			return makeError($jsonId, "loginPublishBranch: no access to branch");
+
+		// reply
+		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'message' = > "ready to sync",
+			'remoteTip' => $remoteTip));
 	}
 
 	public function makeError($jsonId, $message) {
 		return $this->makeJSONRPCReturn($jsonId, array('status' => false, 'message' => $message));
-	}*/
+	}
 }
+
 
 ?> 

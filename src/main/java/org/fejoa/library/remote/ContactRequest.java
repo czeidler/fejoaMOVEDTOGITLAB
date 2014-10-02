@@ -171,6 +171,7 @@ public class ContactRequest {
 
             ContactPublic contact = userIdentity.addNewContact(requestHandler.uid);
             contact.addKey(requestHandler.keyId, CryptoHelper.publicKeyFromPem(publicKeyHandler.publicKey));
+            contact.setMainKey(new KeyId(requestHandler.keyId));
             contact.setAddress(requestHandler.address);
             contact.write();
 

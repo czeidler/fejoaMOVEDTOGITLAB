@@ -21,7 +21,6 @@ import java.util.Map;
 
 public class ContactPrivate extends Contact {
     private KeyStore keyStore;
-    private KeyId mainKeyId;
     final private Map<String, KeyPair> keys = new HashMap<>();
 
 
@@ -52,7 +51,6 @@ public class ContactPrivate extends Contact {
         super.write();
 
         storageDir.writeSecureString("keyStoreId", keyStore.getUid());
-        storageDir.writeSecureString("main_key_id", mainKeyId.getKeyId());
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             String keyId = entry.getKey();
             storageDir.writeString(keyId + "/keyId", keyId);
@@ -66,7 +64,6 @@ public class ContactPrivate extends Contact {
         keyStore = keyStoreFinder.find(keyStoreId);
         if (keyStore == null)
             throw new IOException("key store not found");
-        mainKeyId = new KeyId(storageDir.readSecureString("main_key_id"));
         List<String> keyIds = storageDir.listDirectories("");
         for (String keyId : keyIds) {
             KeyPair keyPair = keyStore.readAsymmetricKey(keyId);
@@ -86,13 +83,6 @@ public class ContactPrivate extends Contact {
 
     public void addKeyPair(KeyId keyId, KeyPair keyPair) {
         keys.put(keyId.getKeyId(), keyPair);
-    }
-
-    public void setMainKey(KeyId keyId) {
-        mainKeyId = keyId;
-    }
-    public KeyId getMainKeyId() {
-        return mainKeyId;
     }
 
     public byte[] sign(KeyId keyId, byte data[]) throws CryptoException {

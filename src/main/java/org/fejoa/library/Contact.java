@@ -18,6 +18,7 @@ abstract public class Contact {
     protected String uid = "";
     protected String server = "";
     protected String serverUser = "";
+    protected KeyId mainKeyId;
 
     final protected SecureStorageDir storageDir;
 
@@ -37,12 +38,14 @@ abstract public class Contact {
         storageDir.writeSecureString("uid", uid);
         storageDir.writeSecureString("server", server);
         storageDir.writeSecureString("server_user", serverUser);
+        storageDir.writeSecureString("main_key_id", mainKeyId.getKeyId());
     }
 
     public void open() throws IOException, CryptoException {
         uid = storageDir.readSecureString("uid");
         server = storageDir.readSecureString("server");
         serverUser = storageDir.readSecureString("server_user");
+        mainKeyId = new KeyId(storageDir.readSecureString("main_key_id"));
     }
 
     abstract public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException;
@@ -75,5 +78,12 @@ abstract public class Contact {
 
     public String getServerUser() {
         return serverUser;
+    }
+
+    public void setMainKey(KeyId keyId) {
+        mainKeyId = keyId;
+    }
+    public KeyId getMainKeyId() {
+        return mainKeyId;
     }
 }

@@ -1,12 +1,12 @@
 <?php
 
-include_once 'AuthHandler.php';
 include_once 'ContactRequestHandler.php';
 include_once 'MessageHandler.php';
 include_once 'SyncHandler.php';
 include_once 'WatchBranchHandler.php';
 
 include_once 'JSONPublishBranchHandler.php';
+include_once 'JSONAuthHandler.php';
 
 
 function initSyncHandlers($XMLHandler) {
@@ -28,23 +28,6 @@ function initSyncHandlers($XMLHandler) {
 	$XMLHandler->addHandler($pushIqGetHandler);
 }
 
-// handle the initial sign in request and send out a sign request
-function initAccountAuthHandler($XMLHandler) {
-	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
-	$handler = new AccountAuthStanzaHandler($XMLHandler->getInStream());
-	$iqHandler->addChild($handler);
-	$XMLHandler->addHandler($iqHandler);
-}
-
-// handle the sign response requested from the AccountAuthStanzaHandler
-function initAccountAuthSignedHandler($XMLHandler) {
-	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
-	$handler = new AccountAuthSignedStanzaHandler($XMLHandler->getInStream());
-	$iqHandler->addChild($handler);
-	$XMLHandler->addHandler($iqHandler);
-}
-
-
 function initWatchBranchesStanzaHandler($XMLHandler) {
 	$iqHandler = new InIqStanzaHandler(IqType::$kGet);
 	$handler = new WatchBranchesStanzaHandler($XMLHandler->getInStream());
@@ -60,16 +43,17 @@ function initContactRequestStanzaHandler($XMLHandler) {
 	$XMLHandler->addHandler($iqHandler);
 }
 
+// auth
+function initAuthHandlers($JSONDispatcher) {
+	$JSONDispatcher->addHandler(new JSONAuthHandler());
+	$JSONDispatcher->addHandler(new JSONAuthSignedHandler());
+	$JSONDispatcher->addHandler(new JSONLogoutHandler());
+}
 
-function initAuthHandlers($XMLHandler) {
-	// auth
-	initAccountAuthHandler($XMLHandler);
-	initAccountAuthSignedHandler($XMLHandler);	
-
-	$logoutIqSetHandler = new InIqStanzaHandler(IqType::$kSet);
-	$logoutHandler = new LogoutStanzaHandler($XMLHandler->getInStream());
-	$logoutIqSetHandler->addChild($logoutHandler);
-	$XMLHandler->addHandler($logoutIqSetHandler);
+// auth
+function initPublishBranchHandlers($JSONDispatcher) {
+	$JSONDispatcher->addHandler(new JSONInitPublishBranchHandler());
+	$JSONDispatcher->addHandler(new JSONLoginPublishBranchHandler());
 }
 
 function initMessageHandlers($XMLHandler) {
@@ -83,20 +67,20 @@ function initMessageHandlers($XMLHandler) {
 class InitHandlers {
 	static public function initPrivateHandlers($XMLHandler, $JSONDispatcher) {
 		initSyncHandlers($XMLHandler);
-		initAuthHandlers($XMLHandler);
 		initMessageHandlers($XMLHandler);
 		initWatchBranchesStanzaHandler($XMLHandler);
 		initContactRequestStanzaHandler($XMLHandler);
 
-		$JSONDispatcher->addHandler(new JSONPublishBranchHandler());
+		initAuthHandlers($JSONDispatcher);
+		initPublishBranchHandlers($JSONDispatcher);
 	}
 
 	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {
-		initAuthHandlers($XMLHandler);
 		initMessageHandlers($XMLHandler);
 		initContactRequestStanzaHandler($XMLHandler);
 
-		$JSONDispatcher->addHandler(new JSONPublishBranchHandler());
+		initAuthHandlers($JSONDispatcher);
+		initPublishBranchHandlers($JSONDispatcher);
 	}
 }
 

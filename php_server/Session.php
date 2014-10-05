@@ -3,10 +3,30 @@
 include_once 'Profile.php';
 
 
-class Session {
-	private function __construct() {
+class Transaction {
+	private $timeStamp;
+	private $uid;
+
+	public function __construct() {
+		$this->timeStamp = time();
+		$this->uid = $this->newId();
 	}
-    
+
+	private function newId() {
+		static $idCounter = 0;
+		return $idCounter++;
+	}
+
+	public function getUid() {
+		return $this->uid;
+	}
+
+	public function getTimeStamp() {
+		return $this->timeStamp;
+	}
+}
+
+class Session {    
 	public static function get() {
 		static $sSession = null;
 		if ($sSession === NULL)
@@ -50,15 +70,20 @@ class Session {
 		$_SESSION['account_user'] = $user;
 	}
 
-	// the purpose has the format: serverUserUid:loginUserID
-	// server user is the user who has the account on the server
-	// login user is the user who does the request
-	public function setSignatureToken($purpose, $token) {
-		$_SESSION[$purpose] = $token;
+	public function addTransaction($transaction) {
+		if (!isset($_SESSION['transactions']))
+			$_SESSION['transactions'] = array();
+		$_SESSION['transactions'][$transaction->getUid()] = serialize($transaction);
 	}
 
-	public function getSignatureToken($purpose) {
-		return $_SESSION[$purpose];
+	public function getTransaction($transactionId) {
+		if (!isset($_SESSION['transactions'][$transactionId]))
+			return null;
+		return unserialize($_SESSION['transactions'][$transactionId]);
+	}
+
+	public function removeTransaction($transaction) {
+		unset($_SESSION['transactions'][$transaction->getUid()]);
 	}
 
 	public function setUserRoles($roles) {

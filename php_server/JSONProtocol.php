@@ -8,9 +8,13 @@ class JSONHandler {
 		return false;
 	}
 
-	private function makeJSONRPCReturn($id, $result) {
+	protected function makeJSONRPCReturn($id, $result) {
 		$array = array('jsonrpc' => "2.0", 'result' => $result, 'id' => $id);
 		return json_encode($array);
+	}
+
+	protected function makeError($jsonId, $message) {
+		return $this->makeJSONRPCReturn($jsonId, array('status' => -1, 'message' => $message));
 	}
 }
 

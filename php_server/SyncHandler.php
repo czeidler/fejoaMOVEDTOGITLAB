@@ -5,11 +5,10 @@ include_once './XMLProtocol.php';
 
 class SyncPullStanzaHandler extends InStanzaHandler {
 	private $inStreamReader;
-	private $database;
-	public function __construct($inStreamReader, $database) {
+
+	public function __construct($inStreamReader) {
 		InStanzaHandler::__construct("sync_pull");
 		$this->inStreamReader = $inStreamReader;
-		$this->database = $database;
 	}
 
 	public function getType() {
@@ -18,9 +17,18 @@ class SyncPullStanzaHandler extends InStanzaHandler {
 
 	public function handleStanza($xml) {
 		$branch = $xml->getAttribute("branch");
+		$serverUser = $xml->getAttribute("serverUser");
 		$remoteTip = $xml->getAttribute("base");
-		if ($branch === null || $remoteTip === null)
-			return;
+		if ($branch === null || $serverUser === null || $remoteTip === null)
+			return false;
+
+		$branchAccessToken = $serverUser.":".$branch;
+		if (!Session::get()->isAccountUser() && !Session::get()->hasBranchAccess($branchAccessToken))
+			return false;
+		$database = getDatabase($serverUser);
+		if ($database === null)
+			return false;
+
 		if (isSHA1Hex($remoteTip))
 			$remoteTip = sha1_bin($remoteTip);
 
@@ -77,32 +85,48 @@ class SyncPushPackHandler extends InStanzaHandler {
 
 class SyncPushStanzaHandler extends InStanzaHandler {
 	private $inStreamReader;
-	private $database;
 	private $packHandler;
 	
 	private $branch;
+	private $serverUser;
 	private $startCommit;
 	private $lastCommit;
 
-	public function __construct($inStreamReader, $database) {
+	public function __construct($inStreamReader) {
 		InStanzaHandler::__construct("sync_push");
 		$this->inStreamReader = $inStreamReader;
-		$this->database = $database;
 	}
 
 	public function handleStanza($xml) {
 		$this->branch = $xml->getAttribute("branch");
 		$this->startCommit = $xml->getAttribute("start_commit");
 		$this->lastCommit = $xml->getAttribute("last_commit");
+		$this->serverUser = $xml->getAttribute("serverUser");
+		
+		if ($this->branch === null || $this->startCommit === null || $this->lastCommit === null
+			|| $this->serverUser === null)
+			return false;
+
 		$this->packHandler = new SyncPushPackHandler();
 		$this->addChild($this->packHandler);
 		return true;
 	}
 	
 	public function finished() {
+		$branchAccessToken = $this->serverUser.":".$this->branch;
+		if (!Session::get()->isAccountUser() && !Session::get()->hasBranchAccess($branchAccessToken)) {
+			$this->inStreamReader->appendResponse(IqErrorOutStanza::makeErrorMessage("Push: access to branch denied."));
+			return;
+		}
+		$database = Session::get()->getDatabase($this->serverUser);
+		if ($database === null) {
+			$this->inStreamReader->appendResponse(IqErrorOutStanza::makeErrorMessage("Push: no such branch."));
+			return;
+		}
+
 		$pack = $this->packHandler->getPack();
 
-		$packManager = new PackManager($this->database);
+		$packManager = new PackManager($database);
 		if (!$packManager->importPack($this->branch, $pack, $this->startCommit, $this->lastCommit)) {
 			$this->inStreamReader->appendResponse(IqErrorOutStanza::makeErrorMessage("Push: unable to import pack."));
 			return;
@@ -114,7 +138,7 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 
 		$stanza = new OutStanza("sync_push");
 		$stanza->addAttribute("branch", $this->branch);
-		$localTip = sha1_hex($this->database->getTip($this->branch));
+		$localTip = sha1_hex($database->getTip($this->branch));
 		$stanza->addAttribute("tip", $localTip);
 		$outStream->pushChildStanza($stanza);
 

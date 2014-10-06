@@ -22,10 +22,12 @@ import java.io.IOException;
  */
 class Sync extends RemoteConnectionJob {
     final private IDatabaseInterface database;
+    final private String serverUser;
     final private String remoteUid;
 
-    public Sync(IDatabaseInterface database, String remoteUid) {
+    public Sync(IDatabaseInterface database, String serverUser, String remoteUid) {
         this.database = database;
+        this.serverUser = serverUser;
         this.remoteUid = remoteUid;
     }
 
@@ -38,6 +40,7 @@ class Sync extends RemoteConnectionJob {
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
         outStream.addElement(iqStanza);
         Element syncStanza =  outStream.createElement("sync_pull");
+        syncStanza.setAttribute("serverUser", serverUser);
         syncStanza.setAttribute("branch", localBranch);
         syncStanza.setAttribute("base", lastSyncCommit);
         iqStanza.appendChild(syncStanza);
@@ -82,18 +85,20 @@ class Sync extends RemoteConnectionJob {
             }
         }
 
-        setFollowUpJob(new Push(database, remoteUid, remoteTip));
+        setFollowUpJob(new Push(database, serverUser, remoteUid, remoteTip));
         return new Result(Result.DONE);
     }
 }
 
 class Push extends RemoteConnectionJob {
     final private IDatabaseInterface database;
+    final private String serverUser;
     final private String remoteUid;
     final private String remoteTip;
 
-    public Push(IDatabaseInterface database, String remoteUid, String remoteTip) {
+    public Push(IDatabaseInterface database, String serverUser, String remoteUid, String remoteTip) {
         this.database = database;
+        this.serverUser = serverUser;
         this.remoteUid = remoteUid;
         this.remoteTip = remoteTip;
     }
@@ -111,6 +116,7 @@ class Push extends RemoteConnectionJob {
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_SET);
         outStream.addElement(iqStanza);
         Element pushStanza = outStream.createElement("sync_push");
+        pushStanza.setAttribute("serverUser", serverUser);
         pushStanza.setAttribute("branch", localBranch);
         pushStanza.setAttribute("start_commit", remoteTip);
         pushStanza.setAttribute("last_commit", localTipCommit);
@@ -203,7 +209,8 @@ public class ServerSync {
     }
 
     public Observable<RemoteConnectionJob.Result> sync() {
-        final Sync sync = new Sync(remoteStorageLink.getDatabaseInterface(), remoteStorageLink.getUid());
+        final Sync sync = new Sync(remoteStorageLink.getDatabaseInterface(),
+                remoteStorageLink.getConnectionInfo().serverUser, remoteStorageLink.getUid());
 
         final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(
                 remoteStorageLink.getConnectionInfo());

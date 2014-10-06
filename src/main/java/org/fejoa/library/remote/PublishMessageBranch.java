@@ -83,7 +83,9 @@ public class PublishMessageBranch {
         @Override
         public byte[] getRequest() throws Exception {
             return jsonRPC.call("initPublishBranch",
-                    new JsonRPC.Argument("branch", messageChannel.getBranchName())).getBytes();
+                    new JsonRPC.Argument("serverUser", connectionInfo.serverUser),
+                    new JsonRPC.Argument("branch", messageChannel.getBranchName()))
+                    .getBytes();
         }
 
         @Override
@@ -92,7 +94,8 @@ public class PublishMessageBranch {
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 
-            byte[] signedToken = messageChannel.sign(result.getString("authToken"));
+            int transactionId = result.getInt("transactionId");
+            byte[] signedToken = messageChannel.sign(result.getString("signToken"));
             boolean messageChannelNeeded = result.getBoolean("messageChannelNeeded");
             byte[] channelPack = null;
             String channelPEMKey = null;
@@ -102,8 +105,8 @@ public class PublishMessageBranch {
                 channelPEMKey = messageChannel.shareSignatureKeyPEM();
             }
 
-            setFollowUpJob(new LoginPublishMessageBranchJob(messageChannel, connectionInfo, signedToken, channelPack,
-                    channelPEMKey));
+            setFollowUpJob(new LoginPublishMessageBranchJob(messageChannel, connectionInfo, transactionId, signedToken,
+                    channelPack, channelPEMKey));
 
             return new Result(Result.DONE, getMessage(result));
         }
@@ -112,15 +115,18 @@ public class PublishMessageBranch {
     class LoginPublishMessageBranchJob extends JsonRemoteConnectionJob {
         final private MessageChannel messageChannel;
         final private ConnectionInfo connectionInfo;
+        final private int transactionId;
         final private byte[] signedToken;
         final private byte[] channelPack;
         final private String channelPEMKey;
 
         public LoginPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo,
-                                            byte[] signedToken, byte[] channelPack, String channelPEMKey) {
+                                            int transactionId, byte[] signedToken, byte[] channelPack,
+                                            String channelPEMKey) {
             this.messageChannel = messageChannel;
 
             this.connectionInfo = connectionInfo;
+            this.transactionId = transactionId;
             this.signedToken = signedToken;
             this.channelPack = channelPack;
             this.channelPEMKey = channelPEMKey;
@@ -129,6 +135,7 @@ public class PublishMessageBranch {
         @Override
         public byte[] getRequest() throws Exception {
             List<JsonRPC.Argument> arguments = new ArrayList<>();
+            arguments.add(new JsonRPC.Argument("transactionId", transactionId));
             arguments.add(new JsonRPC.Argument("signedToken", (signedToken == null) ? "" : Base64.encodeBytes(signedToken)));
             arguments.add(new JsonRPC.Argument("branch", messageChannel.getBranchName()));
             if (channelPack != null && channelPEMKey != null) {
@@ -150,7 +157,8 @@ public class PublishMessageBranch {
             if (localTip.equals(remoteTip))
                 return new Result(Result.DONE, "branch in sync");
 
-            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage().getDatabase(), getRemoteId()));
+            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage().getDatabase(),
+                    connectionInfo.serverUser, getRemoteId()));
 
             return new Result(Result.DONE, getMessage(result));
         }

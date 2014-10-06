@@ -60,15 +60,17 @@ public abstract class Channel {
     }
 
     protected void create() throws CryptoException {
-        ICryptoInterface crypto = Crypto.get();
-        byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
-        branchName = CryptoHelper.toHex(hashResult);
-
         parcelCrypto = new ParcelCrypto();
 
+        ICryptoInterface crypto = Crypto.get();
         KeyPair keyPair = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE_CHANNEL_SIGN);
         signatureKey = keyPair.getPrivate();
         signatureKeyPublic = keyPair.getPublic();
+
+        // The branch name is the 256 hash of the signature key. This makes sure that an attacker can't publish a fake
+        // branch with a wrong signature key, e.g., to block an existing branch with the same name.
+        byte hashResult[] = CryptoHelper.sha256Hash(signatureKeyPublic.getEncoded());
+        branchName = CryptoHelper.toHex(hashResult);
     }
 
     public String getBranchName() {

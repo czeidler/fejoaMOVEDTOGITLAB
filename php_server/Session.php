@@ -40,6 +40,16 @@ class Session {
 	}
 
 	public function getDatabase($user) {
+		$accountUser = Session::get()->getAccountUser();
+		if ($user == $accountUser) {
+			if (!file_exists($user))
+				mkdir($user);
+		} else {
+			if (!file_exists($user))
+				return null;
+		}
+		$database = new GitDatabase($userDir."/.git");
+
 		$databasePath = $user."/.git";
 		if (!file_exists($databasePath))
 			return null;
@@ -86,6 +96,20 @@ class Session {
 		unset($_SESSION['transactions'][$transaction->getUid()]);
 	}
 
+	public function addBranchAccess($branchAccessToken) {
+		if (!isset($_SESSION['branchAccess']))
+			$_SESSION['branchAccess'] = array();
+		else if ($this->hasBranchAccess($branchAccessToken))
+			return;
+		$_SESSION['branchAccess'][] = $branchAccessToken;
+	}
+
+	public function hasBranchAccess($branchAccessToken) {
+		if (!isset($_SESSION['branchAccess']))
+			return false;
+		return in_array($branchAccessToken, $_SESSION['branchAccess']);
+	}
+
 	public function setUserRoles($roles) {
 		$_SESSION['user_roles'] = $roles;
 	}
@@ -94,6 +118,10 @@ class Session {
 		if (!isset($_SESSION['user_roles']))
 			return array();
 		return $_SESSION['user_roles'];
+	}
+
+	public function isAccountUser() {
+		in_array("account", $this->getUserRoles());
 	}
 }
 

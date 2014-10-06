@@ -10,20 +10,15 @@ include_once 'JSONAuthHandler.php';
 
 
 function initSyncHandlers($XMLHandler) {
-	$userDir = Session::get()->getAccountUser();
-	if (!file_exists ($userDir))
-		mkdir($userDir);
-	$database = new GitDatabase($userDir."/.git");
-
 	// pull
 	$pullIqGetHandler = new InIqStanzaHandler(IqType::$kGet);
-	$pullHandler = new SyncPullStanzaHandler($XMLHandler->getInStream(), $database);
+	$pullHandler = new SyncPullStanzaHandler($XMLHandler->getInStream());
 	$pullIqGetHandler->addChild($pullHandler);
 	$XMLHandler->addHandler($pullIqGetHandler);
 
 	// push
 	$pushIqGetHandler = new InIqStanzaHandler(IqType::$kSet);
-	$pushHandler = new SyncPushStanzaHandler($XMLHandler->getInStream(), $database);
+	$pushHandler = new SyncPushStanzaHandler($XMLHandler->getInStream());
 	$pushIqGetHandler->addChild($pushHandler);
 	$XMLHandler->addHandler($pushIqGetHandler);
 }
@@ -76,6 +71,7 @@ class InitHandlers {
 	}
 
 	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {
+		initSyncHandlers($XMLHandler);
 		initMessageHandlers($XMLHandler);
 		initContactRequestStanzaHandler($XMLHandler);
 

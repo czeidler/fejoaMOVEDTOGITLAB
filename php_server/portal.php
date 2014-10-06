@@ -143,8 +143,7 @@ $request = $gPortal->receiveData($request);
 $XMLHandler = new XMLHandler($request);
 $JSONDispatcher = new JSONDispatcher();
 
-$roles = Session::get()->getUserRoles();
-if (in_array("account", $roles))
+if (Session::get()->isAccountUser())
 	InitHandlers::initPrivateHandlers($XMLHandler, $JSONDispatcher);
 else
 	InitHandlers::initPublicHandlers($XMLHandler, $JSONDispatcher);

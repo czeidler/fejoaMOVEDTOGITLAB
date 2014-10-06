@@ -11,6 +11,36 @@ class SignedPackage {
 	public $data;
 }
 
+class MessageChannel extends UserData {
+	private $channelUid;
+	private $signatureKey;
+
+	public function __construct($mailbox, $channelUid) {
+		$channelPath = $mailbox->getDirectory()."/".sprintf('%s/%s', substr($channelUid, 0, 2), substr($channelUid, 2));
+		parent::__construct($mailbox->getDatabase, $mailbox->getBranch(), $channelPath);
+
+		$this->$channelUid = $channelUid;
+		$this->signatureKey = $this->read("signature_key");
+	}
+
+	public function getSignatureKey() {
+		return $this->signatureKey;
+	}
+
+	public function setSignatureKey($key) {
+		$this->write("signature_key", $key);
+	}
+
+	public function setChannelInfo($infoPack) {
+		$this->write("d", $infoPack);
+		$this->write("database", $this->getDatabase()->dir);
+	}
+
+	public function getDatabaseDir() {
+		$this->read("database");
+	}
+}
+
 class Mailbox extends UserData {
 	private $lastErrorMessage;
 	private $userIdentity;

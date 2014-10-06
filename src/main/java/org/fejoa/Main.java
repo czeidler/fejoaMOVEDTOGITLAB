@@ -22,6 +22,17 @@ import java.net.CookieManager;
 import java.net.CookiePolicy;
 
 
+class GeneratingProfileDialog extends JDialog{
+    public GeneratingProfileDialog() {
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        setContentPane(new JLabel("Generating Profile. This could take a while..."));
+        setModal(false);
+        pack();
+    }
+}
+
 public class Main {
 
     static private String readPassword() {
@@ -96,7 +107,6 @@ public class Main {
 
         if (!opened) {
             // create dialog
-
             CreateProfileDialog createProfileDialog = new CreateProfileDialog();
             createProfileDialog.pack();
             createProfileDialog.setLocationRelativeTo(null);
@@ -109,7 +119,13 @@ public class Main {
                     password = createProfileDialog.getPassword();
                     String server = createProfileDialog.getServerName();
 
+                    GeneratingProfileDialog generatingProfileDialog = new GeneratingProfileDialog();
+                    generatingProfileDialog.setVisible(true);
+
                     profile.createNew(password);
+
+                    generatingProfileDialog.dispose();
+
                     ContactPrivate myself = profile.getMainUserIdentity().getMyself();
                     myself.setServerUser(userName);
                     myself.setServer(server);

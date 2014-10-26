@@ -8,6 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.INotifications;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
@@ -70,8 +71,8 @@ class RoleManager {
         serverWatcher.setListener(listener);
     }
 
-    public void startWatching(RemoteStorageLink link) {
-        serverWatcher.addLink(link);
+    public void startWatching(List<RemoteStorageLink> links) {
+        serverWatcher.setLinks(links);
         requestQueue.setIdleJob(serverWatcher);
     }
 
@@ -85,22 +86,6 @@ class RoleManager {
         synchronized (roles) {
             roles.add(role);
         }
-    }
-
-    public <T> Observable<T> sendQueued(final ConnectionInfo info, final Func1<IRemoteRequest, Observable<T>> job) {
-        return Observable.create(new Observable.OnSubscribeFunc<T>() {
-            @Override
-            public Subscription onSubscribe(Observer<? super T> observer) {
-                Observable<T> observable = sharedConnection.getRemoteRequest().mapMany(
-                        new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
-                            @Override
-                            public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
-                                return login(remoteRequest, info);
-                            }
-                        }).mapMany(job);
-                return requestQueue.queue(observable).subscribe(observer);
-            }
-        });
     }
 
     public Observable<IRemoteRequest> getPreparedRemoteRequest(final ConnectionInfo info) {
@@ -178,8 +163,13 @@ public class ConnectionManager {
     }
 
     final private Map<String, SharedConnection> servers = new HashMap<>();
+    private INotifications notifications = null;
 
     private ConnectionManager() {
+    }
+
+    public void setNotifications(INotifications notifications) {
+        this.notifications = notifications;
     }
 
     private SharedConnection getContactRoles(String server) {
@@ -197,10 +187,6 @@ public class ConnectionManager {
         return sharedConnection.getRoleManager(info.myself);
     }
 
-    public <T> Observable<T> sendQueued(ConnectionInfo info, Func1<IRemoteRequest, Observable<T>> job) {
-        return getRoleManager(info).sendQueued(info, job);
-    }
-
     public Observable<IRemoteRequest> getPreparedRemoteRequest(ConnectionInfo info) {
         return getRoleManager(info).getPreparedRemoteRequest(info);
     }
@@ -213,13 +199,15 @@ public class ConnectionManager {
         return new RemoteConnection(this, info);
     }
 
-    public void setWatchListener(ConnectionInfo info, ServerWatcher.IListener listener) {
+    /**
+     * Start watching links that have the same ConnectionInfo.
+     */
+    public void startWatching(List<RemoteStorageLink> links, ServerWatcher.IListener listener) {
+        if (links.size() == 0)
+            return;
+        ConnectionInfo info = links.get(0).getConnectionInfo();
+        getRoleManager(info).startWatching(links);
         getRoleManager(info).setListener(listener);
-    }
-
-    public void startWatching(RemoteStorageLink link) {
-        ConnectionInfo info = link.getConnectionInfo();
-        getRoleManager(info).startWatching(link);
     }
 
     public void shutdown(boolean force) {

@@ -7,11 +7,8 @@
  */
 package org.fejoa.library.remote;
 
-import org.fejoa.library.mailbox.MessageBranch;
-import org.fejoa.library.support.InStanzaHandler;
-import org.fejoa.library.support.IqInStanzaHandler;
-import org.fejoa.library.support.ProtocolInStream;
-import org.fejoa.library.support.ProtocolOutStream;
+import org.fejoa.library.INotifications;
+import org.fejoa.library.support.*;
 import org.w3c.dom.Element;
 import org.xml.sax.Attributes;
 import rx.Observable;
@@ -62,12 +59,33 @@ class WatchItemsChangedHandler extends InStanzaHandler {
 public class ServerWatcher implements RequestQueue.IIdleJob {
     public interface IListener {
         void onBranchesUpdated(List<RemoteStorageLink> links);
+        void onError(String message);
+        void onResult(RemoteConnectionJob.Result args);
     }
 
     public final static String WATCH_BRANCHES_STANZA = "watch_branches";
 
-    final private List<RemoteStorageLink> remoteStorageLinkList = new ArrayList<>();
+    private List<RemoteStorageLink> remoteStorageLinkList = new ArrayList<>();
     private IListener listener;
+
+    private Observer<RemoteConnectionJob.Result> observer = new Observer<RemoteConnectionJob.Result>() {
+        @Override
+        public void onCompleted() {
+
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            if (listener != null)
+                listener.onError(e.getMessage());
+        }
+
+        @Override
+        public void onNext(RemoteConnectionJob.Result args) {
+            if (listener != null)
+                listener.onResult(args);
+        }
+    };
 
     public ServerWatcher() {
     }
@@ -76,14 +94,18 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
         this.listener = listener;
     }
 
-    public void addLink(RemoteStorageLink link) {
-        // The identities need to be synced before the mailboxes, e.g., it could happen that a new
-        // contact sent a message, in case the identities are not synced first loading the message will
-        // fail.
-        if (link.getDatabaseInterface().getBranch().equals("identities"))
-            remoteStorageLinkList.add(0, link);
-        else
-            remoteStorageLinkList.add(link);
+    public void setLinks(List<RemoteStorageLink> links) {
+        remoteStorageLinkList = links;
+        for (RemoteStorageLink link : links) {
+            // The identities need to be synced before the mailboxes, e.g., it could happen that a new
+            // contact sent a message, in case the identities are not synced first loading the message will
+            // fail.
+            if (link.getDatabaseInterface().getBranch().equals("identities")) {
+                links.remove(link);
+                remoteStorageLinkList.add(0, link);
+                break;
+            }
+        }
     }
 
     @Override
@@ -97,22 +119,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
 
     @Override
     public Observer<RemoteConnectionJob.Result> getObserver() {
-        return new Observer<RemoteConnectionJob.Result>() {
-            @Override
-            public void onCompleted() {
-
-            }
-
-            @Override
-            public void onError(Throwable e) {
-
-            }
-
-            @Override
-            public void onNext(RemoteConnectionJob.Result args) {
-
-            }
-        };
+        return observer;
     }
 
     private RemoteStorageLink findLink(String branch) {

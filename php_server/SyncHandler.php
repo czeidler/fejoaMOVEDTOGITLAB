@@ -25,17 +25,17 @@ class SyncPullStanzaHandler extends InStanzaHandler {
 		$branchAccessToken = $serverUser.":".$branch;
 		if (!Session::get()->isAccountUser() && !Session::get()->hasBranchAccess($branchAccessToken))
 			return false;
-		$database = getDatabase($serverUser);
+		$database = Session::get()->getDatabase($serverUser);
 		if ($database === null)
 			return false;
 
 		if (isSHA1Hex($remoteTip))
 			$remoteTip = sha1_bin($remoteTip);
 
-		$packManager = new PackManager($this->database);
+		$packManager = new PackManager($database);
 		$pack = "";
 		try {
-			$localTip = $this->database->getTip($branch);
+			$localTip = $database->getTip($branch);
 			$pack = $packManager->exportPack($branch, $remoteTip, $localTip, -1);
 		} catch (Exception $e) {
 			$localTip = "";

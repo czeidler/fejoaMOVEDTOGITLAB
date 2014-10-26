@@ -22,6 +22,34 @@ import java.util.*;
 import java.util.List;
 
 
+class GuiNotifications implements INotifications {
+    final private INotifications child;
+
+    public GuiNotifications(INotifications child) {
+        this.child = child;
+    }
+
+    @Override
+    public void info(final String message) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                child.info(message);
+            }
+        });
+    }
+
+    @Override
+    public void error(final String error) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                child.error(error);
+            }
+        });
+    }
+}
+
 class LabelNotifications implements INotifications {
     final private JLabel statusLabel;
 
@@ -109,6 +137,10 @@ public class MainWindow extends JDialog {
         });
     }
 
+    public INotifications getGuiNotifications() {
+        return new GuiNotifications(notifications);
+    }
+
     private void showNewMessage() {
         ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
     }
@@ -122,19 +154,25 @@ public class MainWindow extends JDialog {
     private void start() {
         notifications.info("start watching");
 
-        Collection<RemoteStorageLink> links = profile.getRemoteStorageLinks().values();
-        RemoteStorageLink link = links.iterator().next();
+        List<RemoteStorageLink> links = new ArrayList<>(profile.getRemoteStorageLinks().values());
 
-        ConnectionManager.get().setWatchListener(link.getConnectionInfo(), new ServerWatcher.IListener() {
+        ConnectionManager.get().startWatching(links, new ServerWatcher.IListener() {
             @Override
             public void onBranchesUpdated(List<RemoteStorageLink> links) {
                 for (RemoteStorageLink link : links)
                     syncBranch(link);
             }
-        });
 
-        for (RemoteStorageLink l : links)
-            ConnectionManager.get().startWatching(l);
+            @Override
+            public void onError(String message) {
+                notifications.error("WatchListener: " + message);
+            }
+
+            @Override
+            public void onResult(RemoteConnectionJob.Result args) {
+                notifications.info("WatchListener: " + args.message);
+            }
+        });
     }
 
     private void syncBranch(RemoteStorageLink remoteStorageLink) {

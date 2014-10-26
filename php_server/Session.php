@@ -48,7 +48,7 @@ class Session {
 			if (!file_exists($user))
 				return null;
 		}
-		$database = new GitDatabase($userDir."/.git");
+		$database = new GitDatabase($user."/.git");
 
 		$databasePath = $user."/.git";
 		if (!file_exists($databasePath))
@@ -121,7 +121,7 @@ class Session {
 	}
 
 	public function isAccountUser() {
-		in_array("account", $this->getUserRoles());
+		return in_array("account", $this->getUserRoles());
 	}
 }
 

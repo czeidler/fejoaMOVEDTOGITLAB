@@ -61,20 +61,24 @@ function initMessageHandlers($XMLHandler) {
 
 class InitHandlers {
 	static public function initPrivateHandlers($XMLHandler, $JSONDispatcher) {
+		// xml
 		initSyncHandlers($XMLHandler);
 		initMessageHandlers($XMLHandler);
 		initWatchBranchesStanzaHandler($XMLHandler);
 		initContactRequestStanzaHandler($XMLHandler);
 
+		// json
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
 	}
 
 	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {
+		// xml
 		initSyncHandlers($XMLHandler);
 		initMessageHandlers($XMLHandler);
 		initContactRequestStanzaHandler($XMLHandler);
 
+		// json
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
 	}

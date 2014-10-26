@@ -112,7 +112,7 @@ public class MainWindow extends JDialog {
             }
         });
 
-        sendMessageObject = new SendNewMessageFrame(mailbox);
+        sendMessageObject = new SendNewMessageFrame(mailbox, notifications);
         messageCardPanel.add(sendMessageObject.getPanel(), NEW_MESSAGE_CARD);
         ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
 

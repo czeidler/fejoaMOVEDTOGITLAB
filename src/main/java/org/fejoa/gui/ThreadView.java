@@ -92,24 +92,6 @@ public class ThreadView {
 
         Messenger messenger = new Messenger(mailbox);
         messenger.addMessageToThread(messageChannel, body);
-        messenger.publishMessageChannel(messageChannel).subscribe(new Observer<RemoteConnectionJob.Result>() {
-            @Override
-            public void onCompleted() {
-
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                notifications.error(e.getMessage());
-            }
-
-            @Override
-            public void onNext(RemoteConnectionJob.Result result) {
-                if (result.status < RemoteConnectionJob.Result.DONE)
-                    notifications.error(result.message);
-                else
-                    notifications.info(result.message);
-            }
-        });
+        messenger.sendMessageChannel(messageChannel, notifications);
     }
 }

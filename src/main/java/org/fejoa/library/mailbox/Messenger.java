@@ -1,6 +1,7 @@
 package org.fejoa.library.mailbox;
 
 
+import org.fejoa.library.INotifications;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.remote.ConnectionManager;
 import org.fejoa.library.remote.PublishMessageBranch;
@@ -18,7 +19,7 @@ public class Messenger {
         this.mailbox = mailbox;
     }
 
-    public void createNewThreadMessage(String subject, List<String> receivers, String body) throws CryptoException, IOException {
+    public MessageChannel createNewThreadMessage(String subject, List<String> receivers, String body) throws CryptoException, IOException {
 
         MessageBranchInfo branchInfo = new MessageBranchInfo();
         branchInfo.setSubject(subject);
@@ -36,6 +37,8 @@ public class Messenger {
 
         mailbox.addMessageChannel(messageChannel);
         mailbox.commit();
+
+        return messageChannel;
     }
 
     public void addMessageToThread(MessageChannel channel, String body) throws IOException, CryptoException {
@@ -52,5 +55,27 @@ public class Messenger {
     public Observable<RemoteConnectionJob.Result> publishMessageChannel(MessageChannel channel) {
         PublishMessageBranch publishMessageBranch = new PublishMessageBranch(channel);
         return publishMessageBranch.publish();
+    }
+
+    public void sendMessageChannel(MessageChannel channel, final INotifications notifications) {
+        publishMessageChannel(channel).subscribe(new Observer<RemoteConnectionJob.Result>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                notifications.error(e.getMessage());
+            }
+
+            @Override
+            public void onNext(RemoteConnectionJob.Result result) {
+                if (result.status < RemoteConnectionJob.Result.DONE)
+                    notifications.error(result.message);
+                else
+                    notifications.info(result.message);
+            }
+        });
     }
 }

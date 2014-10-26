@@ -7,8 +7,11 @@
  */
 package org.fejoa.library.database;
 
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
+import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -188,7 +191,7 @@ public class JGitInterface implements IDatabaseInterface {
         commit.setMessage("client commit");
         commit.setTreeId(rootTree);
         String tip = getTip();
-        ObjectId oldTip = null;
+        ObjectId oldTip;
         if (tip.equals(""))
             oldTip = ObjectId.zeroId();
         else {
@@ -327,7 +330,43 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public void remove(String path) throws IOException {
-        throw new IOException("not implemented!");
+        if (isDirectory(path))
+            rmDirectory(path);
+        else
+            rmFile(path);
+    }
+
+    private boolean isDirectory(String path) throws IOException {
+        TreeWalk treeWalk = cd(path);
+        treeWalk.next();
+        // it's a directory if there is a second entry
+        return treeWalk.next();
+    }
+
+    private void rm(DirCacheEditor.PathEdit operation) throws IOException {
+        final DirCache cache = DirCache.newInCore();
+        final DirCacheBuilder builder = cache.builder();
+        if (!rootTree.equals(ObjectId.zeroId())) {
+            final ObjectReader reader = repository.getObjectDatabase().newReader();
+            builder.addTree("".getBytes(), DirCacheEntry.STAGE_0, reader, rootTree);
+        }
+        builder.finish();
+
+        final DirCacheEditor cacheEditor = cache.editor();
+        cacheEditor.add(operation);
+        cacheEditor.finish();
+
+        final ObjectInserter objectInserter = repository.newObjectInserter();
+        rootTree = cache.writeTree(objectInserter);
+        objectInserter.flush();
+    }
+
+    private void rmFile(String filePath) throws IOException {
+        rm(new DirCacheEditor.DeletePath(filePath));
+    }
+
+    private void rmDirectory(String path) throws IOException {
+        rm(new DirCacheEditor.DeleteTree(path));
     }
 
     @Override

@@ -109,6 +109,53 @@ public class JGitInterfaceTest extends TestCase {
         assertTrue(equals(entries, Arrays.asList("test9", "test10")));
     }
 
+    public void testRemove() throws IOException {
+        String gitDir = "removeEntriesGit";
+        cleanUpDirs.add(gitDir);
+
+        JGitInterface git = new JGitInterface();
+        git.init(gitDir, "testBranch", true);
+
+        byte data[] = "test".getBytes();
+        git.writeBytes("test1", data);
+        git.writeBytes("test2", data);
+
+        git.writeBytes("dir/test3", data);
+        git.writeBytes("dir/test4", data);
+
+        git.writeBytes("dir2/test5", data);
+        git.writeBytes("dir2/test6", data);
+
+        git.writeBytes("dir/sub1/test7", data);
+        git.writeBytes("dir/sub1/test8", data);
+
+        git.writeBytes("dir/sub2/sub3/test9", data);
+        git.writeBytes("dir/sub2/sub3/test10", data);
+
+        git.commit();
+
+
+        git.remove("test2");
+        List<String> entries = git.listFiles("");
+        assertTrue(equals(entries, Arrays.asList("test1")));
+
+        git.remove("dir/sub1/test7");
+        entries = git.listFiles("dir/sub1");
+        assertTrue(equals(entries, Arrays.asList("test8")));
+
+        git.remove("dir2");
+        entries = git.listDirectories("");
+        assertTrue(equals(entries, Arrays.asList("dir")));
+
+        git.remove("dir/sub2");
+        entries = git.listDirectories("dir");
+        assertTrue(equals(entries, Arrays.asList("sub1")));
+
+        git.remove("");
+        entries = git.listDirectories("");
+        assertTrue(entries.size() == 0);
+    }
+
     private boolean equals(List<String> list1, List<String> list2) {
         return list1.containsAll(list2) && list2.containsAll(list1);
     }

@@ -43,17 +43,11 @@ class RemoteRequestHelper {
                     public void run() {
                         byte receivedData[];
                         try {
-                            String out = new String(bytes);
-                            System.out.print(out);
                             receivedData = remoteRequest.send(bytes);
-
                         } catch (IOException e) {
                             receiver.onError(e);
                             return;
                         }
-
-                        String test = new String(receivedData);
-                        System.out.print(test);
 
                         receiver.onNext(receivedData);
                         receiver.onCompleted();

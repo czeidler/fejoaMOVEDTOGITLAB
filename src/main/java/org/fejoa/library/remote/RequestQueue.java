@@ -88,9 +88,9 @@ class RequestQueue {
             queueLock.lock();
             this.idleJob = job;
 
-            if (idleJobSubscription != null) {
+            if (idleJobSubscription != null)
                 stopIdleJob();
-            } else
+            else
                 schedule();
 
         } finally {

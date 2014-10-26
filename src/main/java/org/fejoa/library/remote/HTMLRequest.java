@@ -8,20 +8,19 @@
 package org.fejoa.library.remote;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.impl.client.*;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 /*
 public class HTMLRequest implements IRemoteRequest {
@@ -111,10 +110,10 @@ public class HTMLRequest implements IRemoteRequest {
 }*/
 
 public class HTMLRequest implements IRemoteRequest {
-    private PoolingHttpClientConnectionManager cm;
     static private BasicCookieStore cookieStore = new BasicCookieStore();
     private String url;
     private HttpPost httpPost;
+    private boolean canceled = false;
 
     public HTMLRequest(String url) {
         this.url = url;
@@ -132,24 +131,19 @@ public class HTMLRequest implements IRemoteRequest {
 
     @Override
     public void cancel() {
+        canceled = true;
         HttpPost httpPostStrongRef = httpPost;
         if (httpPostStrongRef != null)
             httpPostStrongRef.abort();
     }
 
-    private PoolingHttpClientConnectionManager getCm() {
-        if (cm == null)
-            cm = new PoolingHttpClientConnectionManager();
-        return cm;
-    }
-
     private byte[] getHTML(byte data[]) throws IOException {
-        /*CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(getCm())
-                .build();*/
-        DefaultHttpClient httpClient = new DefaultHttpClient();
-        httpClient.setCookieStore(cookieStore);
+        System.out.println("SEND: " + new String(data));
+        HttpClient httpClient = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
         httpPost = new HttpPost(url);
+
+        if (canceled)
+            return new byte[0];
 
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
@@ -172,7 +166,11 @@ public class HTMLRequest implements IRemoteRequest {
                 if (bufferedInputStream != null)
                     bufferedInputStream.close();
             }
-            return receivedData.toByteArray();
+
+            byte[] reply = receivedData.toByteArray();
+            System.out.println("RECEIVED: " + new String(reply));
+
+            return reply;
         } finally {
             httpPost.releaseConnection();
             httpPost = null;

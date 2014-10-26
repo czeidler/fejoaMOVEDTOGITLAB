@@ -88,7 +88,8 @@ public class SignatureAuthentication implements IAuthenticationRequest {
 
         @Override
         public Result handleResponse(byte[] reply) throws Exception {
-            JSONObject result = jsonRPC.getReturnValue(new String(reply));
+            String stringReply = new String(reply);
+            JSONObject result = jsonRPC.getReturnValue(stringReply);
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 

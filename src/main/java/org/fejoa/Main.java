@@ -36,7 +36,7 @@ class GeneratingProfileDialog extends JDialog{
 public class Main {
 
     static private String readPassword() {
-        FileInputStream fileInputStream = null;
+        FileInputStream fileInputStream;
         try {
             fileInputStream = new FileInputStream("password");
         } catch (FileNotFoundException e) {

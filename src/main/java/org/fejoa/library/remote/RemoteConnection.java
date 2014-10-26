@@ -31,10 +31,6 @@ public class RemoteConnection {
         return manager.queueJob(info, observable);
     }
 
-    public Observable<byte[]> queueBytes(final byte[] data) {
-        return queueObservable(sendBytes(data));
-    }
-
     private Observable<byte[]> sendBytes(final byte[] data) {
         Observable<byte[]> out = getPreparedRemoteRequest().mapMany(
                 new Func1<IRemoteRequest, Observable<byte[]>>() {

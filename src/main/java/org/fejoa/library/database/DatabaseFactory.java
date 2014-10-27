@@ -2,10 +2,11 @@ package org.fejoa.library.database;
 
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 public class DatabaseFactory {
-    static private Map<String, IDatabaseInterface> databaseMap;
+    static private Map<String, IDatabaseInterface> databaseMap = new HashMap<>();
 
     static public IDatabaseInterface getDatabaseFor(String path, String branch) throws IOException {
         String hash = branch + "@" + path;

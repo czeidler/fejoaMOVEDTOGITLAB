@@ -34,6 +34,7 @@ public class Mailbox extends UserData {
     final private UserIdentity userIdentity;
 
     private MailboxBookkeeping bookkeeping;
+    private MailboxSyncManager mailboxSyncManager;
 
     final private int CACHE_SIZE = 10;
     final private Map<String, MessageChannel> messageChannelCache = new LinkedHashMap(CACHE_SIZE + 1, .75F, true) {
@@ -83,15 +84,17 @@ public class Mailbox extends UserData {
         }
     }
 
+    // create new
     public Mailbox(UserIdentity userIdentity) throws IOException, CryptoException {
         this.userIdentity = userIdentity;
 
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
         uid = CryptoHelper.toHex(hashResult);
 
-        bookkeeping = new MailboxBookkeeping(".gitMailboxBookkeeping", this);
+        initBookkeeping();
     }
 
+    // load existing
     public Mailbox(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder, IUserIdentityFinder userIdentityFinder)
             throws IOException, CryptoException {
         readUserData(storageDir, keyStoreFinder);
@@ -100,6 +103,16 @@ public class Mailbox extends UserData {
         userIdentity = userIdentityFinder.find(userIdentityId);
 
         loadMessageChannels();
+
+        initBookkeeping();
+    }
+
+    private void initBookkeeping() throws IOException, CryptoException {
+        bookkeeping = new MailboxBookkeeping(".gitMailboxBookkeeping", this);
+    }
+
+    public void startSyncing(INotifications notifications) {
+        mailboxSyncManager = new MailboxSyncManager(this, notifications);
     }
 
     public UserIdentity getUserIdentity() {
@@ -120,6 +133,12 @@ public class Mailbox extends UserData {
 
     public MessageChannelRef getMessageChannel(int index) {
         return messageChannels.get(index);
+    }
+
+    @Override
+    public void commit() throws IOException {
+        super.commit();
+        bookkeeping.commit(getStorageDir().getTip());
     }
 
     public MessageChannelRef getMessageChannel(String branchName) {

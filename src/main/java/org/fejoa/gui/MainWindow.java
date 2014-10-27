@@ -173,6 +173,8 @@ public class MainWindow extends JDialog {
                 notifications.info("WatchListener: " + args.message);
             }
         });
+
+        profile.getMainMailbox().startSyncing(notifications);
     }
 
     private void syncBranch(RemoteStorageLink remoteStorageLink) {

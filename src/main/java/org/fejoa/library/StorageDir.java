@@ -136,5 +136,9 @@ public class StorageDir {
     public void commit() throws IOException {
         cache.commit();
     }
+
+    public String getTip() throws IOException {
+        return cache.getDatabase().getTip();
+    }
 }
 

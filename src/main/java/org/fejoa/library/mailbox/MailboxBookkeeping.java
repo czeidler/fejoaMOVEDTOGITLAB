@@ -39,8 +39,9 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
     public MailboxBookkeeping(String path, Mailbox mailbox) throws IOException, CryptoException {
         SecureStorageDir security = mailbox.getStorageDir();
-        baseDir = SecureStorageDir.createStorage(path, StorageDir.appendDir("mailboxes", mailbox.getUid()),
-                security.getKeyStore(), security.getKeyId());
+        SecureStorageDir root = SecureStorageDir.createStorage(path, "mailboxes", security.getKeyStore(),
+                security.getKeyId());
+        baseDir = new SecureStorageDir(root, mailbox.getUid());
 
         this.mailbox = mailbox;
     }
@@ -82,8 +83,12 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
             return dirtyBranches;
         }
 
-        private List<String> readDirtyBranches() throws IOException {
-            return dirtyDir.listFiles("");
+        private List<String> readDirtyBranches() {
+            try {
+                return dirtyDir.listFiles("");
+            } catch (IOException e) {
+                return new ArrayList<>();
+            }
         }
 
         public void updateRemoteStatus(String branch, String remoteTip) throws IOException {
@@ -116,7 +121,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
      * @param mailboxTip
      * @throws java.io.IOException
      */
-    private void commit(String mailboxTip) throws IOException {
+    public void commit(String mailboxTip) throws IOException {
         baseDir.writeString("mailboxTip", mailboxTip);
         baseDir.commit();
 

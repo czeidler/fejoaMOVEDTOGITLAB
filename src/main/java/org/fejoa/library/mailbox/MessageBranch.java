@@ -19,6 +19,7 @@ import java.util.List;
 public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     public interface IListener {
         public void onMessageAdded(Message message);
+        public void onCommit();
     }
 
     private ParcelCrypto parcelCrypto;
@@ -26,30 +27,37 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     private List<Message> messages = new ArrayList<>();
     private SecureStorageDir messageStorage;
 
+    private Mailbox mailbox;
     private UserIdentity identity;
 
-    static public MessageBranch createNewMessageBranch(SecureStorageDir messageStorage, UserIdentity identity,
+    static public MessageBranch createNewMessageBranch(SecureStorageDir messageStorage, Mailbox mailbox,
                                                    ParcelCrypto parcelCrypto) throws IOException, CryptoException {
-        return new MessageBranch(messageStorage, identity, parcelCrypto);
+        return new MessageBranch(messageStorage, mailbox, parcelCrypto);
     }
 
-    static public MessageBranch loadMessageBranch(SecureStorageDir messageStorage, UserIdentity identity,
+    static public MessageBranch loadMessageBranch(SecureStorageDir messageStorage, Mailbox mailbox,
                                                   ParcelCrypto parcelCrypto) throws IOException, CryptoException {
-        MessageBranch messageBranch = new MessageBranch(messageStorage, identity, parcelCrypto);
+        MessageBranch messageBranch = new MessageBranch(messageStorage, mailbox, parcelCrypto);
         messageBranch.load();
         return messageBranch;
     }
 
-    private MessageBranch(SecureStorageDir messageStorage, UserIdentity identity, ParcelCrypto parcelCrypto)
+    private MessageBranch(SecureStorageDir messageStorage, Mailbox mailbox, ParcelCrypto parcelCrypto)
             throws IOException,
             CryptoException {
         this.messageStorage = messageStorage;
-        this.identity = identity;
+        this.mailbox = mailbox;
+        this.identity = mailbox.getUserIdentity();
         this.parcelCrypto = parcelCrypto;
+    }
+
+    public String getTip() throws IOException {
+        return messageStorage.getDatabase().getTip();
     }
 
     public void commit() throws IOException {
         messageStorage.commit();
+        notifyCommit();
     }
 
     private void load() throws IOException, CryptoException {
@@ -133,5 +141,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     private void notifyMessageAdded(Message message) {
         for (IListener listener : getListeners())
             listener.onMessageAdded(message);
+    }
+
+    private void notifyCommit() {
+        for (IListener listener : getListeners())
+            listener.onCommit();
     }
 }

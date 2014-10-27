@@ -282,7 +282,6 @@ public class Profile extends UserData {
     private UserDataRef readRef(String path) throws IOException {
         UserDataRef ref = new UserDataRef();
 
-        IDatabaseInterface databaseInterface = storageDir.getDatabase();
         if (!path.equals(""))
             path += "/";
         ref.path = storageDir.readString(path + "database_path");

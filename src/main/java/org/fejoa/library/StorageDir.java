@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 
-class StorageDir {
+public class StorageDir {
     final private StorageDirCache cache;
     final private String baseDir;
 

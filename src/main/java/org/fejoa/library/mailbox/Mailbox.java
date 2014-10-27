@@ -24,7 +24,6 @@ import java.util.Map;
 
 
 public class Mailbox extends UserData {
-
     public interface Listener {
         public void onMessageChannelAdded(MessageChannelRef channelRef);
     }
@@ -33,6 +32,8 @@ public class Mailbox extends UserData {
     final private ICryptoInterface crypto = Crypto.get();
     final private List<MessageChannelRef> messageChannels = new ArrayList<>();
     final private UserIdentity userIdentity;
+
+    private MailboxBookkeeping bookkeeping;
 
     final private int CACHE_SIZE = 10;
     final private Map<String, MessageChannel> messageChannelCache = new LinkedHashMap(CACHE_SIZE + 1, .75F, true) {
@@ -51,6 +52,10 @@ public class Mailbox extends UserData {
 
         public MessageChannelRef(String channel) {
             this.channelUid = channel;
+        }
+
+        public String getChannelUid() {
+            return channelUid;
         }
 
         @Override
@@ -78,11 +83,13 @@ public class Mailbox extends UserData {
         }
     }
 
-    public Mailbox(UserIdentity userIdentity) {
+    public Mailbox(UserIdentity userIdentity) throws IOException, CryptoException {
         this.userIdentity = userIdentity;
 
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
         uid = CryptoHelper.toHex(hashResult);
+
+        bookkeeping = new MailboxBookkeeping(".gitMailboxBookkeeping", this);
     }
 
     public Mailbox(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder, IUserIdentityFinder userIdentityFinder)
@@ -95,8 +102,16 @@ public class Mailbox extends UserData {
         loadMessageChannels();
     }
 
+    public UserIdentity getUserIdentity() {
+        return userIdentity;
+    }
+
     public MessageChannel createNewMessageChannel() throws CryptoException, IOException {
-        return new MessageChannel(getStorageDir().getDatabase().getPath(), userIdentity);
+        return new MessageChannel(getStorageDir().getDatabase().getPath(), this);
+    }
+
+    public MailboxBookkeeping getBookkeeping() {
+        return bookkeeping;
     }
 
     public int getNumberOfMessageChannels() {
@@ -105,6 +120,14 @@ public class Mailbox extends UserData {
 
     public MessageChannelRef getMessageChannel(int index) {
         return messageChannels.get(index);
+    }
+
+    public MessageChannelRef getMessageChannel(String branchName) {
+        for (MessageChannelRef ref : messageChannels) {
+            if (ref.getChannelUid().equals(branchName))
+                return ref;
+        }
+        return null;
     }
 
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
@@ -124,21 +147,34 @@ public class Mailbox extends UserData {
     private MessageChannel loadMessageChannel(final String branchId) throws IOException, CryptoException {
         SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
                 branchId.substring(0, 2) + "/" + branchId.substring(2));
-        MessageChannel messageChannel = new MessageChannel(channelStorage, userIdentity);
+        MessageChannel messageChannel = new MessageChannel(channelStorage, this);
         messageChannelCache.put(branchId, messageChannel);
         return messageChannel;
     }
 
+    private SecureStorageDir getChannelStorageDir(String branchName) {
+        return new SecureStorageDir(storageDir, branchName.substring(0, 2) + "/" + branchName.substring(2));
+    }
+
     public void addMessageChannel(MessageChannel messageChannel) throws CryptoException, IOException {
         String branchName = messageChannel.getBranchName();
-        SecureStorageDir dir = new SecureStorageDir(storageDir,
-                branchName.substring(0, 2) + "/" + branchName.substring(2));
+        SecureStorageDir dir = getChannelStorageDir(branchName);
 
         ContactPrivate myself = userIdentity.getMyself();
         messageChannel.write(dir, myself, myself.getMainKeyId());
+        dir.writeSecureString("branchTip", messageChannel.getBranch().getTip());
         messageChannelCache.put(branchName, messageChannel);
 
         addChannelToList(new MessageChannelRef(branchName));
+    }
+
+    public void onBranchCommited(MessageChannel channel) throws IOException, CryptoException {
+        String branchName = channel.getBranchName();
+        SecureStorageDir dir = getChannelStorageDir(branchName);
+        dir.writeSecureString("branchTip", channel.getBranch().getTip());
+
+        for (MessageBranchInfo.Participant participant : channel.getBranch().getMessageBranchInfo().getParticipants())
+            bookkeeping.edit(participant.address).markAsDirty(branchName);
     }
 
     private void addChannelToList(MessageChannelRef messageChannelRef) {

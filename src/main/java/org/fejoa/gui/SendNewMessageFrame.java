@@ -7,11 +7,8 @@
  */
 package org.fejoa.gui;
 
-import org.fejoa.library.INotifications;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.mailbox.*;
-import org.fejoa.library.remote.RemoteConnectionJob;
-import rx.Observer;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -29,11 +26,9 @@ public class SendNewMessageFrame {
     private JTextField subjectTextField;
 
     final private Mailbox mailbox;
-    final private INotifications notifications;
 
-    public SendNewMessageFrame(Mailbox mailbox, INotifications notifications) {
+    public SendNewMessageFrame(Mailbox mailbox) {
         this.mailbox = mailbox;
-        this.notifications = notifications;
 
         sendButton.addActionListener(new ActionListener() {
             @Override
@@ -61,7 +56,6 @@ public class SendNewMessageFrame {
         String body = messagePane.getText();
 
         Messenger messenger = new Messenger(mailbox);
-        MessageChannel messageChannel = messenger.createNewThreadMessage(subject, receivers, body);
-        messenger.sendMessageChannel(messageChannel, notifications);
+        messenger.createNewThreadMessage(subject, receivers, body);
     }
 }

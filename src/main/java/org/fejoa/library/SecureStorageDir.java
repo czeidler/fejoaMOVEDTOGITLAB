@@ -10,6 +10,7 @@ package org.fejoa.library;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.database.DatabaseFactory;
 import org.fejoa.library.database.IDatabaseInterface;
 
 import java.io.IOException;
@@ -20,6 +21,14 @@ public class SecureStorageDir extends StorageDir {
     private KeyId keyId;
     private KeyStore.SecreteKeyIVPair secreteKeyIVPair;
     private ICryptoInterface crypto = Crypto.get();
+
+    static public SecureStorageDir createStorage(String path, String branch, KeyStore keyStore, KeyId keyId)
+            throws IOException, CryptoException {
+        IDatabaseInterface databaseInterface = DatabaseFactory.getDatabaseFor(path, branch);
+        SecureStorageDir dir = new SecureStorageDir(databaseInterface, "");
+        dir.setTo(keyStore, keyId);
+        return dir;
+    }
 
     public SecureStorageDir(SecureStorageDir storageDir, String baseDir) {
         super(storageDir, baseDir, false);

@@ -26,6 +26,11 @@ public class MessageThreadAdapter extends WeakListenable<ListDataListener> imple
         public void onMessageAdded(Message message) {
             notifyMessageAdded();
         }
+
+        @Override
+        public void onCommit() {
+
+        }
     };
 
     public MessageThreadAdapter(MessageChannel messageChannel) {

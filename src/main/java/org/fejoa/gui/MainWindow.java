@@ -97,7 +97,7 @@ public class MainWindow extends JDialog {
         setModal(true);
 
         Mailbox mailbox = profile.getMainMailbox();
-        threadViewObject = new ThreadView(mailbox, notifications);
+        threadViewObject = new ThreadView(mailbox);
         messageCardPanel.add(threadViewObject.getPanel(), THREAD_CARD);
 
         messageChannelAdapter = new MessageChannelAdapter(mailbox);
@@ -112,7 +112,7 @@ public class MainWindow extends JDialog {
             }
         });
 
-        sendMessageObject = new SendNewMessageFrame(mailbox, notifications);
+        sendMessageObject = new SendNewMessageFrame(mailbox);
         messageCardPanel.add(sendMessageObject.getPanel(), NEW_MESSAGE_CARD);
         ((CardLayout)messageCardPanel.getLayout()).show(messageCardPanel, NEW_MESSAGE_CARD);
 

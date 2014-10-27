@@ -7,12 +7,10 @@
  */
 package org.fejoa.gui;
 
-import org.fejoa.library.INotifications;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.mailbox.Messenger;
-import org.fejoa.library.remote.RemoteConnectionJob;
 import rx.Observer;
 
 import javax.swing.*;
@@ -29,14 +27,12 @@ public class ThreadView {
     final private DefaultListModel loadingListModel = new DefaultListModel();
 
     final private Mailbox mailbox;
-    final private INotifications notifications;
     private Mailbox.MessageChannelRef selectedMessageChannel;
     private MessageChannel messageChannel;
     private MessageThreadAdapter threadAdapter;
 
-    public ThreadView(Mailbox mailbox, INotifications notifications) {
+    public ThreadView(Mailbox mailbox) {
         this.mailbox = mailbox;
-        this.notifications = notifications;
         loadingListModel.add(0, "loading...");
 
         sendButton.addActionListener(new ActionListener() {
@@ -92,6 +88,5 @@ public class ThreadView {
 
         Messenger messenger = new Messenger(mailbox);
         messenger.addMessageToThread(messageChannel, body);
-        messenger.sendMessageChannel(messageChannel, notifications);
     }
 }

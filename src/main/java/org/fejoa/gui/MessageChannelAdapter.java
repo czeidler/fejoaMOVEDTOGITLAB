@@ -15,6 +15,8 @@ import rx.Observer;
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class MessageChannelAdapter extends WeakListenable<ListDataListener> implements ListModel {
@@ -25,6 +27,7 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
             notifyMessageChannelAdded();
         }
     };
+    private List<String> labels = new ArrayList<>();
 
     public MessageChannelAdapter(Mailbox mailbox) {
         this.mailbox = mailbox;
@@ -41,8 +44,27 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
         return mailbox.getNumberOfMessageChannels();
     }
 
+    private void setLabel(int index, String label) {
+        if (labels.size() <= index)
+            labels.add(index, label);
+        else
+            labels.set(index, label);
+    }
+
+    private String getLabel(int index) {
+        if (labels.size() <= index)
+            return null;
+        return labels.get(index);
+    }
+
     @Override
     public Object getElementAt(final int index) {
+        // The channel is fetched async, to make sure that the entry stays valid cache it for one
+        // cycle.
+        String cachedLabel = getLabel(index);
+        if (cachedLabel != null)
+            return cachedLabel;
+
         Mailbox.MessageChannelRef ref =  mailbox.getMessageChannel(index);
         final String[] label = {""};
         ref.get().subscribe(new Observer<MessageChannel>() {
@@ -58,15 +80,18 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
 
             @Override
             public void onNext(MessageChannel args) {
-                if (!label[0].equals(""))
-                    notifyMessageChannelLoaded(index);
-                else
-                    label[0] = args.getBranchName();
+                label[0] = makeString(args);
+                setLabel(index, label[0]);
+                notifyMessageChannelLoaded(index);
             }
         });
         if (label[0].equals(""))
             label[0] = "loading...";
         return label[0];
+    }
+
+    private String makeString(MessageChannel channel) {
+        return channel.getBranchName();
     }
 
     @Override

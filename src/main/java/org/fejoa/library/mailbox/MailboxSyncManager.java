@@ -32,27 +32,25 @@ public class MailboxSyncManager {
 
     private void sync() {
         MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
-        List<MailboxBookkeeping.RemoteEntry> dirtyRemotes = bookkeeping.getDirtyRemotes();
-        for (MailboxBookkeeping.RemoteEntry entry : dirtyRemotes) {
-            for (String branch : entry.getDirtyBranches()) {
-                Mailbox.MessageChannelRef ref = mailbox.getMessageChannel(branch);
-                ref.get().subscribe(new Observer<MessageChannel>() {
-                    @Override
-                    public void onCompleted() {
+        List<String> dirtyBranches = bookkeeping.getAllDirtyBranches();
+        for (String branch : dirtyBranches) {
+            Mailbox.MessageChannelRef ref = mailbox.getMessageChannel(branch);
+            ref.get().subscribe(new Observer<MessageChannel>() {
+                @Override
+                public void onCompleted() {
 
-                    }
+                }
 
-                    @Override
-                    public void onError(Throwable e) {
+                @Override
+                public void onError(Throwable e) {
 
-                    }
+                }
 
-                    @Override
-                    public void onNext(MessageChannel args) {
-                        syncMessageChannel(args);
-                    }
-                });
-            }
+                @Override
+                public void onNext(MessageChannel args) {
+                    syncMessageChannel(args);
+                }
+            });
         }
     }
 

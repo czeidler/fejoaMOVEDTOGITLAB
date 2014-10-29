@@ -1,7 +1,6 @@
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.SecureStorageDir;
-import org.fejoa.library.StorageDir;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.database.DatabaseFactory;
@@ -33,50 +32,79 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
     }
 
     final private Mailbox mailbox;
-    final private Map<String, RemoteEntry> remoteEntryCache = new HashMap<>();
-    final private List<RemoteEntry> dirtyRemotes = new ArrayList<>();
+    // remote name -> DirtyRemote
+    final private Map<String, DirtyRemote> dirtyRemotes = new HashMap<>();
     final private SecureStorageDir baseDir;
+    final private SecureStorageDir dirtyDir;
 
     public MailboxBookkeeping(String path, Mailbox mailbox) throws IOException, CryptoException {
         SecureStorageDir security = mailbox.getStorageDir();
         SecureStorageDir root = SecureStorageDir.createStorage(path, "mailboxes", security.getKeyStore(),
                 security.getKeyId());
         baseDir = new SecureStorageDir(root, mailbox.getUid());
+        dirtyDir = new SecureStorageDir(baseDir, "dirty");
 
         this.mailbox = mailbox;
+
+        loadFromDB();
     }
 
-    public List<RemoteEntry> getDirtyRemotes() {
-        return dirtyRemotes;
+    /**
+     * Returns the dirty branches of all remotes.
+     * @return
+     */
+    public List<String> getAllDirtyBranches() {
+        List<String> dirtyBranches = new ArrayList<>();
+        for (String remote : dirtyRemotes.keySet()) {
+            DirtyRemote dirtyRemote = dirtyRemotes.get(remote);
+            dirtyBranches.addAll(dirtyRemote.getDirtyBranches());
+        }
+        return dirtyBranches;
     }
 
-    public class RemoteEntry {
-        final private SecureStorageDir remoteDir;
-        final private SecureStorageDir dirtyDir;
+    public void markAsDirty(String remote, String branch) throws IOException {
+        DirtyRemote dirtyRemote;
+        if (dirtyRemotes.containsKey(remote))
+            dirtyRemote = dirtyRemotes.get(remote);
+        else {
+            dirtyRemote = new DirtyRemote(remote);
+            dirtyRemotes.put(remote, dirtyRemote);
+        }
+        dirtyRemote.markAsDirty(branch);
+    }
+
+    public void cleanDirtyBranch(String remote, String branch) throws IOException {
+        if (!dirtyRemotes.containsKey(remote))
+            return;
+        DirtyRemote dirtyRemote = dirtyRemotes.get(remote);
+        dirtyRemote.cleanDirtyBranch(branch);
+        if (dirtyRemote.getDirtyBranches().size() == 0)
+            dirtyRemotes.remove(remote);
+    }
+
+    class DirtyRemote {
+        final String remote;
         final private List<String> dirtyBranches;
+        final private SecureStorageDir dirtyRemoteDir;
 
-        public RemoteEntry(String remote) throws IOException {
-            SecureStorageDir dir = new SecureStorageDir(baseDir, new String(CryptoHelper.sha1Hash(remote.getBytes())));
-            remoteDir = new SecureStorageDir(dir, "remoteStatus");
-            dirtyDir = new SecureStorageDir(dir, "dirtyBranches");
+        public DirtyRemote(String remote) {
+            this.remote = remote;
+            String remoteDirName = remoteDirName(remote);
 
+            dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteDirName);
             dirtyBranches = readDirtyBranches();
         }
 
         public void markAsDirty(String branch) throws IOException {
-            dirtyDir.writeString(branch, branch);
-            if (!dirtyRemotes.contains(this))
-                dirtyRemotes.add(this);
+            dirtyRemoteDir.writeString(branch, branch);
             if (!dirtyBranches.contains(branch))
                 dirtyBranches.add(branch);
         }
 
         private void cleanDirtyBranch(String branch) throws IOException {
-            dirtyDir.remove(branch);
+            dirtyRemoteDir.remove(branch);
 
             dirtyBranches.remove(branch);
-            if (dirtyBranches.size() == 0)
-                dirtyRemotes.remove(this);
         }
 
         public List<String> getDirtyBranches() {
@@ -85,18 +113,44 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
         private List<String> readDirtyBranches() {
             try {
-                return dirtyDir.listFiles("");
+                return dirtyRemoteDir.listFiles("");
             } catch (IOException e) {
                 return new ArrayList<>();
             }
+        }
+    }
+
+    private void loadFromDB() throws IOException {
+        List<String> remotes = dirtyDir.listDirectories("");
+        for (String remote : remotes)
+            dirtyRemotes.put(remote, new DirtyRemote(remote));
+    }
+
+    private String remoteDirName(String remote) {
+        return new String(CryptoHelper.sha1Hash(remote.getBytes()));
+    }
+
+    class RemoteStatus {
+        final private String remote;
+        final private SecureStorageDir branchDir;
+        // branch -> remote tip
+        final private Map<String, String> statusMap = new HashMap<>();
+
+        public RemoteStatus(String remote) {
+            this.remote = remote;
+            String remoteDirName = remoteDirName(remote);
+            SecureStorageDir statusDir = new SecureStorageDir(baseDir, "status");
+            branchDir = new SecureStorageDir(statusDir, remoteDirName);
+
+            read();
         }
 
         public void updateRemoteStatus(String branch, String remoteTip) throws IOException {
             String localTip = getLocalTip(branch);
             if (localTip.equals(remoteTip))
-                cleanDirtyBranch(branch);
+                cleanDirtyBranch(remote, branch);
 
-            remoteDir.writeString(branch, remoteTip);
+            branchDir.writeString(branch, remoteTip);
         }
 
         private String getLocalTip(String branch) throws IOException {
@@ -104,16 +158,38 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
                     mailbox.getStorageDir().getDatabase().getPath(), branch);
             return database.getTip();
         }
+
+        public String getRemoteTip(String branch) {
+            return statusMap.get(branch);
+        }
+
+        private void read() {
+            try {
+                List<String> branches = branchDir.listFiles("");
+                for (String branch : branches) {
+                    String remoteTip = branchDir.readString(branch);
+                    statusMap.put(branch, remoteTip);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
-    public RemoteEntry edit(String remote) throws IOException {
-        if (remoteEntryCache.containsKey(remote))
-            return remoteEntryCache.get(remote);
-        RemoteEntry entry = new RemoteEntry(remote);
-        remoteEntryCache.put(remote, entry);
-        return entry;
+    public void updateRemoteStatus(String remote, String branch, String remoteTip) throws IOException {
+        RemoteStatus status = new RemoteStatus(remote);
+        status.updateRemoteStatus(branch, remoteTip);
     }
 
+    /**
+     * Gets the stored tip of the remote branch.
+     *
+     * @return the stored tip of the remote branch
+     */
+    public String getRemoteStatus(String remote, String branch) throws IOException {
+        RemoteStatus status = new RemoteStatus(remote);
+        return status.getRemoteTip(branch);
+    }
 
     /**
      * Commits the bookkeeping dir and write the sync status with the mailbox tip.

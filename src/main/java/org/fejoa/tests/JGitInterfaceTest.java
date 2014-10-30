@@ -61,6 +61,25 @@ public class JGitInterfaceTest extends TestCase {
         }
     }
 
+    public void testDoubleWrite() throws IOException {
+        String gitDir = "doubleWriteGit";
+        cleanUpDirs.add(gitDir);
+
+        JGitInterface git = new JGitInterface();
+        git.init(gitDir, "testBranch", true);
+
+        byte data[] = "test".getBytes();
+        git.writeBytes("test1", data);
+        git.writeBytes("test1", data);
+
+        git.commit();
+
+        git.writeBytes("dir/test1", data);
+        git.writeBytes("dir/test1", data);
+
+        git.commit();
+    }
+
     public void testListEntries() throws IOException {
         String gitDir = "listEntriesGit";
         cleanUpDirs.add(gitDir);

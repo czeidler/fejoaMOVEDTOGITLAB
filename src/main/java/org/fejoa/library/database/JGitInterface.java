@@ -155,6 +155,13 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public void writeBytes(String path, byte[] bytes) throws IOException {
+        // first remove old entry if there is any
+        try {
+            rmFile(path);
+        } catch(IOException e) {
+
+        }
+
         // write the blob
         final ObjectInserter objectInserter = repository.newObjectInserter();
         final ObjectId blobId = objectInserter.insert(Constants.OBJ_BLOB, bytes);

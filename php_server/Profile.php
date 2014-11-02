@@ -12,14 +12,14 @@ class Profile extends UserData {
 	public function __construct($database, $branch, $directory) {
 		parent::__construct($database, $branch, $directory);
 
-		$ids = $this->listDirectories("user_identities");
+		$ids = $this->listDirectories("user_ids");
 		foreach ($ids as $identityId) {
 			$branch;
 			$baseDir;
-			$result = $this->read("user_identities/".$identityId."/database_branch", $branch);
+			$result = $this->read("user_ids/".$identityId."/database_branch", $branch);
 			if (!$result)
 				continue;
-			$result = $this->read("user_identities/".$identityId."/database_base_dir", $baseDir);
+			$result = $this->read("user_ids/".$identityId."/database_base_dir", $baseDir);
 			if (!$result)
 				continue;
 			$identity = new UserIdentity($this, $branch, $baseDir);

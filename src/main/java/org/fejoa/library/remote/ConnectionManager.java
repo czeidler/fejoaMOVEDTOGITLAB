@@ -15,12 +15,15 @@ import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 import rx.util.functions.Func1;
 
+import java.io.IOException;
 import java.util.*;
 
 
 class SharedConnection {
     private String server;
     private Map<ContactPrivate, RoleManager> contactRoles = new HashMap<>();
+    private Object initLock = new Object();
+    private boolean sessionInitialized = false;
 
     public SharedConnection(String server) {
         this.server = server;
@@ -41,6 +44,20 @@ class SharedConnection {
             public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
                 String fullAddress = "http://" + server + "/php_server/portal.php";
                 HTMLRequest remoteRequest = new HTMLRequest(fullAddress);
+
+                synchronized (initLock) {
+                    // Create a php session id (when using php). If there are concurrent requests without a session id
+                    // php creates a new session id for each request, this could lead to hick ups in the client. To
+                    // avoid this we first do a blocking ping call to get a session id.
+                    if (!sessionInitialized) {
+                        try {
+                            remoteRequest.send("<phpPing/>".getBytes());
+                            sessionInitialized = true;
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
 
                 observer.onNext(remoteRequest);
                 observer.onCompleted();

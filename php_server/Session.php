@@ -9,12 +9,7 @@ class Transaction {
 
 	public function __construct() {
 		$this->timeStamp = time();
-		$this->uid = $this->newId();
-	}
-
-	private function newId() {
-		static $idCounter = 0;
-		return $idCounter++;
+		$this->uid = Session::get()->newTransactionId();
 	}
 
 	public function getUid() {
@@ -26,7 +21,7 @@ class Transaction {
 	}
 }
 
-class Session {    
+class Session {
 	public static function get() {
 		static $sSession = null;
 		if ($sSession === NULL)
@@ -70,6 +65,15 @@ class Session {
 		return $profile->getUserIdentityAt(0);
 	}
 
+	public function newTransactionId() {
+		$transactionId = 0;
+		if (isset($_SESSION['transaction_id']))
+			$transactionId = $_SESSION['transaction_id'];
+		$newId = $transactionId + 1;
+		$_SESSION['transaction_id'] = $newId;
+		return $transactionId;
+	}
+	
 	public function getAccountUser() {
 		if (!isset($_SESSION['account_user']))
 			return "";

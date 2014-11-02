@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.mailbox;
 
+import org.fejoa.library.Contact;
 import org.fejoa.library.crypto.CryptoException;
 
 import java.io.IOException;
@@ -24,6 +25,8 @@ public class Messenger {
 
         MessageBranchInfo branchInfo = new MessageBranchInfo();
         branchInfo.setSubject(subject);
+        Contact myself = mailbox.getUserIdentity().getMyself();
+        branchInfo.addParticipant(myself.getAddress(), myself.getUid());
         for (String receiver : receivers)
             branchInfo.addParticipant(receiver, "");
 

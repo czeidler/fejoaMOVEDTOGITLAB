@@ -13,15 +13,17 @@ import javax.xml.bind.DatatypeConverter;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class CryptoHelper {
     public static String toHex(byte[] bytes) {
         StringBuffer stringBuffer = new StringBuffer();
         for (int i = 0; i < bytes.length; i++)
-            stringBuffer.append(Integer.toHexString(0xFF & bytes[i]));
+            stringBuffer.append(String.format("%02X", bytes[i]));
 
-        return stringBuffer.toString();
+        return stringBuffer.toString().toLowerCase();
     }
 
     static public MessageDigest sha1Hash() throws NoSuchAlgorithmException {
@@ -60,11 +62,20 @@ public class CryptoHelper {
         return new SecretKeySpec(key, 0, key.length, CryptoSettings.SYMMETRIC_KEY_TYPE);
     }
 
-    static private String convertToPEM(String type, Key key)
-    {
+    private static List<String> splitIntoEqualParts(String string, int partitionSize) {
+        List<String> parts = new ArrayList<>();
+        int length = string.length();
+        for (int i = 0; i < length; i += partitionSize)
+            parts.add(string.substring(i, Math.min(length, i + partitionSize)));
+        return parts;
+    }
+
+    static private String convertToPEM(String type, Key key) {
         String pemKey = new String();
         pemKey += "-----BEGIN " + type + "-----\n";
-        pemKey += DatatypeConverter.printBase64Binary(key.getEncoded());
+        List<String> parts = splitIntoEqualParts(DatatypeConverter.printBase64Binary(key.getEncoded()), 64);
+        for (String part : parts)
+            pemKey += part + "\n";
         pemKey += "-----END " + type + "-----";
         return pemKey;
     }

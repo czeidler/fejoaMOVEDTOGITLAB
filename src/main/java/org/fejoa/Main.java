@@ -14,8 +14,10 @@ import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.SecureStorageDirBucket;
 import org.fejoa.library.Profile;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.remote.HTMLRequest;
 
 import javax.swing.*;
+import javax.swing.text.html.HTML;
 import java.io.*;
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -66,7 +68,7 @@ public class Main {
     public static void main(String[] args) {
         setupLookAndFeel();
 
-        CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
+        //CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
 
         boolean opened = false;
 
@@ -134,6 +136,7 @@ public class Main {
                     profile.setEmptyRemotes(server, userName, myself);
                     profile.commit();
                 } catch (Exception e) {
+                    System.out.println(e.getMessage());
                     System.exit(-1);
                 }
 

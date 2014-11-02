@@ -24,10 +24,14 @@ public class UserData {
         storageDir.commit();
     }
 
+    protected void setStorageDir(SecureStorageDir storageDir) {
+        this.storageDir = storageDir;
+    }
+
     protected void writeUserData(String uid, SecureStorageDir storageDir)
             throws IOException, CryptoException {
         this.uid = uid;
-        this.storageDir = storageDir;
+        setStorageDir(storageDir);
 
         storageDir.writeString(PATH_UID, uid);
         storageDir.writeString(PATH_KEY_ID, getKeyId().getKeyId());
@@ -37,7 +41,7 @@ public class UserData {
     protected void readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder)
             throws IOException,
             CryptoException {
-        this.storageDir = storageDir;
+        setStorageDir(storageDir);
 
         uid = storageDir.readString(PATH_UID);
 

@@ -57,9 +57,16 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         List<String> dirtyBranches = new ArrayList<>();
         for (String remote : dirtyRemotes.keySet()) {
             DirtyRemote dirtyRemote = dirtyRemotes.get(remote);
-            dirtyBranches.addAll(dirtyRemote.getDirtyBranches());
+            for (String branch : dirtyRemote.getDirtyBranches()) {
+                if (!dirtyBranches.contains(branch))
+                    dirtyBranches.add(branch);
+            }
         }
         return dirtyBranches;
+    }
+
+    private String remoteHash(String remote) {
+        return CryptoHelper.toHex(CryptoHelper.sha1Hash(remote.getBytes()));
     }
 
     public void markAsDirty(String remote, String branch) throws IOException {
@@ -67,7 +74,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         if (dirtyRemotes.containsKey(remote))
             dirtyRemote = dirtyRemotes.get(remote);
         else {
-            dirtyRemote = new DirtyRemote(remote);
+            dirtyRemote = new DirtyRemote(remoteHash(remote));
             dirtyRemotes.put(remote, dirtyRemote);
         }
         dirtyRemote.markAsDirty(branch);
@@ -87,11 +94,10 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         final private List<String> dirtyBranches;
         final private SecureStorageDir dirtyRemoteDir;
 
-        public DirtyRemote(String remote) {
-            this.remote = remote;
-            String remoteDirName = remoteDirName(remote);
+        public DirtyRemote(String remoteHash) {
+            this.remote = remoteHash;
 
-            dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteDirName);
+            dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteHash);
             dirtyBranches = readDirtyBranches();
         }
 
@@ -120,14 +126,14 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         }
     }
 
-    private void loadFromDB() throws IOException {
-        List<String> remotes = dirtyDir.listDirectories("");
-        for (String remote : remotes)
-            dirtyRemotes.put(remote, new DirtyRemote(remote));
-    }
-
-    private String remoteDirName(String remote) {
-        return new String(CryptoHelper.sha1Hash(remote.getBytes()));
+    private void loadFromDB() {
+        try {
+            List<String> remotes = dirtyDir.listDirectories("");
+            for (String remote : remotes)
+                dirtyRemotes.put(remote, new DirtyRemote(remote));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     class RemoteStatus {
@@ -138,7 +144,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
         public RemoteStatus(String remote) {
             this.remote = remote;
-            String remoteDirName = remoteDirName(remote);
+            String remoteDirName = remoteHash(remote);
             SecureStorageDir statusDir = new SecureStorageDir(baseDir, "status");
             branchDir = new SecureStorageDir(statusDir, remoteDirName);
 

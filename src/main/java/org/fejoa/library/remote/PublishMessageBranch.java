@@ -34,7 +34,7 @@ public class PublishMessageBranch {
 
         List<Observable<RemoteConnectionJob.Result>> observableList = new ArrayList<>();
         for (MessageBranchInfo.Participant participant : participantList) {
-            ConnectionInfo connectionInfo = null;
+            ConnectionInfo connectionInfo;
             RemoteConnectionJob remoteConnectionJob = null;
             Contact contactPublic = userIdentity.getContactFinder().find(participant.uid);
             if (participant.uid.equals("") || contactPublic == null) {
@@ -49,7 +49,7 @@ public class PublishMessageBranch {
                 ContactRequest contactRequest = new ContactRequest(connectionInfo, messageChannel.getBranch().getIdentity());
 
                 remoteConnectionJob = contactRequest.getContactRequestJob();
-            } else if (connectionInfo != null) {
+            } else {
                 connectionInfo = new ConnectionInfo(contactPublic.getServer(), contactPublic.getServerUser(),
                         userIdentity.getMyself());
             }

@@ -28,8 +28,10 @@ public class MailboxSyncManager {
                 sync();
             }
         });
+        sync();
     }
 
+    // TODO: add mechanism that only syncs again when old sync jobs have returned
     private void sync() {
         MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
         List<String> dirtyBranches = bookkeeping.getAllDirtyBranches();
@@ -59,7 +61,6 @@ public class MailboxSyncManager {
         publishMessageBranch.publish().subscribe(new Observer<RemoteConnectionJob.Result>() {
             @Override
             public void onCompleted() {
-
             }
 
             @Override

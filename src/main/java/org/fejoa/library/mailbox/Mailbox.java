@@ -90,8 +90,6 @@ public class Mailbox extends UserData {
 
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
         uid = CryptoHelper.toHex(hashResult);
-
-        initBookkeeping();
     }
 
     // load existing
@@ -153,6 +151,9 @@ public class Mailbox extends UserData {
         writeUserData(uid, storageDir);
 
         storageDir.writeSecureString("user_identity", userIdentity.getUid());
+
+        if (bookkeeping == null)
+            initBookkeeping();
     }
 
     private void loadMessageChannels() throws IOException, CryptoException {

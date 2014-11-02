@@ -97,6 +97,9 @@ public class Profile extends UserData {
         mainMailbox = mailbox;
         storageDir.writeString("main_mailbox", mainMailbox.getUid());
 
+        // ourself
+        addAndWriteRemoteStorageLink(storageDir.getDatabase(), userIdentity.getMyself());
+        // other branches
         addAndWriteRemoteStorageLink(keyStoreBranch.getDatabase(), userIdentity.getMyself());
         addAndWriteRemoteStorageLink(userIdBranch.getDatabase(), userIdentity.getMyself());
         addAndWriteRemoteStorageLink(mailboxDir.getDatabase(), userIdentity.getMyself());

@@ -26,7 +26,7 @@ class PublishBranchHelper {
 	}
 
 	static public function hasBranch($serverUser, $branch) {
-		$profile = Session::get()->getProfile($this->receiver);
+		$profile = Session::get()->getProfile($serverUser);
 		if ($profile === null)
 			return false;
 		$mailbox = $profile->getMainMailbox();
@@ -57,11 +57,12 @@ class JSONInitPublishBranchHandler extends JSONHandler {
 		if ($branch == "")
 			return false;
 
+		$serverUser = $params['serverUser'];
 		$signToken = $this->getAuthToken();
-		$messageChannelNeeded = PublishBranchHelper::hasBranch($branch);
+		$messageChannelNeeded = !PublishBranchHelper::hasBranch($serverUser, $branch);
 
 		$transaction = new PublishBranchTransaction($signToken);
-		$transaction->serverUser = $params['serverUser'];
+		$transaction->serverUser = $serverUser;
 		Session::get()->addTransaction($transaction);
 		
 		// reply
@@ -89,13 +90,13 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 	}
 
 	public function call($jsonArray, $jsonId) {
-		if (strcmp($jsonArray['method'], "initPublishBranch") != 0)
+		if (strcmp($jsonArray['method'], "loginPublishBranch") != 0)
 			return false;
 		$params = $jsonArray["params"];
 		if ($params === null)
 			return false;
 		if (!isset($params['transactionId']) ||!isset($params['signedToken']) || !isset($params['branch']))
-			return makeError($jsonId, "loginPublishBranch: bad arguments");
+			return $this->makeError($jsonId, "loginPublishBranch: bad arguments");
 
 		$transaction = Session::get()->getTransaction($params['transactionId']);
 		if ($transaction === null)
@@ -107,18 +108,19 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 		$branchAccessToken = $transaction->serverUser.":".$branch;
 		$messageChannel = PublishBranchHelper::getMessageChannel($transaction->serverUser, $branch);
 
+		$signedToken = url_decode($params['signedToken']);
 		// verify branch access
 		if (!PublishBranchHelper::hasBranch($transaction->serverUser, $branch)) {
 			if (!isset($params['channelHeader']) || !isset($params['channelSignatureKey']))
-				return makeError($jsonId, "message channel is needed");
+				return $this->makeError($jsonId, "message channel is needed");
 
 			// verify
 			$signatureKey = $params['channelSignatureKey'];
 			if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
-				return makeError($jsonId, "mismatch between branch and signature key");
+				return $this->makeError($jsonId, "mismatch between branch and signature key");
 			$signatureVerifier = new SignatureVerifier($signatureKey);
-			if (!$signatureVerifier->verify($transaction->signToken, $params['signedToken']))
-				return makeError($jsonId, "failed to verify branch access");
+			if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
+				return $this->makeError($jsonId, "failed to verify branch access");
 
 			$messageChannel->setChannelInfo(url_decode($params['channelHeader']));
 			$messageChannel->setSignatureKey($params['channelSignatureKey']);
@@ -127,14 +129,14 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 		} else if (!Session::get()->hasBranchAccess($branchAccessToken)) {
 			$signatureKey = $messageChannel->getSignatureKey();
 			if ($signatureKey === null)
-				return makeError($jsonId, "bad message channel on server");
+				return $this->makeError($jsonId, "bad message channel on server");
 
 			// verify
 			if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
-				return makeError($jsonId, "mismatch between branch and signature key");
+				return $this->makeError($jsonId, "mismatch between branch and signature key");
 			$signatureVerifier = new SignatureVerifier($signatureKey);
-			if (!$signatureVerifier->verify($transaction->signToken, $params['signedToken']))
-				return makeError($jsonId, "failed to verify branch access");
+			if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
+				return $this->makeError($jsonId, "failed to verify branch access");
 			Session::get()->addBranchAccess($branchAccessToken);
 		}
 

@@ -140,7 +140,8 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 			Session::get()->addBranchAccess($branchAccessToken);
 		}
 
-		$database = new GitDatabase($messageChannel->getDatabaseDir());
+		$databaseDir = $transaction->serverUser."/".$messageChannel->getDatabaseDir();
+		$database = new GitDatabase($databaseDir);
 		$tip = $database->getBranchTip($branch);
 
 		// reply

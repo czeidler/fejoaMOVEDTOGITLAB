@@ -34,6 +34,10 @@ class Session {
 		$this->setUserRoles(array());
 	}
 
+	public function getUserDir($user) {
+		return $user;
+	}
+
 	public function getDatabase($user) {
 		$accountUser = Session::get()->getAccountUser();
 		if ($user == $accountUser) {

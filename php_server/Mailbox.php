@@ -33,12 +33,12 @@ class MessageChannel extends UserData {
 
 	public function setChannelInfo($infoPack) {
 		$this->write("d", $infoPack);
-		$this->write("database", $this->getDatabase()->dir);
+		$this->write("database_path", $this->getDatabase()->dir);
 	}
 
 	public function getDatabaseDir() {
 		$databaseDir;
-		if (!$this->read("database", $databaseDir))
+		if (!$this->read("database_path", $databaseDir))
 			return null;
 		return $databaseDir;
 	}

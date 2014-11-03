@@ -109,6 +109,9 @@ class Push extends RemoteConnectionJob {
         String lastSyncCommit = database.getLastSyncCommit(remoteUid, localBranch);
         String localTipCommit = database.getTip();
 
+        // the remote repository is gone upload it again TODO: that is only the obvious case
+        if (remoteTip.equals(""))
+            lastSyncCommit = "";
         // we are ahead of the server: push changes to the server
         byte pack[] = database.exportPack(lastSyncCommit, localTipCommit, remoteTip, -1);
 

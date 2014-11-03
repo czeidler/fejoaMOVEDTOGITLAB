@@ -24,43 +24,43 @@ class Contact extends UserData {
 	}
 
 	public function verify($keyId, $data, $signature) {
-		$certificate;
 		$publicKey;
-		$ok = $this->getKeySet($keyId, $certificate, $publicKey);
+		$ok = $this->getKeySet($keyId, $publicKey);
 		if (!$ok)
 			return false;
 		$signatureVerifier = new SignatureVerifier($publicKey);
 		return $signatureVerifier->verify($data, $signature);
 	}
 
-	public function getKeySet($keyId, &$certificate, &$publicKey) {
-		$keyStoreType;
-		$this->read("keystore_type", $keyStoreType);
-		if ($keyStoreType == "private") {
+	public function getKeySet($keyId, &$publicKey) {
+		$privateKeyId;
+		$this->read("keys/".$keyId."/keyId", $privateKeyId);
+
+		if ($privateKeyId == $keyId) {
 			$profile = $this->userIdentity->getProfile();
 			$keyStore = $profile->getUserIdentityKeyStore($this->userIdentity);
-			$ok = $keyStore->readAsymmetricKey($keyId, $certificate, $publicKey);
+			$ok = $keyStore->readAsymmetricKey($keyId, $publicKey);
 			if (!$ok)
 				return false;
 		} else {
-			$ok = $this->read("keys/".$keyId."/public_key", $publicKey);
+			$ok = $this->read("keys/".$keyId."/publicKey", $publicKey);
 			if (!$ok)
 				return false;
 		}
 		return true;
 	}
 
-	public function addKeySet($keyId, $certificate, $publicKey) {
-		$this->write("keys/".$keyId."/public_key", $publicKey);
+	public function addKeySet($keyId, $publicKey) {
+		$this->write("keys/".$keyId."/publicKey", $publicKey);
 	}
 
 	public function setMainKeyId($mainKeyId) {
-		$this->write("keys/main_key_id", $mainKeyId);
+		$this->write("main_key_id", $mainKeyId);
 	}
 
 	public function getMainKeyId() {
 		$mainKeyId;
-		$this->read("keys/main_key_id", $mainKeyId);
+		$this->read("main_key_id", $mainKeyId);
 		return $mainKeyId;
 	}
 

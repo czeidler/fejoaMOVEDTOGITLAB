@@ -48,7 +48,7 @@ public class ContactPublic extends Contact {
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             KeyPair keyPair = entry.getValue();
             String keyId = entry.getKey();
-            storageDir.writeSecureString(keyId + "/public_key", CryptoHelper.convertToPEM(keyPair.getPublic()));
+            storageDir.writeString("keys/" + keyId + "/publicKey", CryptoHelper.convertToPEM(keyPair.getPublic()));
         }
     }
 
@@ -58,7 +58,7 @@ public class ContactPublic extends Contact {
 
         List<String> keyIds = storageDir.listDirectories("");
         for (String keyId : keyIds) {
-            PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readSecureString(keyId + "/public_key"));
+            PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readString("keys/" + keyId + "/publicKey"));
             keys.put(keyId, new KeyPair(publicKey, null));
         }
     }

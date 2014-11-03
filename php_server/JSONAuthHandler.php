@@ -87,7 +87,6 @@ class JSONAuthSignedHandler extends JSONHandler {
 		$status = false;
 		$roles = Session::get()->getUserRoles();
 		if ($userIdentity != null) {
-			$loginUser = $this->loginUser;
 			$myself = $userIdentity->getMyself();
 			if ($myself->getUid() == $loginUser) {
 				$status = $this->accountLogin($myself, $transaction, $roles);

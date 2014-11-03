@@ -50,21 +50,21 @@ public class ContactPrivate extends Contact {
     public void write() throws IOException, CryptoException {
         super.write();
 
-        storageDir.writeSecureString("keyStoreId", keyStore.getUid());
+        storageDir.writeString("keyStoreId", keyStore.getUid());
         for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
             String keyId = entry.getKey();
-            storageDir.writeString(keyId + "/keyId", keyId);
+            storageDir.writeString("keys/" + keyId + "/keyId", keyId);
         }
     }
 
     private void open(IKeyStoreFinder keyStoreFinder) throws IOException, CryptoException {
         super.open();
 
-        String keyStoreId = storageDir.readSecureString("keyStoreId");
+        String keyStoreId = storageDir.readString("keyStoreId");
         keyStore = keyStoreFinder.find(keyStoreId);
         if (keyStore == null)
             throw new IOException("key store not found");
-        List<String> keyIds = storageDir.listDirectories("");
+        List<String> keyIds = storageDir.listDirectories("keys");
         for (String keyId : keyIds) {
             KeyPair keyPair = keyStore.readAsymmetricKey(keyId);
             keys.put(keyId, keyPair);

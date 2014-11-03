@@ -35,17 +35,17 @@ abstract public class Contact {
     }
 
     public void write() throws IOException, CryptoException {
-        storageDir.writeSecureString("uid", uid);
+        storageDir.writeString("uid", uid);
         storageDir.writeSecureString("server", server);
         storageDir.writeSecureString("server_user", serverUser);
-        storageDir.writeSecureString("main_key_id", mainKeyId.getKeyId());
+        storageDir.writeString("main_key_id", mainKeyId.getKeyId());
     }
 
     public void open() throws IOException, CryptoException {
-        uid = storageDir.readSecureString("uid");
+        uid = storageDir.readString("uid");
         server = storageDir.readSecureString("server");
         serverUser = storageDir.readSecureString("server_user");
-        mainKeyId = new KeyId(storageDir.readSecureString("main_key_id"));
+        mainKeyId = new KeyId(storageDir.readString("main_key_id"));
     }
 
     abstract public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException;

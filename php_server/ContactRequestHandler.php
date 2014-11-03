@@ -10,26 +10,6 @@ class ContactMessageConst {
 };
 
 
-class CertificateStanzaHandler extends InStanzaHandler {
-	private $certificate;
-	
-	public function __construct() {
-		InStanzaHandler::__construct("certificate");
-	}
-	
-	public function handleStanza($xml) {
-		$this->certificate = $xml->readString();
-		if ($this->certificate == "")
-			return false;
-		return true;
-	}
-
-	public function getCertificate() {
-		return $this->certificate;
-	}
-};
-
-
 class PublicKeyStanzaHandler extends InStanzaHandler {
 	private $publicKey;
 	
@@ -58,16 +38,13 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
     private $keyId;
     private $address;
 
-    private $certificateStanzaHandler;
-	private $publicKeyStanzaHandler;
+    private $publicKeyStanzaHandler;
 
 	public function __construct($inStreamReader) {
 		InStanzaHandler::__construct(ContactMessageConst::$kContactRequestStanza);
 
 		$this->inStreamReader = $inStreamReader;
 
-		$this->certificateStanzaHandler = new CertificateStanzaHandler();
-		$this->addChild($this->certificateStanzaHandler);
 		$this->publicKeyStanzaHandler = new PublicKeyStanzaHandler();
 		$this->addChild($this->publicKeyStanzaHandler);
 	}
@@ -85,7 +62,6 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
 
 	public function finished() {
 		$publicKey = $this->publicKeyStanzaHandler->getPublicKey();
-		$certificate = $this->certificateStanzaHandler->getCertificate();
 
 		$userIdentity = Session::get()->getMainUserIdentity($this->serverUser);
 		if ($userIdentity === null) {
@@ -94,7 +70,7 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
 		}
 
 		$contact = $userIdentity->createContact($this->uid);
-		$contact->addKeySet($this->keyId, $certificate, $publicKey);
+		$contact->addKeySet($this->keyId, $publicKey);
 		$contact->setMainKeyId($this->keyId);
 		$contact->setAddress($this->address);
 
@@ -115,21 +91,15 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
 		}
 
 		$mainKeyId = $myself->getMainKeyId();
-		$myCertificate;
 		$myPublicKey;
-		$keyStore->readAsymmetricKey($mainKeyId, $myCertificate, $myPublicKey);
+		$keyStore->readAsymmetricKey($mainKeyId, $myPublicKey);
 
 		$stanza->addAttribute("uid", $myself->getUid());
 		$stanza->addAttribute("keyId", $mainKeyId);
 		$stanza->addAttribute("address", $myself->getAddress());
     
 		$outStream->pushChildStanza($stanza);
-		
-		$certificateStanza = new OutStanza("certificate");
-		$certificateStanza->setText($myCertificate);
-		$outStream->pushChildStanza($certificateStanza);
-		$outStream->cdDotDot();
-		
+
 		$publicKeyStanza = new OutStanza(ContactMessageConst::$kPublicKeyStanza);
 		$publicKeyStanza->setText($myPublicKey);
 		$outStream->pushChildStanza($publicKeyStanza);

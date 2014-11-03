@@ -17,10 +17,10 @@ class MessageChannel extends UserData {
 
 	public function __construct($mailbox, $channelUid) {
 		$channelPath = $mailbox->getDirectory()."/".sprintf('%s/%s', substr($channelUid, 0, 2), substr($channelUid, 2));
-		parent::__construct($mailbox->getDatabase, $mailbox->getBranch(), $channelPath);
+		parent::__construct($mailbox->getDatabase(), $mailbox->getBranch(), $channelPath);
 
 		$this->$channelUid = $channelUid;
-		$this->signatureKey = $this->read("signature_key");
+		$this->read("signature_key", $this->signatureKey);
 	}
 
 	public function getSignatureKey() {
@@ -37,7 +37,10 @@ class MessageChannel extends UserData {
 	}
 
 	public function getDatabaseDir() {
-		$this->read("database");
+		$databaseDir;
+		if (!$this->read("database", $databaseDir))
+			return null;
+		return $databaseDir;
 	}
 }
 

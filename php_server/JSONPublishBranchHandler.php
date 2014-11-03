@@ -36,7 +36,7 @@ class PublishBranchHelper {
 		$part1 = substr($branch, 0, 2);
 		$part2 = substr($branch, 2);
 		$part2Dirs = $mailbox->listDirectories($part1);
-		return in_array($part2, $part1Dirs);
+		return in_array($part2, $part2Dirs);
 	}
 }
 

@@ -7,10 +7,7 @@ class KeyStore extends UserData {
 		parent::__construct($database, $branch, $directory);
 	}
 
-	public function readAsymmetricKey($keyId, &$certificate, &$publicKey) {
-		$ok = $this->read($keyId."/certificate", $certificate);
-		if (!$ok)
-			return false;
+	public function readAsymmetricKey($keyId, &$publicKey) {
 		$ok = $this->read($keyId."/public_key", $publicKey);
 		if (!$ok)
 			return false;

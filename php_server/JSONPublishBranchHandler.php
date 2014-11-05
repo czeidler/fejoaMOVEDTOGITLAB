@@ -16,27 +16,18 @@ class PublishBranchTransaction extends Transaction {
 
 class PublishBranchHelper {
 	static public function getMessageChannel($serverUser, $messageChannel) {
-		$profile = Session::get()->getProfile($serverUser);
-		if ($profile === null)
-			return null;
-		$mailbox = $profile->getMainMailbox();
+		$mailbox = Session::get()->getMainMailbox($serverUser);
 		if ($mailbox === null)
 			return null;
-		return new MessageChannel($mailbox, $messageChannel);
+		return $mailbox->getMessageChannel($messageChannel);
 	}
 
 	static public function hasBranch($serverUser, $branch) {
-		$profile = Session::get()->getProfile($serverUser);
-		if ($profile === null)
-			return false;
-		$mailbox = $profile->getMainMailbox();
+		$mailbox = Session::get()->getMainMailbox($serverUser);
 		if ($mailbox === null)
 			return false;
 		
-		$part1 = substr($branch, 0, 2);
-		$part2 = substr($branch, 2);
-		$part2Dirs = $mailbox->listDirectories($part1);
-		return in_array($part2, $part2Dirs);
+		return $mailbox->hasChannel($branch);
 	}
 }
 

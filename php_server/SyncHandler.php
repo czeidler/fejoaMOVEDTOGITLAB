@@ -131,14 +131,21 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 			$this->inStreamReader->appendResponse(IqErrorOutStanza::makeErrorMessage("Push: unable to import pack."));
 			return;
 		}
-		
+
+		$localTip = sha1_hex($database->getTip($this->branch));
+		// in case it was a mailbox branch update the tip, if it was not then updateChannelTip will fail
+		$mailbox = Session::get()->getMainMailbox($this->serverUser);
+		if ($mailbox != null) {
+			if ($mailbox->updateChannelTip($this->branch, $localTip))
+				$mailbox->commit();
+		}
+
 		// produce output
 		$outStream = new ProtocolOutStream();
 		$outStream->pushStanza(new IqOutStanza(IqType::$kResult));
 
 		$stanza = new OutStanza("sync_push");
 		$stanza->addAttribute("branch", $this->branch);
-		$localTip = sha1_hex($database->getTip($this->branch));
 		$stanza->addAttribute("tip", $localTip);
 		$outStream->pushChildStanza($stanza);
 

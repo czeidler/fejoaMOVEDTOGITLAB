@@ -55,15 +55,22 @@ class Session {
 		return new GitDatabase($databasePath);
 	}
 
-	public function getProfile($user) {
-		$database = $this->getDatabase($user);
+	public function getProfile($serverUser) {
+		$database = $this->getDatabase($serverUser);
 		if ($database === null)
 			return null;
 		return new Profile($database, "profile", "");
 	}
 
-	public function getMainUserIdentity($user) {
-		$profile = $this->getProfile($user);
+	public function getMainMailbox($serverUser) {
+		$profile = $this->getProfile($serverUser);
+		if ($profile === null)
+			return null;
+		return = $profile->getMainMailbox();
+	}
+
+	public function getMainUserIdentity($serverUser) {
+		$profile = $this->getProfile($serverUser);
 		if ($profile === null)
 			return null;
 		return $profile->getUserIdentityAt(0);

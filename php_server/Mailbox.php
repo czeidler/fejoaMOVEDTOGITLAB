@@ -73,6 +73,10 @@ class Mailbox extends UserData {
 		return $this->writePackage($channelInfo, $path);
 	}
 
+	public function getMessageChannel($messageChannel) {
+		return new MessageChannel($this, $messageChannel);
+	}
+
 	public function addMessage($channelId, $message) {
 		if (!$this->isValid($channelId, $message))
 			return false;
@@ -86,13 +90,20 @@ class Mailbox extends UserData {
 		return $this->lastErrorMessage;
 	}
 
-	public function hasChannel($channelUId) {
-		$path = $this->pathForChannelId($channelUId);
+	public function hasChannel($channelId) {
+		$path = $this->pathForChannelId($channelId);
 		$data;
 		$result = $this->read($path, $data);
 		if (!$result)
 			return false;
 		return true;
+	}
+
+	public function updateChannelTip($channelID, $tip) {
+		if (!$this->hasChannel($channelId)
+			return false;
+		$path = $this->pathForChannelId($channelId)."/branchTip";
+		return $this->write($path, $tip);
 	}
 
 	public function hasMessage($channelId, $messageUid) {

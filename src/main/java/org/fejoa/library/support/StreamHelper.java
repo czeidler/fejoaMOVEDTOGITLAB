@@ -13,7 +13,7 @@ import java.io.OutputStream;
 
 
 public class StreamHelper {
-    static public int BUFFER_SIZE =1024;
+    static public int BUFFER_SIZE = 1024;
 
     static public void copyBytes(InputStream inputStream, OutputStream outputStream, int size) throws IOException {
         int bufferLength = BUFFER_SIZE;

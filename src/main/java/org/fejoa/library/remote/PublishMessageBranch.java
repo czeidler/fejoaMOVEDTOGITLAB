@@ -11,6 +11,7 @@ import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.Contact;
 import org.fejoa.library.ContactPublic;
 import org.fejoa.library.UserIdentity;
+import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.json.JSONObject;
@@ -164,7 +165,9 @@ public class PublishMessageBranch {
         }
 
         private String getRemoteId() {
-            return connectionInfo.serverUser + "@" + connectionInfo.server + ":" + messageChannel.getBranchName();
+            String data = connectionInfo.serverUser + "@" + connectionInfo.server + ":"
+                    + messageChannel.getBranchName();
+            return CryptoHelper.sha256HashHex(data.getBytes());
         }
     }
 }

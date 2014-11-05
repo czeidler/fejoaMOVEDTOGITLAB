@@ -34,6 +34,14 @@ public class CryptoHelper {
         return MessageDigest.getInstance("SHA-256");
     }
 
+    static public String sha1HashHex(byte data[]) {
+        return toHex(sha1Hash(data));
+    }
+
+    static public String sha256HashHex(byte data[]) {
+        return toHex(sha256Hash(data));
+    }
+
     static public byte[] sha1Hash(byte data[]) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");

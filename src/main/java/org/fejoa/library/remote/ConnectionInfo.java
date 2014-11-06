@@ -8,6 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.crypto.CryptoHelper;
 
 
 public class ConnectionInfo {
@@ -19,5 +20,13 @@ public class ConnectionInfo {
         this.server = server;
         this.serverUser = serverUser;
         this.myself = myself;
+    }
+
+    public String getRemote() {
+        return serverUser + "@" + server;
+    }
+
+    public String getRemoteId() {
+        return CryptoHelper.sha1HashHex(getRemote().getBytes());
     }
 }

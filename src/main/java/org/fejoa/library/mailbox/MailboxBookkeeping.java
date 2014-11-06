@@ -32,7 +32,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
     }
 
     final private Mailbox mailbox;
-    // remote name -> DirtyRemote
+    // remoteId name -> DirtyRemote
     final private Map<String, DirtyRemote> dirtyRemotes = new HashMap<>();
     final private SecureStorageDir baseDir;
     final private SecureStorageDir dirtyDir;
@@ -65,37 +65,37 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         return dirtyBranches;
     }
 
-    private String remoteHash(String remote) {
+    public String addressToRemoteId(String remote) {
         return CryptoHelper.toHex(CryptoHelper.sha1Hash(remote.getBytes()));
     }
 
-    public void markAsDirty(String remote, String branch) throws IOException {
+    public void markAsDirty(String remoteId, String branch) throws IOException {
         DirtyRemote dirtyRemote;
-        if (dirtyRemotes.containsKey(remote))
-            dirtyRemote = dirtyRemotes.get(remote);
+        if (dirtyRemotes.containsKey(remoteId))
+            dirtyRemote = dirtyRemotes.get(remoteId);
         else {
-            dirtyRemote = new DirtyRemote(remoteHash(remote));
-            dirtyRemotes.put(remote, dirtyRemote);
+            dirtyRemote = new DirtyRemote(remoteId);
+            dirtyRemotes.put(remoteId, dirtyRemote);
         }
         dirtyRemote.markAsDirty(branch);
     }
 
-    public void cleanDirtyBranch(String remote, String branch) throws IOException {
-        if (!dirtyRemotes.containsKey(remote))
+    public void cleanDirtyBranch(String remoteId, String branch) throws IOException {
+        if (!dirtyRemotes.containsKey(remoteId))
             return;
-        DirtyRemote dirtyRemote = dirtyRemotes.get(remote);
+        DirtyRemote dirtyRemote = dirtyRemotes.get(remoteId);
         dirtyRemote.cleanDirtyBranch(branch);
         if (dirtyRemote.getDirtyBranches().size() == 0)
-            dirtyRemotes.remove(remote);
+            dirtyRemotes.remove(remoteId);
     }
 
     class DirtyRemote {
-        final String remote;
+        final String remoteId;
         final private List<String> dirtyBranches;
         final private SecureStorageDir dirtyRemoteDir;
 
         public DirtyRemote(String remoteHash) {
-            this.remote = remoteHash;
+            this.remoteId = remoteHash;
 
             dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteHash);
             dirtyBranches = readDirtyBranches();
@@ -137,16 +137,15 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
     }
 
     class RemoteStatus {
-        final private String remote;
+        final private String remoteId;
         final private SecureStorageDir branchDir;
-        // branch -> remote tip
+        // branch -> remoteId tip
         final private Map<String, String> statusMap = new HashMap<>();
 
-        public RemoteStatus(String remote) {
-            this.remote = remote;
-            String remoteDirName = remoteHash(remote);
+        public RemoteStatus(String remoteId) {
+            this.remoteId = remoteId;
             SecureStorageDir statusDir = new SecureStorageDir(baseDir, "status");
-            branchDir = new SecureStorageDir(statusDir, remoteDirName);
+            branchDir = new SecureStorageDir(statusDir, remoteId);
 
             read();
         }
@@ -154,7 +153,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         public void updateRemoteStatus(String branch, String remoteTip) throws IOException {
             String localTip = getLocalTip(branch);
             if (localTip.equals(remoteTip))
-                cleanDirtyBranch(remote, branch);
+                cleanDirtyBranch(remoteId, branch);
 
             branchDir.writeString(branch, remoteTip);
         }
@@ -188,9 +187,9 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
     }
 
     /**
-     * Gets the stored tip of the remote branch.
+     * Gets the stored tip of the remoteId branch.
      *
-     * @return the stored tip of the remote branch
+     * @return the stored tip of the remoteId branch
      */
     public String getRemoteStatus(String remote, String branch) throws IOException {
         RemoteStatus status = new RemoteStatus(remote);

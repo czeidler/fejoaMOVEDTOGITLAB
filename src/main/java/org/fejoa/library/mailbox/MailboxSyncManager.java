@@ -10,8 +10,10 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.INotifications;
 import org.fejoa.library.remote.PublishMessageBranch;
 import org.fejoa.library.remote.RemoteConnectionJob;
+import org.fejoa.library.remote.SyncResultData;
 import rx.Observer;
 
+import java.io.IOException;
 import java.util.List;
 
 
@@ -40,7 +42,14 @@ public class MailboxSyncManager {
             ref.get().subscribe(new Observer<MessageChannel>() {
                 @Override
                 public void onCompleted() {
-
+                    MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
+                    if (bookkeeping.getAllDirtyBranches().size() == 0) {
+                        try {
+                            bookkeeping.commit(mailbox.getStorageDir().getTip());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
 
                 @Override
@@ -72,8 +81,20 @@ public class MailboxSyncManager {
             public void onNext(RemoteConnectionJob.Result result) {
                 if (result.status < RemoteConnectionJob.Result.DONE)
                     notifications.error(result.message);
-                else
+                else {
                     notifications.info(result.message);
+
+                    if (result.hasData() && result.data instanceof SyncResultData) {
+                        SyncResultData syncResultData = (SyncResultData)result.data;
+                        System.out.println("hey");
+                        MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
+                        try {
+                            bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
             }
         });
     }

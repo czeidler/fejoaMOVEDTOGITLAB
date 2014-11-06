@@ -194,7 +194,7 @@ public class Mailbox extends UserData {
         dir.writeSecureString("branchTip", channel.getBranch().getTip());
 
         for (MessageBranchInfo.Participant participant : channel.getBranch().getMessageBranchInfo().getParticipants())
-            bookkeeping.markAsDirty(participant.address, branchName);
+            bookkeeping.markAsDirty(bookkeeping.addressToRemoteId(participant.address), branchName);
     }
 
     private void addChannelToList(MessageChannelRef messageChannelRef) {

@@ -16,7 +16,6 @@ import rx.Observable;
 
 import java.io.IOException;
 
-
 /**
  * Starts with a pull and add a push if necessary
  */
@@ -69,7 +68,7 @@ class Sync extends RemoteConnectionJob {
 
         String remoteTip = syncPullData.tip;
         if (remoteTip.equals(localTipCommit))
-            return new Result(Result.DONE);
+            return new Result(Result.DONE, "was synced");
 
         // see if the server is ahead by checking if we got packages
         if (syncPullData.pack != null && syncPullData.pack.length > 0) {
@@ -81,7 +80,9 @@ class Sync extends RemoteConnectionJob {
             // already in sync? otherwise it was a merge and we have to push our merge
             if (localTipCommit.equals(remoteTip)) {
                 database.updateLastSyncCommit(remoteUid, database.getBranch(), localTipCommit);
-                return new Result(Result.DONE);
+
+                return new Result(Result.DONE, new SyncResultData(remoteUid, database.getBranch(), localTipCommit),
+                        "synced after pull");
             }
         }
 
@@ -146,7 +147,8 @@ class Push extends RemoteConnectionJob {
         String localTipCommit = database.getTip();
         database.updateLastSyncCommit(remoteUid, database.getBranch(), localTipCommit);
 
-        return new Result(Result.DONE);
+        return new Result(Result.DONE, new SyncResultData(remoteUid, database.getBranch(), localTipCommit),
+                "synced after push");
     }
 }
 

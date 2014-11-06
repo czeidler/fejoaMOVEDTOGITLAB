@@ -15,15 +15,38 @@ public abstract class RemoteConnectionJob {
         static public int ERROR = -2;
         final public int status;
         final public String message;
+        final public ResultData data;
+
+        static public class ResultData {
+
+        }
 
         public Result(int status) {
             this.status = status;
             this.message = "";
+            this.data = null;
         }
 
         public Result(int status, String message) {
             this.status = status;
             this.message = message;
+            this.data = null;
+        }
+
+        public Result(int status, ResultData data) {
+            this.status = status;
+            this.message = "";
+            this.data = data;
+        }
+
+        public Result(int status, ResultData data, String message) {
+            this.status = status;
+            this.message = message;
+            this.data = data;
+        }
+
+        public boolean hasData() {
+            return data != null;
         }
     }
 

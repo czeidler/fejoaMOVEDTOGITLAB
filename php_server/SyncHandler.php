@@ -133,11 +133,15 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 		}
 
 		$localTip = sha1_hex($database->getTip($this->branch));
-		// in case it was a mailbox branch update the tip, if it was not then updateChannelTip will fail
-		$mailbox = Session::get()->getMainMailbox($this->serverUser);
-		if ($mailbox != null) {
-			if ($mailbox->updateChannelTip($this->branch, $localTip))
-				$mailbox->commit();
+
+		// if somebody else sent us the branch update the tip in the mailbox so that the client
+		// finds out about the new update
+		if (!Session::get()->isAccountUser()) {
+			$mailbox = Session::get()->getMainMailbox($this->serverUser);
+			if ($mailbox != null) {
+				if ($mailbox->updateChannelTip($this->branch, $localTip))
+					$mailbox->commit();
+			}
 		}
 
 		// produce output

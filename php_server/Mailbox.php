@@ -99,10 +99,16 @@ class Mailbox extends UserData {
 		return true;
 	}
 
-	public function updateChannelTip($channelID, $tip) {
-		if (!$this->hasChannel($channelId)
+	public function updateChannelTip($channelId, $tip) {
+		if (!$this->hasChannel($channelId))
 			return false;
 		$path = $this->pathForChannelId($channelId)."/branchTip";
+		// don't update if we are already up to date
+		$oldTip;
+		if ($this->read($path, $oldTip)) {
+			if ($oldTip == $tip)
+				return false;
+		}
 		return $this->write($path, $tip);
 	}
 

@@ -66,7 +66,7 @@ class Session {
 		$profile = $this->getProfile($serverUser);
 		if ($profile === null)
 			return null;
-		return = $profile->getMainMailbox();
+		return $profile->getMainMailbox();
 	}
 
 	public function getMainUserIdentity($serverUser) {

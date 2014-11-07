@@ -7,14 +7,20 @@
  */
 package org.fejoa.library.database;
 
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.AbstractTreeIterator;
+import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 
@@ -339,6 +345,79 @@ public class JGitInterface implements IDatabaseInterface {
             rmDirectory(path);
         else
             rmFile(path);
+    }
+
+    @Override
+    public DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException {
+        if (baseCommit.equals("")) {
+            // list commit tree
+
+            RevWalk walk = new RevWalk(repository);
+            RevCommit commit = walk.parseCommit(ObjectId.fromString(endCommit));
+            walk.dispose();
+
+            DatabaseDiff databaseDiff = new DatabaseDiff();
+
+            TreeWalk treeWalk = new TreeWalk(repository);
+            treeWalk.addTree(commit.getTree());
+            treeWalk.setRecursive(false);
+            while (treeWalk.next()) {
+                if (treeWalk.isSubtree())
+                    treeWalk.enterSubtree();
+                else
+                    databaseDiff.added.addPath(treeWalk.getPathString());
+            }
+
+            return databaseDiff;
+        }
+        AbstractTreeIterator baseTree = prepareTreeParser(repository, baseCommit);
+        AbstractTreeIterator newTree = prepareTreeParser(repository, endCommit);
+
+        List<DiffEntry> diff;
+        try {
+            diff = new Git(repository).diff().setOldTree(baseTree).setNewTree(newTree).call();
+        } catch (GitAPIException e) {
+            e.printStackTrace();
+            throw new IOException(e.getMessage());
+        }
+
+        DatabaseDiff databaseDiff = new DatabaseDiff();
+        for (DiffEntry entry : diff) {
+            switch (entry.getChangeType()) {
+                case ADD:
+                    databaseDiff.added.addPath(entry.getNewPath());
+                    break;
+
+                case MODIFY:
+                    databaseDiff.modified.addPath(entry.getNewPath());
+                    break;
+
+                case DELETE:
+                    databaseDiff.modified.addPath(entry.getOldPath());
+                    break;
+
+                case RENAME:
+                case COPY:
+                    break;
+            }
+        }
+
+        return databaseDiff;
+    }
+
+    private static AbstractTreeIterator prepareTreeParser(Repository repository, String commitId) throws IOException {
+        RevWalk walk = new RevWalk(repository);
+        RevCommit commit = walk.parseCommit(ObjectId.fromString(commitId));
+        RevTree tree = walk.parseTree(commit.getTree().getId());
+        CanonicalTreeParser oldTreeParser = new CanonicalTreeParser();
+        ObjectReader oldReader = repository.newObjectReader();
+        try {
+            oldTreeParser.reset(oldReader, tree.getId());
+        } finally {
+            oldReader.release();
+        }
+        walk.dispose();
+        return oldTreeParser;
     }
 
     private boolean isDirectory(String path) throws IOException {

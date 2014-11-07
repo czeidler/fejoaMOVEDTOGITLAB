@@ -8,6 +8,8 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
+import org.fejoa.library.database.DatabaseDiff;
+import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library.database.JGitInterface;
 
@@ -257,5 +259,38 @@ public class JGitInterfaceTest extends TestCase {
         gitImport.importPack(exportData, base, tip, -1);
 
         gitExport.updateLastSyncCommit("gitImport", gitExport.getBranch(), tip);
+    }
+
+    public void testDiffImport() throws Exception {
+        List<DatabaseStingEntry> content = new ArrayList<>();
+
+        String gitDir = "gitDiff";
+        cleanUpDirs.add(gitDir);
+
+        JGitInterface git = new JGitInterface();
+        git.init(gitDir, "testBranch", true);
+
+        add(git, content, new DatabaseStingEntry("test1", "data1"));
+        String commit1 = git.commit();
+
+        add(git, content, new DatabaseStingEntry("folder/test2", "data2"));
+        add(git, content, new DatabaseStingEntry("folder/test3", "data2"));
+
+        String commit2 = git.commit();
+        assertEquals(commit2, git.getTip());
+
+        DatabaseDiff diff = git.getDiff("", commit2);
+        assertTrue(diff.added.getFiles().contains("test1"));
+        DatabaseDir folderDir = diff.added.findDirectory("folder");
+        assertNotNull(folderDir);
+        assertTrue(folderDir.getFiles().contains("test2"));
+        assertTrue(folderDir.getFiles().contains("test3"));
+
+        diff = git.getDiff(commit1, commit2);
+        folderDir = diff.added.findDirectory("folder");
+        assertNotNull(folderDir);
+        assertTrue(folderDir.getFiles().contains("test2"));
+        assertTrue(folderDir.getFiles().contains("test3"));
+
     }
 }

@@ -1,3 +1,10 @@
+/*
+ * Copyright 2014.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.database;
 
 import java.io.IOException;
@@ -22,6 +29,8 @@ public interface IDatabaseInterface {
     public void updateTip(String commit) throws IOException;
 
     public void remove(String path) throws IOException;
+
+    public DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException;
 
     // sync
     public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;

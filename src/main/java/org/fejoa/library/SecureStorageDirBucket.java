@@ -37,7 +37,7 @@ public class SecureStorageDirBucket {
         JGitInterface database = new JGitInterface();
         database.init(path, branch, true);
 
-        SecureStorageDir secureStorageDir = new SecureStorageDir(database, branch);
+        SecureStorageDir secureStorageDir = new SecureStorageDir(database, "");
         secureStorageDirs.add(secureStorageDir);
         return secureStorageDir;
     }

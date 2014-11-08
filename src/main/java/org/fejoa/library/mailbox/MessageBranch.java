@@ -9,6 +9,8 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.database.DatabaseDiff;
+import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
@@ -42,6 +44,28 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         return messageBranch;
     }
 
+    private StorageDir.IListener storageListener = new StorageDir.IListener() {
+        @Override
+        public void onNewCommit(DatabaseDiff diff, String base, String tip) {
+            DatabaseDir added = diff.added;
+            List<DatabaseDir> firstParts = added.getDirectories();
+            for (DatabaseDir messageDir : firstParts) {
+                List<String> messageList = messageDir.getFiles();
+                for (String messageName : messageList) {
+                    try {
+                        byte[] pack = messageStorage.readBytes(messageDir.getDirName() + "/" + messageName);
+                        Message message = new Message();
+                        message.load(parcelCrypto, identity, pack);
+
+                        addMessageToList(message);
+                    } catch (Exception e) {
+
+                    }
+                }
+            }
+        }
+    };
+
     private MessageBranch(SecureStorageDir messageStorage, Mailbox mailbox, ParcelCrypto parcelCrypto)
             throws IOException,
             CryptoException {
@@ -49,6 +73,8 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         this.mailbox = mailbox;
         this.identity = mailbox.getUserIdentity();
         this.parcelCrypto = parcelCrypto;
+
+        this.messageStorage.addListener(storageListener);
     }
 
     public String getTip() throws IOException {

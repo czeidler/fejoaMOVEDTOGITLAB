@@ -9,6 +9,8 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.DatabaseDiff;
+import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observable;
@@ -79,10 +81,46 @@ public class Mailbox extends UserData {
         }
 
         @Override
-        protected MessageChannel getCached() {
+        public MessageChannel getCached() {
             return messageChannelCache.get(channelUid);
         }
     }
+
+    private StorageDir.IListener storageListener = new StorageDir.IListener() {
+        @Override
+        public void onNewCommit(DatabaseDiff diff, String base, String tip) {
+            DatabaseDir added = diff.added;
+
+            // TODO maybe only watch the base dir?
+            DatabaseDir baseDir = added.findDirectory(storageDir.getBaseDir());
+
+            List<DatabaseDir> part1List = baseDir.getDirectories();
+            for (DatabaseDir part1 : part1List) {
+                for (DatabaseDir part2 : baseDir.findDirectory(part1.getDirName()).getDirectories()) {
+                    String channelId = part1.getDirName() + part2.getDirName();
+                    if (!hasChannel(channelId))
+                        addChannelToList(new MessageChannelRef(channelId));
+                    else {
+                        MessageChannelRef ref = getMessageChannel(channelId);
+                        MessageChannel channel = ref.getCached();
+                        if (channel == null) // not in use no need to update
+                            continue;
+
+                        if (part2.getFiles().contains("branchTip")) {
+                            SecureStorageDir channelDir = getChannelStorageDir(channel.getBranchName());
+                            try {
+                                String branchTip = channelDir.readString("branchTip");
+                                bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchTip);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+    };
 
     // create new
     public Mailbox(UserIdentity userIdentity) throws IOException, CryptoException {
@@ -103,6 +141,8 @@ public class Mailbox extends UserData {
         loadMessageChannels();
 
         initBookkeeping();
+
+        this.storageDir.addListener(storageListener);
     }
 
     private void initBookkeeping() throws IOException, CryptoException {
@@ -150,10 +190,12 @@ public class Mailbox extends UserData {
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
         writeUserData(uid, storageDir);
 
-        storageDir.writeSecureString("user_identity", userIdentity.getUid());
+        this.storageDir.writeSecureString("user_identity", userIdentity.getUid());
 
         if (bookkeeping == null)
             initBookkeeping();
+
+        this.storageDir.addListener(storageListener);
     }
 
     private void loadMessageChannels() throws IOException, CryptoException {
@@ -176,22 +218,28 @@ public class Mailbox extends UserData {
         return new SecureStorageDir(storageDir, branchName.substring(0, 2) + "/" + branchName.substring(2));
     }
 
+    private boolean hasChannel(String channelId) {
+        for (MessageChannelRef ref : messageChannels) {
+            if (ref.getChannelUid().equals(channelId))
+                return true;
+        }
+        return false;
+    }
+
     public void addMessageChannel(MessageChannel messageChannel) throws CryptoException, IOException {
         String branchName = messageChannel.getBranchName();
         SecureStorageDir dir = getChannelStorageDir(branchName);
 
         ContactPrivate myself = userIdentity.getMyself();
         messageChannel.write(dir, myself, myself.getMainKeyId());
-        dir.writeSecureString("branchTip", messageChannel.getBranch().getTip());
+        dir.writeString("branchTip", messageChannel.getBranch().getTip());
         messageChannelCache.put(branchName, messageChannel);
-
-        addChannelToList(new MessageChannelRef(branchName));
     }
 
     public void onBranchCommited(MessageChannel channel) throws IOException, CryptoException {
         String branchName = channel.getBranchName();
         SecureStorageDir dir = getChannelStorageDir(branchName);
-        dir.writeSecureString("branchTip", channel.getBranch().getTip());
+        dir.writeString("branchTip", channel.getBranch().getTip());
 
         for (MessageBranchInfo.Participant participant : channel.getBranch().getMessageBranchInfo().getParticipants())
             bookkeeping.markAsDirty(bookkeeping.addressToRemoteId(participant.address), branchName);

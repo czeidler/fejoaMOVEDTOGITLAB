@@ -10,6 +10,7 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.database.DatabaseDir;
 
 import java.io.IOException;
 import java.security.PublicKey;
@@ -83,6 +84,7 @@ public class MessageChannel extends Channel {
         byte[] pack = pack(sender, senderKey, sender, senderKey);
         dir.writeBytes("d", pack);
         dir.writeString("database_path", dir.getDatabase().getPath());
+        dir.writeString("branchTip", getBranch().getTip());
     }
 
     private void load(SecureStorageDir dir, Mailbox mailbox)
@@ -96,4 +98,5 @@ public class MessageChannel extends Channel {
 
         setBranch(MessageBranch.loadMessageBranch(messageStorage, mailbox, getParcelCrypto()));
     }
+
 }

@@ -86,7 +86,6 @@ public class MailboxSyncManager {
 
                     if (result.hasData() && result.data instanceof SyncResultData) {
                         SyncResultData syncResultData = (SyncResultData)result.data;
-                        System.out.println("hey");
                         MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
                         try {
                             bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch);

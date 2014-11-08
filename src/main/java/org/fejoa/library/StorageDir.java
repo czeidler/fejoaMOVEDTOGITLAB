@@ -7,7 +7,9 @@
  */
 package org.fejoa.library;
 
+import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.database.IDatabaseInterface;
+import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,9 +21,25 @@ public class StorageDir {
     final private StorageDirCache cache;
     final private String baseDir;
 
-    class StorageDirCache {
+    public interface IListener {
+        void onNewCommit(DatabaseDiff diff, String base, String tip);
+    }
+
+    public void addListener(IListener listener) {
+        cache.addListener(listener);
+    }
+
+    /**
+     * The StorageDirCache between all StorageDir that are build from the same parent.
+     */
+    class StorageDirCache extends WeakListenable<StorageDir.IListener> {
         final private IDatabaseInterface database;
         final private Map<String, byte[]> map = new HashMap<>();
+
+        private void notifyNewCommit(DatabaseDiff diff, String base, String tip) {
+            for (IListener listener : getListeners())
+                listener.onNewCommit(diff, base, tip);
+        }
 
         public StorageDirCache(IDatabaseInterface database) {
             this.database = database;
@@ -48,8 +66,17 @@ public class StorageDir {
         }
 
         public void commit() throws IOException {
+            String base = getDatabase().getTip();
+
             flush();
             database.commit();
+
+            if (getListeners().size() > 0) {
+                String tip = getTip();
+
+                DatabaseDiff diff = getDatabase().getDiff(base, tip);
+                notifyNewCommit(diff, base, tip);
+            }
         }
 
         public List<String> listFiles(String path) throws IOException {

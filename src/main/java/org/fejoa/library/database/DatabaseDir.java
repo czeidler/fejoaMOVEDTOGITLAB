@@ -28,7 +28,14 @@ public class DatabaseDir {
         return true;
     }
 
+    public String getDirName() {
+        return directoryName;
+    }
+
     public DatabaseDir findDirectory(String path) {
+        if (path.equals(""))
+            return this;
+
         String[] parts = path.split("/");
         DatabaseDir currentDir = this;
         for (int i = 0; i < parts.length; i++) {

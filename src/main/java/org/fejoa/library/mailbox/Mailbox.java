@@ -11,6 +11,7 @@ import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.database.DatabaseDir;
+import org.fejoa.library.remote.ConnectionInfo;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observable;
@@ -242,7 +243,7 @@ public class Mailbox extends UserData {
         dir.writeString("branchTip", channel.getBranch().getTip());
 
         for (MessageBranchInfo.Participant participant : channel.getBranch().getMessageBranchInfo().getParticipants())
-            bookkeeping.markAsDirty(bookkeeping.addressToRemoteId(participant.address), branchName);
+            bookkeeping.markAsDirty(ConnectionInfo.getRemoteId(participant.address), branchName);
     }
 
     private void addChannelToList(MessageChannelRef messageChannelRef) {

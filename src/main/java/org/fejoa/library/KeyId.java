@@ -9,7 +9,7 @@ package org.fejoa.library;
 
 
 public class KeyId {
-    private String keyId;
+    final private String keyId;
 
     public KeyId(String keyId) {
         this.keyId = keyId;

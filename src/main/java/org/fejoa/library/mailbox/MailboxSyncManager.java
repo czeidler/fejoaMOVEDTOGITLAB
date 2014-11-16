@@ -21,15 +21,18 @@ public class MailboxSyncManager {
     final private Mailbox mailbox;
     final INotifications notifications;
 
+    // keep a reference of the listener!
+    private MailboxBookkeeping.IListener listener = new MailboxBookkeeping.IListener() {
+        @Override
+        public void onDirtyBranches() {
+            sync();
+        }
+    };
+
     public MailboxSyncManager(Mailbox mailbox, INotifications notifications) {
         this.mailbox = mailbox;
         this.notifications = notifications;
-        mailbox.getBookkeeping().addListener(new MailboxBookkeeping.IListener() {
-            @Override
-            public void onDirtyBranches() {
-                sync();
-            }
-        });
+        mailbox.getBookkeeping().addListener(listener);
         sync();
     }
 

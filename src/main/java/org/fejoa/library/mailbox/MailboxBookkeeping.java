@@ -65,10 +65,6 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         return dirtyBranches;
     }
 
-    public String addressToRemoteId(String remote) {
-        return CryptoHelper.toHex(CryptoHelper.sha1Hash(remote.getBytes()));
-    }
-
     public void markAsDirty(String remoteId, String branch) throws IOException {
         DirtyRemote dirtyRemote;
         if (dirtyRemotes.containsKey(remoteId))

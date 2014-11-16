@@ -105,6 +105,10 @@ class RoleManager {
         }
     }
 
+    public Observable<IRemoteRequest> getRemoteRequest() {
+        return sharedConnection.getRemoteRequest();
+    }
+
     public Observable<IRemoteRequest> getPreparedRemoteRequest(final ConnectionInfo info) {
         return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
             @Override
@@ -202,6 +206,10 @@ public class ConnectionManager {
     private RoleManager getRoleManager(ConnectionInfo info) {
         SharedConnection sharedConnection = getContactRoles(info.server);
         return sharedConnection.getRoleManager(info.myself);
+    }
+
+    public Observable<IRemoteRequest> getRemoteRequest(ConnectionInfo info) {
+        return getRoleManager(info).getRemoteRequest();
     }
 
     public Observable<IRemoteRequest> getPreparedRemoteRequest(ConnectionInfo info) {

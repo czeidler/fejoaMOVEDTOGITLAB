@@ -23,16 +23,39 @@ public class RemoteConnection {
         this.info = info;
     }
 
+    private Observable<IRemoteRequest> getRemoteRequest() {
+        return manager.getRemoteRequest(info);
+    }
+
     private Observable<IRemoteRequest> getPreparedRemoteRequest() {
         return manager.getPreparedRemoteRequest(info);
     }
 
-    public <T> Observable<T> queueObservable(Observable<T> observable) {
+    private  <T> Observable<T> queueObservable(Observable<T> observable) {
         return manager.queueJob(info, observable);
     }
 
-    private Observable<byte[]> sendBytes(final byte[] data) {
-        Observable<byte[]> out = getPreparedRemoteRequest().mapMany(
+    private interface IRemoteStrategy {
+        Observable<IRemoteRequest> getRemote();
+    }
+
+    class PreparedRemoteStrategy implements IRemoteStrategy {
+        @Override
+        public Observable<IRemoteRequest> getRemote() {
+            return getPreparedRemoteRequest();
+        }
+    }
+
+    class NoLoginRemoteStrategy implements IRemoteStrategy {
+        @Override
+        public Observable<IRemoteRequest> getRemote() {
+            return getRemoteRequest();
+        }
+    }
+
+
+    private Observable<byte[]> sendBytes(IRemoteStrategy strategy, final byte[] data) {
+        Observable<byte[]> out = strategy.getRemote().mapMany(
                 new Func1<IRemoteRequest, Observable<byte[]>>() {
                     @Override
                     public Observable<byte[]> call(IRemoteRequest remoteRequest) {
@@ -58,7 +81,16 @@ public class RemoteConnection {
         return queueObservable(runJob(job));
     }
 
+    public Observable<RemoteConnectionJob.Result> queueJobNoLogin(final RemoteConnectionJob job) {
+        return queueObservable(runJob(new NoLoginRemoteStrategy(), job));
+    }
+
     public Observable<RemoteConnectionJob.Result> runJob(final RemoteConnectionJob job) {
+        return runJob(new PreparedRemoteStrategy(), job);
+    }
+
+    public Observable<RemoteConnectionJob.Result> runJob(final IRemoteStrategy strategy,
+                                                         final RemoteConnectionJob job) {
         return Observable.create(new Observable.OnSubscribeFunc<RemoteConnectionJob.Result>() {
             @Override
             public Subscription onSubscribe(final Observer<? super RemoteConnectionJob.Result> observer) {
@@ -72,7 +104,7 @@ public class RemoteConnection {
                 }
 
                 final CurrentSubscription currentSubscription = new CurrentSubscription();
-                currentSubscription.child = sendBytes(request).subscribe(new Observer<byte[]>() {
+                currentSubscription.child = sendBytes(strategy, request).subscribe(new Observer<byte[]>() {
                     @Override
                     public void onCompleted() {
 

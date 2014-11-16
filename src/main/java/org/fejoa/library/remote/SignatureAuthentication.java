@@ -53,8 +53,9 @@ public class SignatureAuthentication implements IAuthenticationRequest {
                     byte[] reply = remoteRequest.send(request);
                     if (reply == null)
                         throw new IOException("network error");
-                    if (loginRequest.handleResponse(reply).status == RemoteConnectionJob.Result.ERROR)
-                        throw new IOException("bad response");
+                    RemoteConnectionJob.Result result = loginRequest.handleResponse(reply);
+                    if (result.status == RemoteConnectionJob.Result.ERROR)
+                        throw new IOException("bad response: " + result.message);
                     request = signIn.getRequest();
                     reply = remoteRequest.send(request);
                     if (reply == null)

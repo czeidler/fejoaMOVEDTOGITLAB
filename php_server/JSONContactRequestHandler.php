@@ -5,22 +5,26 @@ include_once 'JSONProtocol.php';
 
 
 class JSONContactRequestHandler extends JSONHandler {
+	static private $kContactRequestStanza = "contactRequest";
+	static private $kPublicKeyStanza = "publicKey";
+	
 	public function call($jsonArray, $jsonId) {
-		if (strcmp($jsonArray['method'], "contact_request") != 0)
+		if (strcmp($jsonArray['method'], JSONContactRequestHandler::$kContactRequestStanza) != 0)
 			return false;
 		$params = $jsonArray["params"];
 		if ($params === null)
 			return false;
 		if (!isset($params['serverUser']) || !isset($params['uid']) || !isset($params['keyId'])
-			|| !isset($params['address']) || !isset($params['public_key']))
+			|| !isset($params['address']) || !isset($params[JSONContactRequestHandler::$kPublicKeyStanza]))
 			return false;
 
-		$userIdentity = Session::get()->getMainUserIdentity($params['serverUser']);
+		$serverUser = $params['serverUser'];
+		$userIdentity = Session::get()->getMainUserIdentity($serverUser);
 		if ($userIdentity === null)
-			return $this->makeError($jsonId, "can't find server user: ".$params['serverUser']);
+			return $this->makeError($jsonId, "can't find server user: ".$serverUser);
 
 		$contact = $userIdentity->createContact($params['uid']);
-		$contact->addKeySet($params['keyId'], "", $params['public_key']);
+		$contact->addKeySet($params['keyId'], "", $params[JSONContactRequestHandler::$kPublicKeyStanza]);
 		$contact->setMainKeyId($params['keyId']);
 		$contact->setAddress($params['address']);
 
@@ -28,18 +32,17 @@ class JSONContactRequestHandler extends JSONHandler {
 
 		// reply
 		$myself = $userIdentity->getMyself();
-		$profile = Session::get()->getProfile($this->serverUser);
+		$profile = Session::get()->getProfile($serverUser);
 		$keyStore = $profile->getUserIdentityKeyStore($userIdentity);
 		if ($keyStore === null)
 			return $this->makeError($jsonId, "internal error");
 
 		$mainKeyId = $myself->getMainKeyId();
-		$myCertificate;
 		$myPublicKey;
-		$keyStore->readAsymmetricKey($mainKeyId, $myCertificate, $myPublicKey);
+		$keyStore->readAsymmetricKey($mainKeyId, $myPublicKey);
 
 		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'uid' => $myself->getUid(),
-			'keyId' => $mainKeyId, 'address' => $myself->getAddress(), 'public_key' => $myPublicKey));
+			'keyId' => $mainKeyId, 'address' => $myself->getAddress(), JSONContactRequestHandler::$kPublicKeyStanza => $myPublicKey));
 	}
 
 	public function makeError($jsonId, $message) {

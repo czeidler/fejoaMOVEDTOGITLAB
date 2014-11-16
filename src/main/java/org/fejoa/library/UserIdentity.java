@@ -14,13 +14,14 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyPair;
+import java.util.ArrayList;
 import java.util.List;
 
 
 public class UserIdentity extends UserData {
     private ICryptoInterface crypto = Crypto.get();
     private ContactPrivate myself;
-    private List<ContactPublic> allContacts;
+    private List<ContactPublic> allContacts = new ArrayList<>();
 
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
         KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);

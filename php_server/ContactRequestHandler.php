@@ -5,8 +5,8 @@ include_once 'XMLProtocol.php';
 
 
 class ContactMessageConst {
-	static public $kContactRequestStanza = "contact_request";
-	static public $kPublicKeyStanza = "public_key";
+	static public $kContactRequestStanza = "contactRequest";
+	static public $kPublicKeyStanza = "publicKey";
 };
 
 
@@ -69,18 +69,24 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
 			return;
 		}
 
-		$contact = $userIdentity->createContact($this->uid);
-		$contact->addKeySet($this->keyId, $publicKey);
-		$contact->setMainKeyId($this->keyId);
-		$contact->setAddress($this->address);
+		$message = null;
+		if ($userIdentity->findContact($this->uid) === null) {
+			$contact = $userIdentity->createContact($this->uid);
+			$contact->addKeySet($this->keyId, $publicKey);
+			$contact->setMainKeyId($this->keyId);
+			$contact->setAddress($this->address);
 
-		$userIdentity->commit();
+			$userIdentity->commit();
+		} else
+			$message = "I already know you";
 
 		// reply
 		$outStream = new ProtocolOutStream();
 		$outStream->pushStanza(new IqOutStanza(IqType::$kResult));
 		$stanza = new OutStanza(ContactMessageConst::$kContactRequestStanza);
 		$stanza->addAttribute("status", "ok");
+		if ($message !== null)
+			$stanza->addAttribute("message", $message);
 
 		$myself = $userIdentity->getMyself();
 		$profile = Session::get()->getProfile($this->serverUser);

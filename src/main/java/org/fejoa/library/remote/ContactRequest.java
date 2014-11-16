@@ -14,6 +14,7 @@ import org.fejoa.library.support.InStanzaHandler;
 import org.fejoa.library.support.IqInStanzaHandler;
 import org.fejoa.library.support.ProtocolInStream;
 import org.fejoa.library.support.ProtocolOutStream;
+import org.json.JSONObject;
 import org.w3c.dom.Element;
 import org.xml.sax.Attributes;
 import rx.Observable;
@@ -63,30 +64,11 @@ class ContactRequestHandler extends InStanzaHandler {
     }
 }
 
-class CertificateHandler extends InStanzaHandler {
-    public String certificate;
-
-    public CertificateHandler() {
-        super("certificate", true);
-    }
-
-    @Override
-    public boolean handleStanza(Attributes attributes) {
-        return true;
-    }
-
-    @Override
-    public boolean handleText(String text) {
-        certificate = text.toString();
-        return true;
-    }
-}
-
 class PublicKeyHandler extends InStanzaHandler {
     public String publicKey;
 
     public PublicKeyHandler() {
-        super("publicKey", true);
+        super(ContactRequest.PUBLIC_KEY_STANZA, true);
     }
 
     @Override
@@ -99,11 +81,12 @@ class PublicKeyHandler extends InStanzaHandler {
         publicKey = text.toString();
         return true;
     }
-};
+}
+
 
 public class ContactRequest {
-    final static public String CONTACT_REQUEST_STANZA = "contact_request";
-    final static public String PUBLIC_KEY_STANZA = "public_key";
+    final static public String CONTACT_REQUEST_STANZA = "contactRequest";
+    final static public String PUBLIC_KEY_STANZA = "publicKey";
 
     private ConnectionInfo connectionInfo;
     private UserIdentity userIdentity;
@@ -113,14 +96,63 @@ public class ContactRequest {
         this.userIdentity = identity;
     }
 
-    public Observable<RemoteConnectionJob.Result> send() {
-        RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
-        ContactRequestJob job = new ContactRequestJob();
-        return remoteConnection.queueJob(job);
+    public RemoteConnectionJob getContactRequestJob() {
+        return new JsonContactRequestJob();
     }
 
-    public RemoteConnectionJob getContactRequestJob() {
-        return new ContactRequestJob();
+    class JsonContactRequestJob extends JsonRemoteConnectionJob {
+
+        @Override
+        public byte[] getRequest() throws Exception {
+            ContactPrivate myself = userIdentity.getMyself();
+            KeyId keyId = userIdentity.getMyself().getMainKeyId();
+            KeyPair keyPair = userIdentity.getMyself().getKeyPair(keyId.getKeyId());
+
+            return jsonRPC.call(CONTACT_REQUEST_STANZA,
+                    new JsonRPC.Argument("serverUser", connectionInfo.serverUser),
+                    new JsonRPC.Argument("uid", myself.getUid()),
+                    new JsonRPC.Argument("keyId", keyId.getKeyId()),
+                    new JsonRPC.Argument("address", myself.getAddress()),
+                    new JsonRPC.Argument(PUBLIC_KEY_STANZA, CryptoHelper.convertToPEM(keyPair.getPublic())))
+                    .getBytes();
+        }
+
+        @Override
+        public Result handleResponse(byte[] reply) throws Exception {
+            JSONObject result = jsonRPC.getReturnValue(new String(reply));
+            if (getStatus(result) != 0)
+                return new Result(Result.ERROR, getMessage(result));
+
+            if (!result.has("uid") || !result.has("address") || !result.has("keyId") || !result.has(PUBLIC_KEY_STANZA))
+                return new Result(Result.ERROR, "invalid arguments");
+
+            String uid = result.getString("uid");
+            String address = result.getString("address");
+            String keyId = result.getString("keyId");
+            String publicKey = result.getString(PUBLIC_KEY_STANZA);
+
+            if (uid.equals(""))
+                return new Result(Result.ERROR, "bad uid");
+
+            onResponse(uid, address, keyId, publicKey);
+
+            return new Result(Result.DONE, getMessage(result));
+        }
+    }
+
+    private void onResponse(String uid, String address, String keyId, String publicKey) throws IOException,
+            CryptoException {
+        ContactPublic contact = userIdentity.addNewContact(uid);
+        contact.addKey(keyId, CryptoHelper.publicKeyFromPem(publicKey));
+        contact.setMainKey(new KeyId(keyId));
+        if (!address.equals(""))
+            contact.setAddress(address);
+        else
+            contact.setAddress(connectionInfo.getRemote());
+        contact.write();
+
+        // commit changes
+        userIdentity.commit();
     }
 
     public class ContactRequestJob extends RemoteConnectionJob {
@@ -169,14 +201,7 @@ public class ContactRequest {
             if (!publicKeyHandler.hasBeenHandled())
                 return new Result(Result.ERROR);
 
-            ContactPublic contact = userIdentity.addNewContact(requestHandler.uid);
-            contact.addKey(requestHandler.keyId, CryptoHelper.publicKeyFromPem(publicKeyHandler.publicKey));
-            contact.setMainKey(new KeyId(requestHandler.keyId));
-            contact.setAddress(requestHandler.address);
-            contact.write();
-
-            // commit changes
-            userIdentity.getStorageDir().getDatabase().commit();
+            onResponse(requestHandler.uid, requestHandler.address, requestHandler.keyId, publicKeyHandler.publicKey);
 
             return new Result(Result.DONE);
         }

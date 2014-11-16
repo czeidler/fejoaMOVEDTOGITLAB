@@ -36,7 +36,7 @@ public class PublishMessageBranch {
         List<Observable<RemoteConnectionJob.Result>> observableList = new ArrayList<>();
         for (MessageBranchInfo.Participant participant : participantList) {
             ConnectionInfo connectionInfo;
-            RemoteConnectionJob remoteConnectionJob = null;
+            RemoteConnectionJob contactRequestJob = null;
             Contact contactPublic = userIdentity.getContactFinder().find(participant.uid);
             if (participant.uid.equals("") || contactPublic == null) {
                 //contact request
@@ -49,7 +49,7 @@ public class PublishMessageBranch {
                 connectionInfo = new ConnectionInfo(server, serverUser, userIdentity.getMyself());
                 ContactRequest contactRequest = new ContactRequest(connectionInfo, messageChannel.getBranch().getIdentity());
 
-                remoteConnectionJob = contactRequest.getContactRequestJob();
+                contactRequestJob = contactRequest.getContactRequestJob();
             } else {
                 connectionInfo = new ConnectionInfo(contactPublic.getServer(), contactPublic.getServerUser(),
                         userIdentity.getMyself());
@@ -57,13 +57,12 @@ public class PublishMessageBranch {
 
             InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
                     connectionInfo, contactPublic);
-            if (remoteConnectionJob != null)
-                remoteConnectionJob.setFollowUpJob(initPublishMessageBranchJob);
-            else
-                remoteConnectionJob = initPublishMessageBranchJob;
-
             final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
-            observableList.add(remoteConnection.queueJob(remoteConnectionJob));
+            if (contactRequestJob != null) {
+                contactRequestJob.setFollowUpJob(initPublishMessageBranchJob);
+                observableList.add(remoteConnection.queueJobNoLogin(contactRequestJob));
+            } else
+                observableList.add(remoteConnection.queueJob(initPublishMessageBranchJob));
         }
 
         return Observable.merge(Observable.from(observableList));
@@ -159,15 +158,9 @@ public class PublishMessageBranch {
                 return new Result(Result.DONE, "branch in sync");
 
             setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage().getDatabase(),
-                    connectionInfo.serverUser, getRemoteId()));
+                    connectionInfo.serverUser, connectionInfo.getRemoteId()));
 
             return new Result(Result.DONE, getMessage(result));
-        }
-
-        private String getRemoteId() {
-            String data = connectionInfo.serverUser + "@" + connectionInfo.server + ":"
-                    + messageChannel.getBranchName();
-            return CryptoHelper.sha256HashHex(data.getBytes());
         }
     }
 }

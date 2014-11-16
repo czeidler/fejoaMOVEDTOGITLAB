@@ -5,8 +5,9 @@ include_once 'MessageHandler.php';
 include_once 'SyncHandler.php';
 include_once 'WatchBranchHandler.php';
 
-include_once 'JSONPublishBranchHandler.php';
 include_once 'JSONAuthHandler.php';
+include_once 'JSONContactRequestHandler.php';
+include_once 'JSONPublishBranchHandler.php';
 
 
 function initSyncHandlers($XMLHandler) {
@@ -36,6 +37,10 @@ function initContactRequestStanzaHandler($XMLHandler) {
 	$handler = new ContactRequestStanzaHandler($XMLHandler->getInStream());
 	$iqHandler->addChild($handler);
 	$XMLHandler->addHandler($iqHandler);
+}
+
+function initContactRequestStanzaHandlerJson($JSONDispatcher) {
+	$JSONDispatcher->addHandler(new JSONContactRequestHandler());
 }
 
 // auth
@@ -81,6 +86,7 @@ class InitHandlers {
 		// json
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
+		initContactRequestStanzaHandlerJson($JSONDispatcher);
 	}
 }
 

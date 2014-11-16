@@ -92,6 +92,8 @@ class JSONAuthSignedHandler extends JSONHandler {
 				$status = $this->accountLogin($myself, $transaction, $roles);
 			} else {
 				$contact = $userIdentity->findContact($loginUser);
+				$publicKey;
+				$contact->getKeySet($contact->getMainKeyId(), $publicKey);
 				if ($contact !== null)
 					$status = $this->userLogin($contact, $transaction, $roles);
 				else

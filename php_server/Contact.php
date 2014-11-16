@@ -34,9 +34,8 @@ class Contact extends UserData {
 
 	public function getKeySet($keyId, &$publicKey) {
 		$privateKeyId;
-		$this->read("keys/".$keyId."/keyId", $privateKeyId);
-
-		if ($privateKeyId == $keyId) {
+		$ok = $this->read("keys/".$keyId."/keyId", $privateKeyId);
+		if ($ok) {
 			$profile = $this->userIdentity->getProfile();
 			$keyStore = $profile->getUserIdentityKeyStore($this->userIdentity);
 			$ok = $keyStore->readAsymmetricKey($keyId, $publicKey);
@@ -55,12 +54,12 @@ class Contact extends UserData {
 	}
 
 	public function setMainKeyId($mainKeyId) {
-		$this->write("main_key_id", $mainKeyId);
+		$this->write("mainKeyId", $mainKeyId);
 	}
 
 	public function getMainKeyId() {
 		$mainKeyId;
-		$this->read("main_key_id", $mainKeyId);
+		$this->read("mainKeyId", $mainKeyId);
 		return $mainKeyId;
 	}
 
@@ -69,13 +68,19 @@ class Contact extends UserData {
 	}
 
 	public function getAddress() {
-		$address;
-		$this->read("address", $address);
-		return $address;
+		$serverUser = "";
+		$server = "";
+		$this->read("serverUser", $serverUser);
+		$this->read("server", $server);
+		return $serverUser."@".$server;
 	}
 
 	public function setAddress($address) {
-		$this->write("address", $address);
+		$parts = explode("@", $address);
+		if (count($parts) == 2) {
+			$this->write("serverUser", $parts[0]);
+			$this->write("server", $parts[1]);
+		}
 	}
 }
 

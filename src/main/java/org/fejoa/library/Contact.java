@@ -36,16 +36,16 @@ abstract public class Contact {
 
     public void write() throws IOException, CryptoException {
         storageDir.writeString("uid", uid);
-        storageDir.writeSecureString("server", server);
-        storageDir.writeSecureString("server_user", serverUser);
-        storageDir.writeString("main_key_id", mainKeyId.getKeyId());
+        storageDir.writeString("server", server);
+        storageDir.writeString("serverUser", serverUser);
+        storageDir.writeString("mainKeyId", mainKeyId.getKeyId());
     }
 
     public void open() throws IOException, CryptoException {
         uid = storageDir.readString("uid");
-        server = storageDir.readSecureString("server");
-        serverUser = storageDir.readSecureString("server_user");
-        mainKeyId = new KeyId(storageDir.readString("main_key_id"));
+        server = storageDir.readString("server");
+        serverUser = storageDir.readString("serverUser");
+        mainKeyId = new KeyId(storageDir.readString("mainKeyId"));
     }
 
     abstract public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException;

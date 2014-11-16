@@ -23,12 +23,15 @@ class JSONContactRequestHandler extends JSONHandler {
 		if ($userIdentity === null)
 			return $this->makeError($jsonId, "can't find server user: ".$serverUser);
 
-		$contact = $userIdentity->createContact($params['uid']);
-		$contact->addKeySet($params['keyId'], "", $params[JSONContactRequestHandler::$kPublicKeyStanza]);
-		$contact->setMainKeyId($params['keyId']);
-		$contact->setAddress($params['address']);
-
-		$userIdentity->commit();
+		$message = null;
+		if ($userIdentity->findContact($params['uid']) === null) {
+			$contact = $userIdentity->createContact($params['uid']);
+			$contact->addKeySet($params['keyId'], $params[JSONContactRequestHandler::$kPublicKeyStanza]);
+			$contact->setMainKeyId($params['keyId']);
+			$contact->setAddress($params['address']);
+			$userIdentity->commit();
+		} else
+			$message = "I already know you";
 
 		// reply
 		$myself = $userIdentity->getMyself();

@@ -36,7 +36,7 @@ public class PublishMessageBranch {
         List<Observable<RemoteConnectionJob.Result>> observableList = new ArrayList<>();
         for (MessageBranchInfo.Participant participant : participantList) {
             ConnectionInfo connectionInfo;
-            RemoteConnectionJob contactRequestJob = null;
+            ContactRequest.JsonContactRequestJob contactRequestJob = null;
             Contact contactPublic = userIdentity.getContactFinder().find(participant.uid);
             if (participant.uid.equals("") || contactPublic == null) {
                 //contact request
@@ -59,6 +59,8 @@ public class PublishMessageBranch {
                     connectionInfo, contactPublic);
             final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
             if (contactRequestJob != null) {
+                // set listener so that the initPublishMessageBranchJob knows where to send the branch
+                contactRequestJob.setListener(initPublishMessageBranchJob.getContactListener());
                 contactRequestJob.setFollowUpJob(initPublishMessageBranchJob);
                 observableList.add(remoteConnection.queueJobNoLogin(contactRequestJob));
             } else
@@ -71,7 +73,7 @@ public class PublishMessageBranch {
     class InitPublishMessageBranchJob extends JsonRemoteConnectionJob {
         final private MessageChannel messageChannel;
         final private ConnectionInfo connectionInfo;
-        final private Contact receiver;
+        private Contact receiver;
 
         public InitPublishMessageBranchJob(MessageChannel messageChannel, ConnectionInfo connectionInfo,
                                            Contact receiver) {
@@ -94,6 +96,9 @@ public class PublishMessageBranch {
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 
+            if (receiver == null)
+                return new Result(Result.ERROR, "internal error; no receiver");
+
             int transactionId = result.getInt("transactionId");
             byte[] signedToken = messageChannel.sign(result.getString("signToken"));
             boolean messageChannelNeeded = result.getBoolean("messageChannelNeeded");
@@ -109,6 +114,15 @@ public class PublishMessageBranch {
                     channelPack, channelPEMKey));
 
             return new Result(Result.DONE, getMessage(result));
+        }
+
+        public ContactRequest.IListener getContactListener() {
+            return new ContactRequest.IListener() {
+                @Override
+                public void onNewContact(ContactPublic contactPublic) {
+                    receiver = contactPublic;
+                }
+            };
         }
     }
 

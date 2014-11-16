@@ -56,7 +56,7 @@ public class ContactPublic extends Contact {
     public void open() throws IOException, CryptoException {
         super.open();
 
-        List<String> keyIds = storageDir.listDirectories("");
+        List<String> keyIds = storageDir.listDirectories("keys");
         for (String keyId : keyIds) {
             PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readString("keys/" + keyId + "/publicKey"));
             keys.put(keyId, new KeyPair(publicKey, null));

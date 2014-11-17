@@ -4,7 +4,7 @@ include_once 'XMLProtocol.php';
 
 
 class WatchMessageConst {
-	static public $kWatchStanza = "watch_branches";
+	static public $kWatchStanza = "watchBranches";
 	static public $kWatchItemsStanza = "branch";
 };
 

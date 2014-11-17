@@ -59,7 +59,7 @@ class UserIdentity extends UserData {
 
 	public function getKeyStoreId() {
 		$keyStoreId = "";
-		$this->read("key_store_id", $keyStoreId);
+		$this->read("keyStoreId", $keyStoreId);
 		return $keyStoreId;
 	}
 

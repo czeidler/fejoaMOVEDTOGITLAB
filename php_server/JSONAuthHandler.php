@@ -6,7 +6,7 @@ include_once 'JSONProtocol.php';
 
 class AuthConst {
 	static public $kAuthStanza = "auth";
-	static public $kAuthSignedStanza = "auth_signed";
+	static public $kAuthSignedStanza = "authSigned";
 	static public $kLogoutStanza = "logout"; 
 }
 
@@ -153,7 +153,7 @@ class JSONAuthSignedHandler extends JSONHandler {
 			return false;
 		}
 		$loginServerUser = $this->serverUser;
-		$roles[] = $loginServerUser.":contact_user";
+		$roles[] = $loginServerUser.":contactUser";
 		
 		return true;
 	}

@@ -15,8 +15,8 @@ import java.io.IOException;
 
 public class UserData {
     private String PATH_UID = "uid";
-    private String PATH_KEY_STORE_ID = "key_store_id";
-    private String PATH_KEY_ID = "key_id";
+    private String PATH_KEY_STORE_ID = "keyStoreId";
+    private String PATH_KEY_ID = "keyId";
 
     protected String uid;
     protected SecureStorageDir storageDir;

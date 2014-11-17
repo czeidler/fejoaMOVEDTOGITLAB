@@ -162,7 +162,7 @@ $roles = "";
 foreach (Session::get()->getUserRoles() as $role)
   $roles = $roles.$role.",";
 $stanza->addAttribute("roles", $roles);
-$stanza->addAttribute("session_id", session_id());
+$stanza->addAttribute("sessionId", session_id());
 $debugStream->pushStanza($stanza);
 writeToOutput($debugStream->flush());
 	

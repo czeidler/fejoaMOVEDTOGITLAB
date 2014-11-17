@@ -12,14 +12,14 @@ class Profile extends UserData {
 	public function __construct($database, $branch, $directory) {
 		parent::__construct($database, $branch, $directory);
 
-		$ids = $this->listDirectories("user_ids");
+		$ids = $this->listDirectories("userIds");
 		foreach ($ids as $identityId) {
 			$branch;
 			$baseDir;
-			$result = $this->read("user_ids/".$identityId."/database_branch", $branch);
+			$result = $this->read("userIds/".$identityId."/databaseBranch", $branch);
 			if (!$result)
 				continue;
-			$result = $this->read("user_ids/".$identityId."/database_base_dir", $baseDir);
+			$result = $this->read("userIds/".$identityId."/databaseBaseDir", $baseDir);
 			if (!$result)
 				continue;
 			$identity = new UserIdentity($this, $branch, $baseDir);
@@ -38,15 +38,15 @@ class Profile extends UserData {
 
 	public function getUserIdentityKeyStore($userIdentity) {
 		$keyStoreId = $userIdentity->getKeyStoreId();
-		$keyStoreIds = $this->listDirectories("key_stores");
+		$keyStoreIds = $this->listDirectories("keyStores");
 		if (!in_array($keyStoreId, $keyStoreIds))
 			return null;
 		$branch;
 		$baseDir;
-		$result = $this->read("key_stores/".$keyStoreId."/database_branch", $branch);
+		$result = $this->read("keyStores/".$keyStoreId."/databaseBranch", $branch);
 		if (!$result)
 			return null;
-		$result = $this->read("key_stores/".$keyStoreId."/database_base_dir", $baseDir);
+		$result = $this->read("keyStores/".$keyStoreId."/databaseBaseDir", $baseDir);
 		if (!$result)
 			return null;
 		$keyStore = new KeyStore($this->getDatabase(), $branch, $baseDir);
@@ -57,13 +57,13 @@ class Profile extends UserData {
 		$branch = "";
 		$baseDir = "";
 		$maiboxUid;
-		$result = $this->read("main_mailbox", $maiboxUid);
+		$result = $this->read("mainMailbox", $maiboxUid);
 		if (!$result)
 			return null;
-		$result = $this->read("mailboxes/".$maiboxUid."/database_branch", $branch);
+		$result = $this->read("mailboxes/".$maiboxUid."/databaseBranch", $branch);
 		if (!$result)
 			return null;
-		$result = $this->read("mailboxes/".$maiboxUid."/database_base_dir", $baseDir);
+		$result = $this->read("mailboxes/".$maiboxUid."/databaseBaseDir", $baseDir);
 		if (!$result)
 			return null;
 

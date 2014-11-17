@@ -5,10 +5,10 @@ include_once 'XMLProtocol.php';
 
 
 class MessageConst {
-	static public $kPutMessageStanza = "put_message";
+	static public $kPutMessageStanza = "putMessage";
 	static public $kMessageStanza = "message";
 	static public $kChannelStanza = "channel";
-	static public $kChannelInfoStanza = "channel_info";
+	static public $kChannelInfoStanza = "channelInfo";
 };
 
 
@@ -63,7 +63,7 @@ class MessageStanzaHandler extends InStanzaHandler {
 	}
 
 	public function handleStanza($xml) {
-		$this->receiver = $xml->getAttribute("server_user");
+		$this->receiver = $xml->getAttribute("serverUser");
 		if ($this->receiver == "")
 			return false;
 		
@@ -74,7 +74,7 @@ class MessageStanzaHandler extends InStanzaHandler {
 	private function putMessage() {
 		// login check, if not authenticated already return here
 		$roles = Session::Get()->getUserRoles();
-		if (!in_array($this->receiver.":contact_user", $roles)) {
+		if (!in_array($this->receiver.":contactUser", $roles)) {
 			$this->lastErrorMessage = "not authenticated";
 			return false;
 		}

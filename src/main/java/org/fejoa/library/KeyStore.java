@@ -19,17 +19,17 @@ import java.security.PublicKey;
 
 public class KeyStore {
 
-    final private String PATH_MASTER_KEY = "master_key";
-    final private String PATH_MASTER_KEY_IV = "master_key_iv";
-    final private String PATH_MASTER_PASSWORD_ALGORITHM = "master_password_algo";
-    final private String PATH_MASTER_PASSWORD_SALT = "master_password_salt";
-    final private String PATH_MASTER_PASSWORD_SIZE = "master_password_size";
-    final private String PATH_MASTER_PASSWORD_ITERATIONS = "master_password_iterations";
+    final private String PATH_MASTER_KEY = "masterKey";
+    final private String PATH_MASTER_KEY_IV = "masterKeyIV";
+    final private String PATH_MASTER_PASSWORD_ALGORITHM = "masterPasswordAlgo";
+    final private String PATH_MASTER_PASSWORD_SALT = "masterPasswordSalt";
+    final private String PATH_MASTER_PASSWORD_SIZE = "masterPasswordSize";
+    final private String PATH_MASTER_PASSWORD_ITERATIONS = "masterPasswordIterations";
 
-    final private String PATH_SYMMETRIC_KEY = "symmetric_key";
-    final private String PATH_SYMMETRIC_IV = "symmetric_iv";
-    final private String PATH_PRIVATE_KEY = "private_key";
-    final private String PATH_PUBLIC_KEY = "public_key";
+    final private String PATH_SYMMETRIC_KEY = "symmetricKey";
+    final private String PATH_SYMMETRIC_IV = "symmetricIV";
+    final private String PATH_PRIVATE_KEY = "privateKey";
+    final private String PATH_PUBLIC_KEY = "publicKey";
 
     private String uid;
     private StorageDir storageDir;

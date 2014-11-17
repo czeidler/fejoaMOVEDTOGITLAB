@@ -62,7 +62,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
         void onResult(RemoteConnectionJob.Result args);
     }
 
-    public final static String WATCH_BRANCHES_STANZA = "watch_branches";
+    public final static String WATCH_BRANCHES_STANZA = "watchBranches";
 
     private List<RemoteStorageLink> remoteStorageLinkList = new ArrayList<>();
     private IListener listener;
@@ -164,7 +164,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
             if (!watchHandler.hasBeenHandled())
                 return new Result(Result.ERROR);
 
-            if (watchHandler.status.equals("server_timeout")) {
+            if (watchHandler.status.equals("serverTimeout")) {
                 return new Result(Result.DONE, watchHandler.status);
             } else if (watchHandler.status.equals("update")) {
                 if (listener != null) {

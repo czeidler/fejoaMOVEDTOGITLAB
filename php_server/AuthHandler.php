@@ -6,7 +6,7 @@ include_once 'XMLProtocol.php';
 
 class AuthConst {
 	static public $kAuthStanza = "auth";
-	static public $kAuthSignedStanza = "auth_signed"; 
+	static public $kAuthSignedStanza = "authSigned"; 
 }
 
 
@@ -62,7 +62,7 @@ class AccountAuthStanzaHandler extends InStanzaHandler {
 		$outStream->pushStanza(new IqOutStanza(IqType::$kResult));
 		$stanza = new OutStanza(AuthConst::$kAuthStanza);
 		$stanza->addAttribute("status", "sign_this_token");
-		$stanza->addAttribute("sign_token", $signToken);
+		$stanza->addAttribute("signToken", $signToken);
 		$outStream->pushChildStanza($stanza);
 
 		$this->inStreamReader->appendResponse($outStream->flush());
@@ -196,7 +196,7 @@ class AccountAuthSignedStanzaHandler extends InStanzaHandler {
 			return false;
 		}
 		$loginServerUser = $this->serverUser;
-		$roles[] = $loginServerUser.":contact_user";
+		$roles[] = $loginServerUser.":contactUser";
 		
 		return true;
 	}

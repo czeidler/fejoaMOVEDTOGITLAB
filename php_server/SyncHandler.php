@@ -7,7 +7,7 @@ class SyncPullStanzaHandler extends InStanzaHandler {
 	private $inStreamReader;
 
 	public function __construct($inStreamReader) {
-		InStanzaHandler::__construct("sync_pull");
+		InStanzaHandler::__construct("syncPull");
 		$this->inStreamReader = $inStreamReader;
 	}
 
@@ -45,7 +45,7 @@ class SyncPullStanzaHandler extends InStanzaHandler {
 		$outStream = new ProtocolOutStream();
 		$outStream->pushStanza(new IqOutStanza(IqType::$kResult));
 
-		$stanza = new OutStanza("sync_pull");
+		$stanza = new OutStanza("syncPull");
 		$stanza->addAttribute("branch", $branch);
 		$localTipHex = "";
 		$remoteTipHex = "";
@@ -93,14 +93,14 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 	private $lastCommit;
 
 	public function __construct($inStreamReader) {
-		InStanzaHandler::__construct("sync_push");
+		InStanzaHandler::__construct("syncPush");
 		$this->inStreamReader = $inStreamReader;
 	}
 
 	public function handleStanza($xml) {
 		$this->branch = $xml->getAttribute("branch");
-		$this->startCommit = $xml->getAttribute("start_commit");
-		$this->lastCommit = $xml->getAttribute("last_commit");
+		$this->startCommit = $xml->getAttribute("startCommit");
+		$this->lastCommit = $xml->getAttribute("lastCommit");
 		$this->serverUser = $xml->getAttribute("serverUser");
 		
 		if ($this->branch === null || $this->startCommit === null || $this->lastCommit === null
@@ -148,7 +148,7 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 		$outStream = new ProtocolOutStream();
 		$outStream->pushStanza(new IqOutStanza(IqType::$kResult));
 
-		$stanza = new OutStanza("sync_push");
+		$stanza = new OutStanza("syncPush");
 		$stanza->addAttribute("branch", $this->branch);
 		$stanza->addAttribute("tip", $localTip);
 		$outStream->pushChildStanza($stanza);

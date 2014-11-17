@@ -38,7 +38,7 @@ class Sync extends RemoteConnectionJob {
         ProtocolOutStream outStream = new ProtocolOutStream();
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_GET);
         outStream.addElement(iqStanza);
-        Element syncStanza =  outStream.createElement("sync_pull");
+        Element syncStanza =  outStream.createElement("syncPull");
         syncStanza.setAttribute("serverUser", serverUser);
         syncStanza.setAttribute("branch", localBranch);
         syncStanza.setAttribute("base", lastSyncCommit);
@@ -119,11 +119,11 @@ class Push extends RemoteConnectionJob {
         ProtocolOutStream outStream = new ProtocolOutStream();
         Element iqStanza = outStream.createIqElement(ProtocolOutStream.IQ_SET);
         outStream.addElement(iqStanza);
-        Element pushStanza = outStream.createElement("sync_push");
+        Element pushStanza = outStream.createElement("syncPush");
         pushStanza.setAttribute("serverUser", serverUser);
         pushStanza.setAttribute("branch", localBranch);
-        pushStanza.setAttribute("start_commit", remoteTip);
-        pushStanza.setAttribute("last_commit", localTipCommit);
+        pushStanza.setAttribute("startCommit", remoteTip);
+        pushStanza.setAttribute("lastCommit", localTipCommit);
         iqStanza.appendChild(pushStanza);
 
         Element pushPackStanza = outStream.createElement("pack");
@@ -185,7 +185,7 @@ class SyncPullHandler extends InStanzaHandler {
     private SyncPullData data;
 
     public SyncPullHandler(SyncPullData syncPullData) {
-        super("sync_pull", false);
+        super("syncPull", false);
 
         this.data = syncPullData;
         SyncPullPackHandler syncPullPackHandler = new SyncPullPackHandler(data);

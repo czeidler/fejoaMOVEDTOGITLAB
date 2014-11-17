@@ -8,7 +8,7 @@ class KeyStore extends UserData {
 	}
 
 	public function readAsymmetricKey($keyId, &$publicKey) {
-		$ok = $this->read($keyId."/public_key", $publicKey);
+		$ok = $this->read($keyId."/publicKey", $publicKey);
 		if (!$ok)
 			return false;
 		return true;

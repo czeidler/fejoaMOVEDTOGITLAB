@@ -30,7 +30,7 @@ import java.util.List;
 
 public class SignatureAuthentication implements IAuthenticationRequest {
     final String AUTH_STANZA = "auth";
-    final String AUTH_SIGNED_STANZA = "auth_signed";
+    final String AUTH_SIGNED_STANZA = "authSigned";
 
     final ConnectionInfo connectionInfo;
 

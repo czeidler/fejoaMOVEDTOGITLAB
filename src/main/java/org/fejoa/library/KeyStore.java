@@ -9,6 +9,7 @@ package org.fejoa.library;
 
 
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.StorageDir;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;

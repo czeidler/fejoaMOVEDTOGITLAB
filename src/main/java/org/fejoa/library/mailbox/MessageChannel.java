@@ -10,7 +10,8 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.database.DatabaseDir;
+import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.SecureStorageDirBucket;
 
 import java.io.IOException;
 import java.security.PublicKey;
@@ -80,20 +81,20 @@ public class MessageChannel extends Channel {
     }
 
     public void write(SecureStorageDir dir, ContactPrivate sender, KeyId senderKey) throws CryptoException, IOException {
-        dir.writeString("signature_key", CryptoHelper.convertToPEM(signatureKeyPublic));
+        dir.writeString("signatureKey", CryptoHelper.convertToPEM(signatureKeyPublic));
         byte[] pack = pack(sender, senderKey, sender, senderKey);
         dir.writeBytes("d", pack);
-        dir.writeString("database_path", dir.getDatabase().getPath());
+        dir.writeString("databasePath", dir.getPath());
         dir.writeString("branchTip", getBranch().getTip());
     }
 
     private void load(SecureStorageDir dir, Mailbox mailbox)
             throws IOException, CryptoException {
-        PublicKey publicKey = CryptoHelper.publicKeyFromPem(dir.readString("signature_key"));
+        PublicKey publicKey = CryptoHelper.publicKeyFromPem(dir.readString("signatureKey"));
         byte[] data = dir.readBytes("d");
         load(mailbox.getUserIdentity(), publicKey, data);
 
-        String databasePath = dir.readString("database_path");
+        String databasePath = dir.readString("databasePath");
         SecureStorageDir messageStorage = SecureStorageDirBucket.get(databasePath, getBranchName());
 
         setBranch(MessageBranch.loadMessageBranch(messageStorage, mailbox, getParcelCrypto()));

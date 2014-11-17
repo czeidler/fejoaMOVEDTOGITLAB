@@ -5,10 +5,8 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library;
+package org.fejoa.library.database;
 
-import org.fejoa.library.database.DatabaseDiff;
-import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
@@ -22,7 +20,7 @@ public class StorageDir {
     final private String baseDir;
 
     public interface IListener {
-        void onNewCommit(DatabaseDiff diff, String base, String tip);
+        void onTipChanged(DatabaseDiff diff, String base, String tip);
     }
 
     public void addListener(IListener listener) {
@@ -36,9 +34,9 @@ public class StorageDir {
         final private IDatabaseInterface database;
         final private Map<String, byte[]> map = new HashMap<>();
 
-        private void notifyNewCommit(DatabaseDiff diff, String base, String tip) {
+        private void notifyTipChanged(DatabaseDiff diff, String base, String tip) {
             for (IListener listener : getListeners())
-                listener.onNewCommit(diff, base, tip);
+                listener.onTipChanged(diff, base, tip);
         }
 
         public StorageDirCache(IDatabaseInterface database) {
@@ -75,7 +73,7 @@ public class StorageDir {
                 String tip = getTip();
 
                 DatabaseDiff diff = getDatabase().getDiff(base, tip);
-                notifyNewCommit(diff, base, tip);
+                notifyTipChanged(diff, base, tip);
             }
         }
 
@@ -87,6 +85,20 @@ public class StorageDir {
         public List<String> listDirectories(String path) throws IOException {
             flush();
             return database.listDirectories(path);
+        }
+
+        public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
+            if (!map.isEmpty())
+                throw new IOException("cache must be empty before importing a pack!");
+
+            String base = database.getTip();
+
+            database.importPack(pack, lastSyncCommit, tip, format);
+
+            if (getListeners().size() > 0) {
+                DatabaseDiff diff = getDatabase().getDiff(base, tip);
+                notifyTipChanged(diff, base, tip);
+            }
         }
     }
 
@@ -103,7 +115,7 @@ public class StorageDir {
         this.cache = new StorageDirCache(database);
     }
 
-    public IDatabaseInterface getDatabase() {
+    private IDatabaseInterface getDatabase() {
         return cache.getDatabase();
     }
 
@@ -165,7 +177,32 @@ public class StorageDir {
     }
 
     public String getTip() throws IOException {
-        return cache.getDatabase().getTip();
+        return getDatabase().getTip();
     }
+
+    public String getPath() {
+        return getDatabase().getPath();
+    }
+
+    public String getBranch() {
+        return getDatabase().getBranch();
+    }
+
+    public String getLastSyncCommit(String remoteUid, String localBranch) throws IOException {
+        return getDatabase().getLastSyncCommit(remoteUid, localBranch);
+    }
+
+    public void updateLastSyncCommit(String remoteUid, String branch, String localTipCommit) throws IOException {
+        getDatabase().updateLastSyncCommit(remoteUid, branch, localTipCommit);
+    }
+
+    public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
+        cache.importPack(pack, lastSyncCommit, tip, format);
+    }
+
+    public byte[] exportPack(String lastSyncCommit, String localTipCommit, String remoteTip, int format) throws IOException {
+        return getDatabase().exportPack(lastSyncCommit, localTipCommit, remoteTip, format);
+    }
+
 }
 

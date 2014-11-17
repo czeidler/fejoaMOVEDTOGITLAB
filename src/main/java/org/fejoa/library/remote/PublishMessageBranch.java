@@ -166,12 +166,12 @@ public class PublishMessageBranch {
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 
-            String localTip = messageChannel.getBranch().getMessageStorage().getDatabase().getTip();
+            String localTip = messageChannel.getBranch().getMessageStorage().getTip();
             String remoteTip = result.getString("remoteTip");
             if (localTip.equals(remoteTip))
                 return new Result(Result.DONE, "branch in sync");
 
-            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage().getDatabase(),
+            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage(),
                     connectionInfo.serverUser, connectionInfo.getRemoteId()));
 
             return new Result(Result.DONE, getMessage(result));

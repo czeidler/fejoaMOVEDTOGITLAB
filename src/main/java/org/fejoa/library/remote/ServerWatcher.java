@@ -7,7 +7,6 @@
  */
 package org.fejoa.library.remote;
 
-import org.fejoa.library.INotifications;
 import org.fejoa.library.support.*;
 import org.w3c.dom.Element;
 import org.xml.sax.Attributes;
@@ -100,7 +99,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
             // The identities need to be synced before the mailboxes, e.g., it could happen that a new
             // contact sent a message, in case the identities are not synced first loading the message will
             // fail.
-            if (link.getDatabaseInterface().getBranch().equals("identities")) {
+            if (link.getLocalStorage().getBranch().equals("identities")) {
                 links.remove(link);
                 remoteStorageLinkList.add(0, link);
                 break;
@@ -124,7 +123,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
 
     private RemoteStorageLink findLink(String branch) {
         for (RemoteStorageLink link : remoteStorageLinkList) {
-            if (link.getDatabaseInterface().getBranch().equals(branch))
+            if (link.getLocalStorage().getBranch().equals(branch))
                 return link;
         }
         return null;
@@ -142,8 +141,8 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
 
             for (RemoteStorageLink link : remoteStorageLinkList) {
                 Element item =  outStream.createElement("branch");
-                item.setAttribute("branch", link.getDatabaseInterface().getBranch());
-                item.setAttribute("tip", link.getDatabaseInterface().getTip());
+                item.setAttribute("branch", link.getLocalStorage().getBranch());
+                item.setAttribute("tip", link.getLocalStorage().getTip());
                 watchStanza.appendChild(item);
             }
 

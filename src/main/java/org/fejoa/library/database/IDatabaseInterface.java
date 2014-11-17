@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.List;
 
 
-public interface IDatabaseInterface {
+interface IDatabaseInterface {
     public void init(String path, String branch, boolean create) throws IOException;
 
     public String getPath();

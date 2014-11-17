@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DatabaseFactory {
+class DatabaseFactory {
     static private Map<String, IDatabaseInterface> databaseMap = new HashMap<>();
 
     static public IDatabaseInterface getDatabaseFor(String path, String branch) throws IOException {

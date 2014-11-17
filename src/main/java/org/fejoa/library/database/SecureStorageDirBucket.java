@@ -5,9 +5,7 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library;
-
-import org.fejoa.library.database.JGitInterface;
+package org.fejoa.library.database;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,7 +28,7 @@ public class SecureStorageDirBucket {
 
     private SecureStorageDir getPrivate(String path, String branch) throws IOException {
         for (SecureStorageDir dir : secureStorageDirs) {
-            if (dir.getDatabase().getPath().equals(path) && dir.getDatabase().getBranch().equals(branch))
+            if (dir.getPath().equals(path) && dir.getBranch().equals(branch))
                 return dir;
         }
         // not found create one

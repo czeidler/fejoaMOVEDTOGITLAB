@@ -1,10 +1,8 @@
 package org.fejoa.library.mailbox;
 
-import org.fejoa.library.SecureStorageDir;
+import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.database.DatabaseFactory;
-import org.fejoa.library.database.IDatabaseInterface;
+import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
@@ -155,9 +153,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         }
 
         private String getLocalTip(String branch) throws IOException {
-            IDatabaseInterface database = DatabaseFactory.getDatabaseFor(
-                    mailbox.getStorageDir().getDatabase().getPath(), branch);
-            return database.getTip();
+            return SecureStorageDirBucket.get(mailbox.getStorageDir().getPath(), branch).getTip();
         }
 
         public String getRemoteTip(String branch) {

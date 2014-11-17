@@ -11,6 +11,8 @@ import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.database.DatabaseDir;
+import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.remote.ConnectionInfo;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
@@ -89,7 +91,7 @@ public class Mailbox extends UserData {
 
     private StorageDir.IListener storageListener = new StorageDir.IListener() {
         @Override
-        public void onNewCommit(DatabaseDiff diff, String base, String tip) {
+        public void onTipChanged(DatabaseDiff diff, String base, String tip) {
             DatabaseDir added = diff.added;
 
             // TODO maybe only watch the base dir?
@@ -136,7 +138,7 @@ public class Mailbox extends UserData {
             throws IOException, CryptoException {
         readUserData(storageDir, keyStoreFinder);
 
-        String userIdentityId = storageDir.readSecureString("user_identity");
+        String userIdentityId = storageDir.readSecureString("userIdentity");
         userIdentity = userIdentityFinder.find(userIdentityId);
 
         loadMessageChannels();
@@ -159,7 +161,7 @@ public class Mailbox extends UserData {
     }
 
     public MessageChannel createNewMessageChannel() throws CryptoException, IOException {
-        return new MessageChannel(getStorageDir().getDatabase().getPath(), this);
+        return new MessageChannel(getStorageDir().getPath(), this);
     }
 
     public MailboxBookkeeping getBookkeeping() {
@@ -191,7 +193,7 @@ public class Mailbox extends UserData {
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
         writeUserData(uid, storageDir);
 
-        this.storageDir.writeSecureString("user_identity", userIdentity.getUid());
+        this.storageDir.writeSecureString("userIdentity", userIdentity.getUid());
 
         if (bookkeeping == null)
             initBookkeeping();

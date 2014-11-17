@@ -178,7 +178,7 @@ public class MainWindow extends JDialog {
     }
 
     private void syncBranch(RemoteStorageLink remoteStorageLink) {
-        final String branch = remoteStorageLink.getDatabaseInterface().getBranch();
+        final String branch = remoteStorageLink.getLocalStorage().getBranch();
         ServerSync serverSync = new ServerSync(remoteStorageLink);
         serverSync.sync().subscribe(new Observer<RemoteConnectionJob.Result>() {
             @Override

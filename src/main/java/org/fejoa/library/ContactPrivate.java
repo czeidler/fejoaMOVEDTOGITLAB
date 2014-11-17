@@ -10,6 +10,7 @@ package org.fejoa.library;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.database.SecureStorageDir;
 
 import java.io.IOException;
 import java.security.KeyPair;

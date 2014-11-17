@@ -9,6 +9,7 @@ package org.fejoa.library;
 
 
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.SecureStorageDir;
 
 import java.io.File;
 import java.io.FileWriter;

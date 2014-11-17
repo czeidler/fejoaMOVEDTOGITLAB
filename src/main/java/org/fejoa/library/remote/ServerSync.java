@@ -8,7 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.eclipse.jgit.util.Base64;
-import org.fejoa.library.database.IDatabaseInterface;
+import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.support.*;
 import org.w3c.dom.Element;
 import org.xml.sax.Attributes;
@@ -20,11 +20,11 @@ import java.io.IOException;
  * Starts with a pull and add a push if necessary
  */
 class Sync extends RemoteConnectionJob {
-    final private IDatabaseInterface database;
+    final private StorageDir database;
     final private String serverUser;
     final private String remoteUid;
 
-    public Sync(IDatabaseInterface database, String serverUser, String remoteUid) {
+    public Sync(StorageDir database, String serverUser, String remoteUid) {
         this.database = database;
         this.serverUser = serverUser;
         this.remoteUid = remoteUid;
@@ -92,12 +92,12 @@ class Sync extends RemoteConnectionJob {
 }
 
 class Push extends RemoteConnectionJob {
-    final private IDatabaseInterface database;
+    final private StorageDir database;
     final private String serverUser;
     final private String remoteUid;
     final private String remoteTip;
 
-    public Push(IDatabaseInterface database, String serverUser, String remoteUid, String remoteTip) {
+    public Push(StorageDir database, String serverUser, String remoteUid, String remoteTip) {
         this.database = database;
         this.serverUser = serverUser;
         this.remoteUid = remoteUid;
@@ -214,7 +214,7 @@ public class ServerSync {
     }
 
     public Observable<RemoteConnectionJob.Result> sync() {
-        final Sync sync = new Sync(remoteStorageLink.getDatabaseInterface(),
+        final Sync sync = new Sync(remoteStorageLink.getLocalStorage(),
                 remoteStorageLink.getConnectionInfo().serverUser, remoteStorageLink.getUid());
 
         final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(

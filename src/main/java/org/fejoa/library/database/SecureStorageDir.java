@@ -5,13 +5,13 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library;
+package org.fejoa.library.database;
 
+import org.fejoa.library.KeyId;
+import org.fejoa.library.KeyStore;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.ICryptoInterface;
-import org.fejoa.library.database.DatabaseFactory;
-import org.fejoa.library.database.IDatabaseInterface;
 
 import java.io.IOException;
 

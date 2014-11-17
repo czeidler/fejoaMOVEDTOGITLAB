@@ -11,7 +11,7 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
-import org.fejoa.library.SecureStorageDirBucket;
+import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.mailbox.*;
 import org.fejoa.library.support.StorageLib;

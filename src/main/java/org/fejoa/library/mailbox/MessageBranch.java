@@ -11,6 +11,8 @@ import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.database.DatabaseDir;
+import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
@@ -46,7 +48,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
 
     private StorageDir.IListener storageListener = new StorageDir.IListener() {
         @Override
-        public void onNewCommit(DatabaseDiff diff, String base, String tip) {
+        public void onTipChanged(DatabaseDiff diff, String base, String tip) {
             DatabaseDir added = diff.added;
             List<DatabaseDir> firstParts = added.getDirectories();
             for (DatabaseDir messageDir : firstParts) {
@@ -78,7 +80,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     }
 
     public String getTip() throws IOException {
-        return messageStorage.getDatabase().getTip();
+        return messageStorage.getTip();
     }
 
     public void commit() throws IOException {

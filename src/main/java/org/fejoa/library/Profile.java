@@ -8,7 +8,9 @@
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.database.IDatabaseInterface;
+import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.remote.RemoteStorageLink;
 
@@ -24,7 +26,7 @@ public class Profile extends UserData {
     final private List<KeyStore> keyStoreList = new ArrayList<>();
     final private List<UserIdentity> userIdentityList = new ArrayList<>();
     final private List<Mailbox> mailboxList = new ArrayList<>();
-    final private Map<IDatabaseInterface, RemoteStorageLink> remoteStorageLinks = new HashMap<>();
+    final private Map<StorageDir, RemoteStorageLink> remoteStorageLinks = new HashMap<>();
     private UserIdentity mainUserIdentity = null;
     private Mailbox mainMailbox = null;
 
@@ -49,7 +51,7 @@ public class Profile extends UserData {
         this.storageDir = new SecureStorageDir(storageDir, baseDir, true);
     }
 
-    public Map<IDatabaseInterface, RemoteStorageLink> getRemoteStorageLinks() {
+    public Map<StorageDir, RemoteStorageLink> getRemoteStorageLinks() {
         return remoteStorageLinks;
     }
 
@@ -67,7 +69,7 @@ public class Profile extends UserData {
 
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
-        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getPath(),
                 "key_stores");
         keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
@@ -78,7 +80,7 @@ public class Profile extends UserData {
         storageDir.setTo(keyStore, keyId);
 
         UserIdentity userIdentity = new UserIdentity();
-        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getPath(),
                 "user_identities");
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
         userIdDir.setTo(keyStore, keyId);
@@ -88,7 +90,7 @@ public class Profile extends UserData {
         storageDir.writeSecureString("main_user_identity", mainUserIdentity.getUid());
 
         Mailbox mailbox = new Mailbox(mainUserIdentity);
-        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getDatabase().getPath(),
+        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getPath(),
                 "mailboxes");
         SecureStorageDir mailboxDir = new SecureStorageDir(mailboxesBranch, mailbox.getUid());
         mailboxDir.setTo(keyStore, keyId);
@@ -98,11 +100,11 @@ public class Profile extends UserData {
         storageDir.writeString("main_mailbox", mainMailbox.getUid());
 
         // ourself
-        addAndWriteRemoteStorageLink(storageDir.getDatabase(), userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(storageDir, userIdentity.getMyself());
         // other branches
-        addAndWriteRemoteStorageLink(keyStoreBranch.getDatabase(), userIdentity.getMyself());
-        addAndWriteRemoteStorageLink(userIdBranch.getDatabase(), userIdentity.getMyself());
-        addAndWriteRemoteStorageLink(mailboxDir.getDatabase(), userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(keyStoreBranch, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(userIdBranch, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(mailboxDir, userIdentity.getMyself());
 
         writeUserData(uid, storageDir);
     }
@@ -193,14 +195,14 @@ public class Profile extends UserData {
         mailboxList.add(mailbox);
     }
 
-    private void addAndWriteRemoteStorageLink(IDatabaseInterface databaseInterface, ContactPrivate myself)
+    private void addAndWriteRemoteStorageLink(StorageDir localStorage, ContactPrivate myself)
             throws IOException, CryptoException {
-        if (remoteStorageLinks.containsKey(databaseInterface))
+        if (remoteStorageLinks.containsKey(localStorage))
             return;
         RemoteStorageLink remoteStorageLink = new RemoteStorageLink(new SecureStorageDir(storageDir, "remotes"),
-                databaseInterface, myself);
+                localStorage, myself);
         remoteStorageLink.write();
-        remoteStorageLinks.put(databaseInterface, remoteStorageLink);
+        remoteStorageLinks.put(localStorage, remoteStorageLink);
     }
 
     private void loadKeyStores() throws IOException {
@@ -243,7 +245,7 @@ public class Profile extends UserData {
         for (String uidPath : remoteUids) {
             SecureStorageDir linkDir = new SecureStorageDir(storageDir, baseDir + "/" + uidPath);
             RemoteStorageLink link = new RemoteStorageLink(linkDir, mainUserIdentity.getMyself());
-            remoteStorageLinks.put(link.getDatabaseInterface(), link);
+            remoteStorageLinks.put(link.getLocalStorage(), link);
         }
     }
 
@@ -270,9 +272,8 @@ public class Profile extends UserData {
     }
 
     private void writeRef(String path, StorageDir refTarget) throws IOException {
-        IDatabaseInterface databaseInterface = refTarget.getDatabase();
-        storageDir.writeString(path + "database_path", databaseInterface.getPath());
-        storageDir.writeString(path + "database_branch", databaseInterface.getBranch());
+        storageDir.writeString(path + "database_path", refTarget.getPath());
+        storageDir.writeString(path + "database_branch", refTarget.getBranch());
         storageDir.writeString(path + "database_base_dir", refTarget.getBaseDir());
     }
 

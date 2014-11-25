@@ -69,7 +69,7 @@ public class MessageChannel extends Channel {
     }
 
     private void onBranchCommit() throws IOException, CryptoException {
-        mailbox.onBranchCommited(this);
+        mailbox.onBranchCommitted(this);
     }
 
     public byte[] sharePack(ContactPrivate sender, KeyId senderKey, Contact receiver, KeyId receiverKey) throws CryptoException, IOException {

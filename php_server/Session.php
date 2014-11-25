@@ -47,12 +47,7 @@ class Session {
 			if (!file_exists($user))
 				return null;
 		}
-		$database = new GitDatabase($user."/.git");
-
-		$databasePath = $user."/.git";
-		if (!file_exists($databasePath))
-			return null;
-		return new GitDatabase($databasePath);
+		return new GitDatabase($user."/.git");
 	}
 
 	public function getProfile($serverUser) {
@@ -95,6 +90,11 @@ class Session {
 		$_SESSION['account_user'] = $user;
 	}
 
+	public function isAccountUser() {
+		$accountUser = Session::get()->getAccountUser();
+		return $accountUser != "";
+	}
+
 	public function addTransaction($transaction) {
 		if (!isset($_SESSION['transactions']))
 			$_SESSION['transactions'] = array();
@@ -133,10 +133,6 @@ class Session {
 		if (!isset($_SESSION['user_roles']))
 			return array();
 		return $_SESSION['user_roles'];
-	}
-
-	public function isAccountUser() {
-		return in_array("account", $this->getUserRoles());
 	}
 }
 

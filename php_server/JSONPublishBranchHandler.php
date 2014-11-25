@@ -115,6 +115,8 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 
 			$messageChannel->setChannelInfo(url_decode($params['channelHeader']));
 			$messageChannel->setSignatureKey($params['channelSignatureKey']);
+			if (!$messageChannel->commit())
+				return $this->makeError($jsonId, "failed to write channel");
 
 			Session::get()->addBranchAccess($branchAccessToken);
 		} else if (!Session::get()->hasBranchAccess($branchAccessToken)) {
@@ -131,8 +133,7 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 			Session::get()->addBranchAccess($branchAccessToken);
 		}
 
-		$databaseDir = $transaction->serverUser."/".$messageChannel->getDatabaseDir();
-		$database = new GitDatabase($databaseDir);
+		$database = new GitDatabase($messageChannel->getDatabaseDir());
 		$tip = $database->getBranchTip($branch);
 
 		// reply

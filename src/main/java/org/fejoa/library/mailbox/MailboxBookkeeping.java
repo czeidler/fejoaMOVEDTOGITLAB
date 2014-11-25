@@ -1,14 +1,3 @@
-package org.fejoa.library.mailbox;
-
-import org.fejoa.library.database.SecureStorageDir;
-import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.database.SecureStorageDirBucket;
-import org.fejoa.library.support.WeakListenable;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 /*
  * Copyright 2014.
  * Distributed under the terms of the GPLv3 License.
@@ -16,6 +5,20 @@ import java.util.List;
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
+package org.fejoa.library.mailbox;
+
+import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.remote.ConnectionInfo;
+import org.fejoa.library.support.WeakListenable;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import java.util.Map;
 
 
@@ -53,8 +56,8 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
      */
     public List<String> getAllDirtyBranches() {
         List<String> dirtyBranches = new ArrayList<>();
-        for (String remote : dirtyRemotes.keySet()) {
-            DirtyRemote dirtyRemote = dirtyRemotes.get(remote);
+        for (String remoteId : dirtyRemotes.keySet()) {
+            DirtyRemote dirtyRemote = dirtyRemotes.get(remoteId);
             for (String branch : dirtyRemote.getDirtyBranches()) {
                 if (!dirtyBranches.contains(branch))
                     dirtyBranches.add(branch);
@@ -63,12 +66,13 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         return dirtyBranches;
     }
 
-    public void markAsDirty(String remoteId, String branch) throws IOException {
+    public void markAsDirty(String remote, String branch) throws IOException {
         DirtyRemote dirtyRemote;
+        String remoteId = CryptoHelper.sha1HashHex(remote);
         if (dirtyRemotes.containsKey(remoteId))
             dirtyRemote = dirtyRemotes.get(remoteId);
         else {
-            dirtyRemote = new DirtyRemote(remoteId);
+            dirtyRemote = new DirtyRemote(remote);
             dirtyRemotes.put(remoteId, dirtyRemote);
         }
         dirtyRemote.markAsDirty(branch);
@@ -88,10 +92,10 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         final private List<String> dirtyBranches;
         final private SecureStorageDir dirtyRemoteDir;
 
-        public DirtyRemote(String remoteHash) {
-            this.remoteId = remoteHash;
+        public DirtyRemote(String remote) {
+            this.remoteId = ConnectionInfo.getRemoteId(remote);
 
-            dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteHash);
+            dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteId);
             dirtyBranches = readDirtyBranches();
         }
 
@@ -200,5 +204,17 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
         if (dirtyRemotes.size() > 0)
             notifyDirtyBranches();
+    }
+
+    public void commit() throws IOException {
+        baseDir.commit();
+    }
+
+    public String getMailboxTip() {
+        try {
+            return baseDir.readString("mailboxTip");
+        } catch (IOException e) {
+            return "";
+        }
     }
 }

@@ -67,8 +67,10 @@ class Sync extends RemoteConnectionJob {
             throw new IOException("invalid server response");
 
         String remoteTip = syncPullData.tip;
-        if (remoteTip.equals(localTipCommit))
-            return new Result(Result.DONE, "was synced");
+        if (remoteTip.equals(localTipCommit)) {
+            return new Result(Result.DONE, new SyncResultData(remoteUid, database.getBranch(), localTipCommit),
+                    "was synced");
+        }
 
         // see if the server is ahead by checking if we got packages
         if (syncPullData.pack != null && syncPullData.pack.length > 0) {

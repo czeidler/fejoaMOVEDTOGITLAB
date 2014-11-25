@@ -38,8 +38,16 @@ public class CryptoHelper {
         return toHex(sha1Hash(data));
     }
 
+    static public String sha1HashHex(String data) {
+        return sha1HashHex(data.getBytes());
+    }
+
     static public String sha256HashHex(byte data[]) {
         return toHex(sha256Hash(data));
+    }
+
+    static public String sha256HashHex(String data) {
+        return sha256HashHex(data.getBytes());
     }
 
     static public byte[] sha1Hash(byte data[]) {

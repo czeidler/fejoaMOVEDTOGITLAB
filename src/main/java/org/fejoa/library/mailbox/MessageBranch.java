@@ -51,11 +51,14 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         public void onTipChanged(DatabaseDiff diff, String base, String tip) {
             DatabaseDir added = diff.added;
             List<DatabaseDir> firstParts = added.getDirectories();
-            for (DatabaseDir messageDir : firstParts) {
-                List<String> messageList = messageDir.getFiles();
-                for (String messageName : messageList) {
+            for (DatabaseDir firstPart : firstParts) {
+                List<String> secondParts = firstPart.getFiles();
+                for (String secondPart : secondParts) {
+                    String firstPartName = firstPart.getDirName();
+                    if (isMessageInList(firstPartName + secondPart))
+                        continue;
                     try {
-                        byte[] pack = messageStorage.readBytes(messageDir.getDirName() + "/" + messageName);
+                        byte[] pack = messageStorage.readBytes(firstPartName + "/" + secondPart);
                         Message message = new Message();
                         message.load(parcelCrypto, identity, pack);
 
@@ -67,6 +70,14 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
             }
         }
     };
+
+    private boolean isMessageInList(String messageUid) {
+        for (Message message : messages) {
+            if (message.getUid().equals(messageUid))
+                return true;
+        }
+        return false;
+    }
 
     private MessageBranch(SecureStorageDir messageStorage, Mailbox mailbox, ParcelCrypto parcelCrypto)
             throws IOException,
@@ -141,10 +152,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     private void loadMessages() throws IOException {
         List<String> firstParts = messageStorage.listDirectories("");
         for (String firstPart : firstParts) {
-            List<String> messageList = messageStorage.listFiles(firstPart);
-            for (String messageName : messageList) {
+            List<String> secondParts = messageStorage.listFiles(firstPart);
+            for (String secondPart : secondParts) {
                 try {
-                    byte[] pack = messageStorage.readBytes(firstPart + "/" + messageName);
+                    byte[] pack = messageStorage.readBytes(firstPart + "/" + secondPart);
                     Message message = new Message();
                     message.load(parcelCrypto, identity, pack);
 

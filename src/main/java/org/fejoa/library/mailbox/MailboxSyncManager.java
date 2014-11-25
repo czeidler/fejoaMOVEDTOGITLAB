@@ -11,7 +11,9 @@ import org.fejoa.library.INotifications;
 import org.fejoa.library.remote.PublishMessageBranch;
 import org.fejoa.library.remote.RemoteConnectionJob;
 import org.fejoa.library.remote.SyncResultData;
+import rx.Observable;
 import rx.Observer;
+import rx.util.functions.Func1;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.List;
 public class MailboxSyncManager {
     final private Mailbox mailbox;
     final INotifications notifications;
+    private SyncCookie syncCookie = null;
 
     // keep a reference of the listener!
     private MailboxBookkeeping.IListener listener = new MailboxBookkeeping.IListener() {
@@ -36,68 +39,85 @@ public class MailboxSyncManager {
         sync();
     }
 
-    // TODO: add mechanism that only syncs again when old sync jobs have returned
+    class SyncCookie {
+        final public int nJobs;
+        public int jobDone = 0;
+        public boolean bookkeepingNeedsCommit = false;
+
+        public SyncCookie(int nJobs) {
+            this.nJobs = nJobs;
+        }
+    }
+
     private void sync() {
+        if (syncCookie != null)
+            return;
+
         MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
         List<String> dirtyBranches = bookkeeping.getAllDirtyBranches();
+        syncCookie = new SyncCookie(dirtyBranches.size());
         for (String branch : dirtyBranches) {
             Mailbox.MessageChannelRef ref = mailbox.getMessageChannel(branch);
-            ref.get().subscribe(new Observer<MessageChannel>() {
+            ref.get().mapMany(new Func1<MessageChannel, Observable<RemoteConnectionJob.Result>>() {
+                @Override
+                public Observable<RemoteConnectionJob.Result> call(MessageChannel messageChannel) {
+                    PublishMessageBranch publishMessageBranch = new PublishMessageBranch(messageChannel);
+                    return publishMessageBranch.publish();
+                }
+            }).subscribe(new Observer<RemoteConnectionJob.Result>() {
                 @Override
                 public void onCompleted() {
-                    MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
-                    if (bookkeeping.getAllDirtyBranches().size() == 0) {
-                        try {
-                            bookkeeping.commit(mailbox.getStorageDir().getTip());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
+                    syncCookie.jobDone++;
+                    checkSyncDone();
                 }
 
                 @Override
                 public void onError(Throwable e) {
+                    notifications.error(e.getMessage());
 
+                    syncCookie.jobDone++;
+                    checkSyncDone();
                 }
 
                 @Override
-                public void onNext(MessageChannel args) {
-                    syncMessageChannel(args);
+                public void onNext(RemoteConnectionJob.Result result) {
+                    if (result.status < RemoteConnectionJob.Result.DONE)
+                        notifications.error(result.message);
+                    else {
+                        notifications.info(result.message);
+
+                        if (result.hasData() && result.data instanceof SyncResultData) {
+                            SyncResultData syncResultData = (SyncResultData) result.data;
+                            MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
+                            try {
+                                bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch);
+                                syncCookie.bookkeepingNeedsCommit = true;
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
                 }
             });
         }
     }
 
-    private void syncMessageChannel(MessageChannel messageChannel) {
-        PublishMessageBranch publishMessageBranch = new PublishMessageBranch(messageChannel);
-        publishMessageBranch.publish().subscribe(new Observer<RemoteConnectionJob.Result>() {
-            @Override
-            public void onCompleted() {
-            }
+    private void checkSyncDone() {
+        if (syncCookie.jobDone < syncCookie.nJobs)
+            return;
 
-            @Override
-            public void onError(Throwable e) {
-                notifications.error(e.getMessage());
-            }
-
-            @Override
-            public void onNext(RemoteConnectionJob.Result result) {
-                if (result.status < RemoteConnectionJob.Result.DONE)
-                    notifications.error(result.message);
-                else {
-                    notifications.info(result.message);
-
-                    if (result.hasData() && result.data instanceof SyncResultData) {
-                        SyncResultData syncResultData = (SyncResultData)result.data;
-                        MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
-                        try {
-                            bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
+        if (syncCookie.bookkeepingNeedsCommit) {
+            MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
+            if (bookkeeping.getAllDirtyBranches().size() == 0) {
+                try {
+                    bookkeeping.commit();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-        });
+        }
+
+        syncCookie = null;
+        sync();
     }
 }

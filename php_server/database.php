@@ -115,26 +115,31 @@ class TreeBuilder {
 
 
 class GitDatabase extends Git {
-	public $dir;
+	public $relativePath;
 	private $currentRootTree = null;
 
 	public function __construct($repoPath) {
-        $this->dir = $repoPath;
+		$this->relativePath = $repoPath;
 		$this->init();
-        Git::__construct($repoPath);
+		Git::__construct($repoPath);
     }
 
+    public function getRelativePath() {
+		return $this->relativePath;
+    }
+   
 	private function init() {
-		if (file_exists($this->dir))
+		if (file_exists($this->relativePath))
 			return false;
-		mkdir($this->dir);
-		mkdir($this->dir."/objects");
-		mkdir($this->dir."/objects/pack");
-		mkdir($this->dir."/refs");
-		mkdir($this->dir."/refs/heads/");
+		mkdir($this->relativePath);
+		
+		mkdir($this->relativePath."/objects");
+		mkdir($this->relativePath."/objects/pack");
+		mkdir($this->relativePath."/refs");
+		mkdir($this->relativePath."/refs/heads/");
 
 		# set HEAD to master branch
-		$f = fopen($this->dir."/HEAD", 'cb');
+		$f = fopen($this->relativePath."/HEAD", 'cb');
 		flock($f, LOCK_EX);
 		ftruncate($f, 0);
 		$data = "ref: refs/heads/master";

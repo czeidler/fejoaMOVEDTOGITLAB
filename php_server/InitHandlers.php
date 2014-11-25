@@ -75,6 +75,8 @@ class InitHandlers {
 		// json
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
+		initContactRequestStanzaHandlerJson($JSONDispatcher);
+			// in case we need to contact a user on the same server
 	}
 
 	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {

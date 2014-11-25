@@ -136,7 +136,7 @@ class SyncPushStanzaHandler extends InStanzaHandler {
 
 		// if somebody else sent us the branch update the tip in the mailbox so that the client
 		// finds out about the new update
-		if (!Session::get()->isAccountUser()) {
+		if (Session::get()->getAccountUser() != $this->serverUser) {
 			$mailbox = Session::get()->getMainMailbox($this->serverUser);
 			if ($mailbox != null) {
 				if ($mailbox->updateChannelTip($this->branch, $localTip))

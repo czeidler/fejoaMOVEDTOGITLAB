@@ -71,7 +71,7 @@ public class Mailbox extends UserData {
                 public Subscription onSubscribe(Observer<? super MessageChannel> observer) {
                     MessageChannel channel = null;
                     try {
-                        channel = loadMessageChannel(channelUid);
+                        channel = getNow();
                     } catch (Exception e) {
                         observer.onError(e);
                     }
@@ -83,6 +83,10 @@ public class Mailbox extends UserData {
             });
         }
 
+        public MessageChannel getNow() throws IOException, CryptoException {
+            return loadMessageChannel(channelUid);
+        }
+
         @Override
         public MessageChannel getCached() {
             return messageChannelCache.get(channelUid);
@@ -92,38 +96,58 @@ public class Mailbox extends UserData {
     private StorageDir.IListener storageListener = new StorageDir.IListener() {
         @Override
         public void onTipChanged(DatabaseDiff diff, String base, String tip) {
-            DatabaseDir added = diff.added;
+            updateBookkeeping(diff, base, tip);
+        }
+    };
 
-            // TODO maybe only watch the base dir?
-            DatabaseDir baseDir = added.findDirectory(storageDir.getBaseDir());
+    private void updateBookkeeping(DatabaseDiff diff, String base, String tip) {
+        boolean somethingDirty = false;
+        String bookkeepingMailboxTip = bookkeeping.getMailboxTip();
+        if (bookkeepingMailboxTip.equals(""))
+            somethingDirty = true;
+        else if (!bookkeepingMailboxTip.equals(base))
+            throw new RuntimeException("TODO: handle this case!");
 
-            List<DatabaseDir> part1List = baseDir.getDirectories();
-            for (DatabaseDir part1 : part1List) {
-                for (DatabaseDir part2 : baseDir.findDirectory(part1.getDirName()).getDirectories()) {
-                    String channelId = part1.getDirName() + part2.getDirName();
-                    if (!hasChannel(channelId))
-                        addChannelToList(new MessageChannelRef(channelId));
-                    else {
-                        MessageChannelRef ref = getMessageChannel(channelId);
-                        MessageChannel channel = ref.getCached();
-                        if (channel == null) // not in use no need to update
-                            continue;
+        DatabaseDir added = diff.added;
 
-                        if (part2.getFiles().contains("branchTip")) {
-                            SecureStorageDir channelDir = getChannelStorageDir(channel.getBranchName());
-                            try {
-                                String branchTip = channelDir.readString("branchTip");
-                                bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchTip);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
+        // TODO maybe only watch the base dir?
+        DatabaseDir baseDir = added.findDirectory(storageDir.getBaseDir());
+        if (baseDir == null)
+            return;
+        List<DatabaseDir> part1List = baseDir.getDirectories();
+        for (DatabaseDir part1 : part1List) {
+            for (DatabaseDir part2 : baseDir.findDirectory(part1.getDirName()).getDirectories()) {
+                String channelId = part1.getDirName() + part2.getDirName();
+                if (!hasChannel(channelId))
+                    addChannelToList(new MessageChannelRef(channelId));
+                else {
+                    MessageChannelRef ref = getMessageChannel(channelId);
+                    MessageChannel channel;
+                    try {
+                        channel = ref.getNow();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        continue;
+                    }
 
+                    String branchName = channel.getBranchName();
+                    try {
+                        bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchName);
+                        somethingDirty = true;
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
             }
         }
-    };
+
+        try {
+            if (somethingDirty)
+                bookkeeping.commit(tip);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     // create new
     public Mailbox(UserIdentity userIdentity) throws IOException, CryptoException {
@@ -150,6 +174,13 @@ public class Mailbox extends UserData {
 
     private void initBookkeeping() throws IOException, CryptoException {
         bookkeeping = new MailboxBookkeeping(".gitMailboxBookkeeping", this);
+
+        String bookkeepingMailboxTip = bookkeeping.getMailboxTip();
+        String mailBoxTip = storageDir.getTip();
+        if (!mailBoxTip.equals(bookkeepingMailboxTip) && !mailBoxTip.equals("")) {
+            DatabaseDiff diff = storageDir.getDiff(bookkeepingMailboxTip, mailBoxTip);
+            updateBookkeeping(diff, bookkeepingMailboxTip, mailBoxTip);
+        }
     }
 
     public void startSyncing(INotifications notifications) {
@@ -174,12 +205,6 @@ public class Mailbox extends UserData {
 
     public MessageChannelRef getMessageChannel(int index) {
         return messageChannels.get(index);
-    }
-
-    @Override
-    public void commit() throws IOException {
-        super.commit();
-        bookkeeping.commit(getStorageDir().getTip());
     }
 
     public MessageChannelRef getMessageChannel(String branchName) {
@@ -230,22 +255,22 @@ public class Mailbox extends UserData {
     }
 
     public void addMessageChannel(MessageChannel messageChannel) throws CryptoException, IOException {
-        String branchName = messageChannel.getBranchName();
-        SecureStorageDir dir = getChannelStorageDir(branchName);
+        final String branchName = messageChannel.getBranchName();
+        final SecureStorageDir dir = getChannelStorageDir(branchName);
 
-        ContactPrivate myself = userIdentity.getMyself();
+        final ContactPrivate myself = userIdentity.getMyself();
         messageChannel.write(dir, myself, myself.getMainKeyId());
         dir.writeString("branchTip", messageChannel.getBranch().getTip());
         messageChannelCache.put(branchName, messageChannel);
     }
 
-    public void onBranchCommited(MessageChannel channel) throws IOException, CryptoException {
-        String branchName = channel.getBranchName();
-        SecureStorageDir dir = getChannelStorageDir(branchName);
+    public void onBranchCommitted(MessageChannel channel) throws IOException, CryptoException {
+        final String branchName = channel.getBranchName();
+        final SecureStorageDir dir = getChannelStorageDir(branchName);
         dir.writeString("branchTip", channel.getBranch().getTip());
 
         for (MessageBranchInfo.Participant participant : channel.getBranch().getMessageBranchInfo().getParticipants())
-            bookkeeping.markAsDirty(ConnectionInfo.getRemoteId(participant.address), branchName);
+            bookkeeping.markAsDirty(participant.address, branchName);
     }
 
     private void addChannelToList(MessageChannelRef messageChannelRef) {

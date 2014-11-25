@@ -196,6 +196,10 @@ public class StorageDir {
         getDatabase().updateLastSyncCommit(remoteUid, branch, localTipCommit);
     }
 
+    public DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException {
+        return getDatabase().getDiff(baseCommit, endCommit);
+    }
+
     public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
         cache.importPack(pack, lastSyncCommit, tip, format);
     }

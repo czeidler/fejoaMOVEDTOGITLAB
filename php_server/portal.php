@@ -4,6 +4,11 @@ session_start();
 ini_set('display_startup_errors',1);
 ini_set('display_errors',1);
 error_reporting(-1);
+function exception_error_handler($errno, $errstr, $errfile, $errline ) {
+	debug_print_backtrace();
+	throw new ErrorException($errstr, $errno, 0, $errfile, $errline);
+}
+set_error_handler("exception_error_handler");
 
 include_once 'Crypt/DiffieHellman.php';
 include_once 'phpseclib0.3.5/Crypt/AES.php';

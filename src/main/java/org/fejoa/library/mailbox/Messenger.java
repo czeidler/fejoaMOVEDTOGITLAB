@@ -26,7 +26,7 @@ public class Messenger {
         MessageBranchInfo branchInfo = new MessageBranchInfo();
         branchInfo.setSubject(subject);
         Contact myself = mailbox.getUserIdentity().getMyself();
-//        branchInfo.addParticipant(myself.getAddress(), myself.getUid());
+        branchInfo.addParticipant(myself.getAddress(), myself.getUid());
         for (String receiver : receivers)
             branchInfo.addParticipant(receiver, "");
 

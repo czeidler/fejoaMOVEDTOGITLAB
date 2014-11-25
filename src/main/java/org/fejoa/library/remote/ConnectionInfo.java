@@ -31,6 +31,6 @@ public class ConnectionInfo {
     }
 
     static public String getRemoteId(String address) {
-        return CryptoHelper.sha1HashHex(address.getBytes());
+        return CryptoHelper.sha1HashHex(address);
     }
 }

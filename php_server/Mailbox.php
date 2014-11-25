@@ -12,14 +12,17 @@ class SignedPackage {
 }
 
 class MessageChannel extends UserData {
+	private $mailbox;
 	private $channelUid;
 	private $signatureKey;
 
 	public function __construct($mailbox, $channelUid) {
+		$this->mailbox = $mailbox;
+
 		$channelPath = $mailbox->getDirectory()."/".sprintf('%s/%s', substr($channelUid, 0, 2), substr($channelUid, 2));
 		parent::__construct($mailbox->getDatabase(), $mailbox->getBranch(), $channelPath);
 
-		$this->$channelUid = $channelUid;
+		$this->channelUid = $channelUid;
 		$this->read("signatureKey", $this->signatureKey);
 	}
 
@@ -33,7 +36,7 @@ class MessageChannel extends UserData {
 
 	public function setChannelInfo($infoPack) {
 		$this->write("d", $infoPack);
-		$this->write("databasePath", $this->getDatabase()->dir);
+		$this->write("databasePath", $this->getDatabase()->getRelativePath());
 	}
 
 	public function getDatabaseDir() {
@@ -41,6 +44,10 @@ class MessageChannel extends UserData {
 		if (!$this->read("databasePath", $databaseDir))
 			return null;
 		return $databaseDir;
+	}
+
+	public function commit() {
+		return $this->mailbox->commit();
 	}
 }
 
@@ -91,7 +98,7 @@ class Mailbox extends UserData {
 	}
 
 	public function hasChannel($channelId) {
-		$path = $this->pathForChannelId($channelId);
+		$path = $this->pathForChannelId($channelId)."/d";
 		$data;
 		$result = $this->read($path, $data);
 		if (!$result)
@@ -100,8 +107,6 @@ class Mailbox extends UserData {
 	}
 
 	public function updateChannelTip($channelId, $tip) {
-		if (!$this->hasChannel($channelId))
-			return false;
 		$path = $this->pathForChannelId($channelId)."/branchTip";
 		// don't update if we are already up to date
 		$oldTip;
@@ -127,7 +132,7 @@ class Mailbox extends UserData {
 	}
 
 	private function pathForChannelId($channelId) {
-		return $this->dirForChannelId($channelId)."/r";
+		return $this->dirForChannelId($channelId);
 	}
 	
 	private function dirForChannelId($channelId) {

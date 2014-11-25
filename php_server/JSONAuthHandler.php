@@ -133,7 +133,7 @@ class JSONAuthSignedHandler extends JSONHandler {
 			return false;
 		}
 		Session::get()->setAccountUser($this->serverUser);
-		$roles[] =  "account";
+		$roles[] =  "account:".$this->serverUser;
 		return true;
 	}
 
@@ -143,7 +143,7 @@ class JSONAuthSignedHandler extends JSONHandler {
 			return false;
 		}
 		Session::get()->setAccountUser($this->serverUser);
-		$roles[] =  "account";
+		$roles[] =  "account:".$this->serverUser;
 		return true;
 	}
 
@@ -153,7 +153,7 @@ class JSONAuthSignedHandler extends JSONHandler {
 			return false;
 		}
 		$loginServerUser = $this->serverUser;
-		$roles[] = $loginServerUser.":contactUser";
+		$roles[] = "contactUser:".$loginServerUser;
 		
 		return true;
 	}

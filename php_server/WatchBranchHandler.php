@@ -59,7 +59,7 @@ class WatchBranchesStanzaHandler extends InStanzaHandler {
 
 		$updatedBranches = array();
 
-		$status = "server_timeout";
+		$status = "serverTimeout";
 		$startTime = time();
 		$diff = 0;
 		while ($diff < $this->timeOut) {

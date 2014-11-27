@@ -134,13 +134,14 @@ class PackManager {
 
             for (int i = 0; i < revCommit.getParentCount(); i++) {
                 RevCommit parent = revCommit.getParent(i);
-                commits.add(parent.getId().name());
+                String name = parent.getId().name();
+                commits.add(name);
             }
         }
     }
 
-    private void collectMissingBlobs(String commitStop, String commitLast, String ignoreCommit, List<String> blobs,
-                                     int type) throws IOException {
+    private void collectMissingBlobs(final String commitStop, final String commitLast, final String ignoreCommit,
+                                     final List<String> blobs, int type) throws IOException {
         List<String> commits = new ArrayList<>();
         List<String> newObjects = new ArrayList<>();
         commits.add(commitLast);
@@ -159,13 +160,12 @@ class PackManager {
 
             // collect tree objects
             RevCommit revCommit = walk.parseCommit(ObjectId.fromString(currentCommit));
-
             listTreeObjects(revCommit.getTree(), newObjects);
 
             // collect parents
             int parentCount = revCommit.getParentCount();
             if (parentCount > 1 && !stopAncestorsCalculated) {
-                collectAncestorCommits(commitStop, stopAncestorCommits);
+                collectAncestorCommits(currentCommit, stopAncestorCommits);
                 stopAncestorsCalculated = true;
             }
             for (int i = 0; i < parentCount; i++) {

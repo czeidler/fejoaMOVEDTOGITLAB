@@ -8,6 +8,8 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.support.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.w3c.dom.Element;
 import org.xml.sax.Attributes;
 import rx.Observable;
@@ -113,7 +115,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
         ConnectionInfo connectionInfo = remoteStorageLinkList.get(0).getConnectionInfo();
 
         final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
-        return remoteConnection.runJob(new Watch());
+        return remoteConnection.runJob(new JsonWatch());
     }
 
     @Override
@@ -127,6 +129,56 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
                 return link;
         }
         return null;
+    }
+
+    class JsonWatch extends JsonRemoteConnectionJob {
+        @Override
+        public byte[] getRequest() throws Exception {
+            List<JsonRPC.ArgumentSet> branches = new ArrayList<>();
+            for (RemoteStorageLink link : remoteStorageLinkList) {
+                JsonRPC.ArgumentSet argumentSet = new JsonRPC.ArgumentSet(
+                        new JsonRPC.Argument("branch", link.getLocalStorage().getBranch()),
+                        new JsonRPC.Argument("tip", link.getLocalStorage().getTip())
+                );
+                branches.add(argumentSet);
+            }
+
+            return jsonRPC.call(WATCH_BRANCHES_STANZA, new JsonRPC.Argument("branches", branches)).getBytes();
+        }
+
+        @Override
+        public Result handleResponse(byte[] reply) throws Exception {
+            JSONObject result = jsonRPC.getReturnValue(new String(reply));
+            if (getStatus(result) != 0)
+                return new Result(Result.ERROR, getMessage(result));
+
+            if (!result.has("response"))
+                return new Result(Result.ERROR, "bad response");
+
+            String response = result.getString("response");
+            if (response.equals("serverTimeout")) {
+                return new Result(Result.DONE, "server timeout");
+            } else if (response.equals("update")) {
+                if (!result.has("branches"))
+                    return new Result(Result.ERROR, "bad response, branches are missing");
+
+                if (listener != null) {
+                    List<RemoteStorageLink> links = new ArrayList<>();
+
+                    JSONArray branches = result.getJSONArray("branches");
+                    for (int i = 0; i < branches.length(); i++) {
+                        String branch = branches.getString(i);
+                        RemoteStorageLink link = findLink(branch);
+                        if (link == null)
+                            continue;
+                        links.add(link);
+                    }
+
+                    listener.onBranchesUpdated(links);
+                }
+            }
+            return new Result(Result.DONE);
+        }
     }
 
     class Watch extends RemoteConnectionJob {

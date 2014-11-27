@@ -11,13 +11,34 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.List;
 
 
 public class JsonRPC {
     static private int globalJsonId = 0;
     private int jsonId = 0;
 
+    static public class ArgumentSet {
+        String value;
+
+        public ArgumentSet(Argument... arguments) {
+            if (arguments.length > 0) {
+                value = "{";
+                for (int i = 0; i < arguments.length; i++) {
+                    Argument argument = arguments[i];
+                    value += argument.toString();
+                    if (i < arguments.length - 1)
+                        value += ",";
+                }
+                value += "}";
+            }
+        }
+    }
+
     static public class Argument {
+        String name;
+        String value;
+
         /*public Argument(String name, Object value) {
             this.name = name;
             this.value = new Gson().toJson(value);
@@ -43,8 +64,27 @@ public class JsonRPC {
             this.value = "\"" + value + "\"";
         }
 
-        String name;
-        String value;
+        public Argument(String name, ArgumentSet argumentSet) {
+            this.name = name;
+            this.value = argumentSet.value;
+        }
+
+        public Argument(String name, List<ArgumentSet> argumentList) {
+            this.name = name;
+            this.value = "[";
+            final int size = argumentList.size();
+            for (int i = 0; i < size; i++) {
+                ArgumentSet argumentSet = argumentList.get(i);
+                this.value += argumentSet.value;
+                if (i < size - 1)
+                    value += ",";
+            }
+            this.value += "]";
+        }
+
+        public String toString() {
+            return "\"" + name + "\":" + value + "";
+        }
     }
 
     public JsonRPC() {
@@ -75,18 +115,14 @@ public class JsonRPC {
     }
 
     protected String call(int jsonId, String method, Argument ... argumentList) {
-        String request = "{ \"jsonrpc\": \"2.0\", \"method\":\"" + method + "\"";
+        String request = "{\"jsonrpc\":\"2.0\"";
+        request += ",\"id\":" + jsonId + ",\"method\":\"" + method + "\"";
         if (argumentList.length > 0) {
-            request += ",\"params\": {";
-            for (int i = 0; i < argumentList.length; i++) {
-                Argument argument = argumentList[i];
-                request += "\"" + argument.name + "\":" + argument.value + "";
-                if (i < argumentList.length - 1)
-                    request += ",";
-            }
-            request += "}";
+            request += ",";
+            Argument paramsArgument = new Argument("params", new ArgumentSet(argumentList));
+            request += paramsArgument.toString();
         }
-        request += ", \"id\":" + jsonId + "}";
+        request += "}";
         return request;
     }
 }

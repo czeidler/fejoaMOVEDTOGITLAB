@@ -138,7 +138,7 @@ public class HTMLRequest implements IRemoteRequest {
     }
 
     private byte[] getHTML(byte data[]) throws IOException {
-        System.out.println("SEND: " + new String(data));
+        System.out.println("SEND:     " + new String(data));
         HttpClient httpClient = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
         httpPost = new HttpPost(url);
 

@@ -101,7 +101,9 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 
 		$signedToken = url_decode($params['signedToken']);
 		// verify branch access
-		if (!PublishBranchHelper::hasBranch($transaction->serverUser, $branch)) {
+		if (!PublishBranchHelper::hasBranch($transaction->serverUser, $branch)
+			&& Session::get()->getAccountUser() == "") {
+			// new branch is coming from somebody else
 			if (!isset($params['channelHeader']) || !isset($params['channelSignatureKey']))
 				return $this->makeError($jsonId, "message channel is needed");
 
@@ -120,6 +122,7 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 
 			Session::get()->addBranchAccess($branchAccessToken);
 		} else if (!Session::get()->hasBranchAccess($branchAccessToken)) {
+			// update existing branch
 			$signatureKey = $messageChannel->getSignatureKey();
 			if ($signatureKey === null)
 				return $this->makeError($jsonId, "bad message channel on server");

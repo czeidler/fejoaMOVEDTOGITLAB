@@ -171,7 +171,7 @@ public class PublishMessageBranch {
             if (localTip.equals(remoteTip))
                 return new Result(Result.DONE, "branch in sync");
 
-            setFollowUpJob(new Sync(messageChannel.getBranch().getMessageStorage(),
+            setFollowUpJob(new JsonSync(messageChannel.getBranch().getMessageStorage(),
                     connectionInfo.serverUser, connectionInfo.getRemoteId()));
 
             return new Result(Result.DONE, getMessage(result));

@@ -96,6 +96,11 @@ public class ContactRequest {
     private void onResponse(String uid, String address, String keyId, String publicKey, IListener listener)
             throws IOException,
             CryptoException {
+
+        Contact inListContact = userIdentity.getContactFinder().find(uid);
+        if (inListContact != null)
+            return;
+
         ContactPublic contact = userIdentity.addNewContact(uid);
         contact.addKey(keyId, CryptoHelper.publicKeyFromPem(publicKey));
         contact.setMainKey(new KeyId(keyId));

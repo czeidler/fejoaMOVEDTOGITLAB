@@ -55,6 +55,8 @@ public class MailboxSyncManager {
 
         MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
         List<String> dirtyBranches = bookkeeping.getAllDirtyBranches();
+        if (dirtyBranches.size() == 0)
+            return;
         syncCookie = new SyncCookie(dirtyBranches.size());
         for (String branch : dirtyBranches) {
             Mailbox.MessageChannelRef ref = mailbox.getMessageChannel(branch);

@@ -120,23 +120,22 @@ public class Mailbox extends UserData {
                 String channelId = part1.getDirName() + part2.getDirName();
                 if (!hasChannel(channelId))
                     addChannelToList(new MessageChannelRef(channelId));
-                else {
-                    MessageChannelRef ref = getMessageChannel(channelId);
-                    MessageChannel channel;
-                    try {
-                        channel = ref.getNow();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        continue;
-                    }
 
-                    String branchName = channel.getBranchName();
-                    try {
-                        bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchName);
-                        somethingDirty = true;
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                MessageChannelRef ref = getMessageChannel(channelId);
+                MessageChannel channel;
+                try {
+                    channel = ref.getNow();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
+                }
+
+                String branchName = channel.getBranchName();
+                try {
+                    bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchName);
+                    somethingDirty = true;
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }

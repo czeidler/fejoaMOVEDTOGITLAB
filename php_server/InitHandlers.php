@@ -8,6 +8,8 @@ include_once 'WatchBranchHandler.php';
 include_once 'JSONAuthHandler.php';
 include_once 'JSONContactRequestHandler.php';
 include_once 'JSONPublishBranchHandler.php';
+include_once 'JSONSyncHandler.php';
+include_once 'JSONWatchHandler.php';
 
 
 function initSyncHandlers($XMLHandler) {
@@ -56,13 +58,23 @@ function initPublishBranchHandlers($JSONDispatcher) {
 	$JSONDispatcher->addHandler(new JSONLoginPublishBranchHandler());
 }
 
+// sync
+function initJSONSyncHandlers($JSONDispatcher) {
+	$JSONDispatcher->addHandler(new JSONSyncPullHandler());
+	$JSONDispatcher->addHandler(new JSONSyncPushHandler());
+}
+
+// sync
+function initJSONWatchHandlers($JSONDispatcher) {
+	$JSONDispatcher->addHandler(new JSONWatchHandler());
+}
+
 function initMessageHandlers($XMLHandler) {
 	$iqHandler = new InIqStanzaHandler(IqType::$kSet);
 	$handler = new MessageStanzaHandler($XMLHandler->getInStream());
 	$iqHandler->addChild($handler);
 	$XMLHandler->addHandler($iqHandler);	
 }
-
 
 class InitHandlers {
 	static public function initPrivateHandlers($XMLHandler, $JSONDispatcher) {
@@ -73,10 +85,12 @@ class InitHandlers {
 		initContactRequestStanzaHandler($XMLHandler);
 
 		// json
+		initJSONSyncHandlers($JSONDispatcher);
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
 		initContactRequestStanzaHandlerJson($JSONDispatcher);
 			// in case we need to contact a user on the same server
+		initJSONWatchHandlers($JSONDispatcher);
 	}
 
 	static public function initPublicHandlers($XMLHandler, $JSONDispatcher) {
@@ -86,6 +100,7 @@ class InitHandlers {
 		initContactRequestStanzaHandler($XMLHandler);
 
 		// json
+		initJSONSyncHandlers($JSONDispatcher);
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
 		initContactRequestStanzaHandlerJson($JSONDispatcher);

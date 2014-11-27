@@ -169,4 +169,5 @@ class JSONLogoutHandler extends JSONHandler {
 		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, "message" => "logged out"));
 	}
 }
+
 ?>

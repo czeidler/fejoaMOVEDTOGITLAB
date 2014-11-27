@@ -53,5 +53,4 @@ class JSONContactRequestHandler extends JSONHandler {
 	}
 }
 
-?> 
- 
+?>

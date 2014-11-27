@@ -126,4 +126,4 @@ class ContactRequestStanzaHandler extends InStanzaHandler {
 	}
 }
 
-?> 
+?>

@@ -9,7 +9,7 @@ class JSONHandler {
 	}
 
 	protected function makeJSONRPCReturn($id, $result) {
-		$array = array('jsonrpc' => "2.0", 'result' => $result, 'id' => $id);
+		$array = array('jsonrpc' => "2.0", 'id' => $id, 'result' => $result);
 		return json_encode($array);
 	}
 

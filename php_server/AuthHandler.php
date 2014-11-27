@@ -225,4 +225,5 @@ class LogoutStanzaHandler extends InStanzaHandler {
 		return true;
 	}
 }
+
 ?>

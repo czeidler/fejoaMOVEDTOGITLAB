@@ -68,11 +68,11 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
     public void markAsDirty(String remote, String branch) throws IOException {
         DirtyRemote dirtyRemote;
-        String remoteId = CryptoHelper.sha1HashHex(remote);
+        String remoteId = ConnectionInfo.getRemoteId(remote);
         if (dirtyRemotes.containsKey(remoteId))
             dirtyRemote = dirtyRemotes.get(remoteId);
         else {
-            dirtyRemote = new DirtyRemote(remote);
+            dirtyRemote = new DirtyRemote(remoteId);
             dirtyRemotes.put(remoteId, dirtyRemote);
         }
         dirtyRemote.markAsDirty(branch);
@@ -92,8 +92,8 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         final private List<String> dirtyBranches;
         final private SecureStorageDir dirtyRemoteDir;
 
-        public DirtyRemote(String remote) {
-            this.remoteId = ConnectionInfo.getRemoteId(remote);
+        private DirtyRemote(String remoteId) {
+            this.remoteId = remoteId;
 
             dirtyRemoteDir = new SecureStorageDir(dirtyDir, remoteId);
             dirtyBranches = readDirtyBranches();
@@ -126,9 +126,9 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
 
     private void loadFromDB() {
         try {
-            List<String> remotes = dirtyDir.listDirectories("");
-            for (String remote : remotes)
-                dirtyRemotes.put(remote, new DirtyRemote(remote));
+            List<String> remoteIds = dirtyDir.listDirectories("");
+            for (String remoteId : remoteIds)
+                dirtyRemotes.put(remoteId, new DirtyRemote(remoteId));
         } catch (IOException e) {
             e.printStackTrace();
         }

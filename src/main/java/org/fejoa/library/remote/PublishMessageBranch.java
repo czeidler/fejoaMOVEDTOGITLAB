@@ -9,14 +9,19 @@ package org.fejoa.library.remote;
 
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.Contact;
+import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.ContactPublic;
 import org.fejoa.library.UserIdentity;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.database.StorageDir;
+import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.json.JSONObject;
 import rx.Observable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,15 +34,28 @@ public class PublishMessageBranch {
     }
 
     public Observable<RemoteConnectionJob.Result> publish() {
-        MessageBranchInfo info = messageChannel.getBranch().getMessageBranchInfo();
+        MessageBranch messageBranch = messageChannel.getBranch();
+        if (messageBranch == null) {
+            // just try to pull the branch from our server
+            ContactPrivate myself = messageChannel.getMailbox().getUserIdentity().getMyself();
+            ConnectionInfo connectionInfo = new ConnectionInfo(myself.getServer(), myself.getServerUser(), myself);
+            InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
+                    connectionInfo, myself);
+            final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
+            return remoteConnection.queueJob(initPublishMessageBranchJob);
+        }
+
+        MessageBranchInfo info = messageBranch.getMessageBranchInfo();
         List<MessageBranchInfo.Participant> participantList = info.getParticipants();
-        UserIdentity userIdentity = messageChannel.getBranch().getIdentity();
+        UserIdentity userIdentity = messageBranch.getIdentity();
 
         List<Observable<RemoteConnectionJob.Result>> observableList = new ArrayList<>();
         for (MessageBranchInfo.Participant participant : participantList) {
             ConnectionInfo connectionInfo;
             ContactRequest.JsonContactRequestJob contactRequestJob = null;
             Contact contactPublic = userIdentity.getContactFinder().find(participant.uid);
+            if (contactPublic == null)
+                contactPublic = userIdentity.getContactFinder().findByAddress(participant.address);
             if (participant.uid.equals("") || contactPublic == null) {
                 //contact request
                 String[] parts = participant.address.split("@");
@@ -47,7 +65,7 @@ public class PublishMessageBranch {
                 String serverUser = parts[0];
 
                 connectionInfo = new ConnectionInfo(server, serverUser, userIdentity.getMyself());
-                ContactRequest contactRequest = new ContactRequest(connectionInfo, messageChannel.getBranch().getIdentity());
+                ContactRequest contactRequest = new ContactRequest(connectionInfo, messageBranch.getIdentity());
 
                 contactRequestJob = contactRequest.getContactRequestJob();
             } else {
@@ -166,13 +184,16 @@ public class PublishMessageBranch {
             if (getStatus(result) != 0)
                 return new Result(Result.ERROR, getMessage(result));
 
-            String localTip = messageChannel.getBranch().getMessageStorage().getTip();
+            String localTip = "";
+            MessageBranch messageBranch = messageChannel.getBranch();
+            if (messageBranch != null)
+                localTip = messageBranch.getMessageStorage().getTip();
             String remoteTip = result.getString("remoteTip");
             if (localTip.equals(remoteTip))
                 return new Result(Result.DONE, "branch in sync");
 
-            setFollowUpJob(new JsonSync(messageChannel.getBranch().getMessageStorage(),
-                    connectionInfo.serverUser, connectionInfo.getRemoteId()));
+            StorageDir messageStorage = messageChannel.getMessageStorage();
+            setFollowUpJob(new JsonSync(messageStorage, connectionInfo.serverUser, connectionInfo.getRemoteId()));
 
             return new Result(Result.DONE, getMessage(result));
         }

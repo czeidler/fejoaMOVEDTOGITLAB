@@ -8,6 +8,7 @@
 package org.fejoa.gui;
 
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.mailbox.Message;
 import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageChannel;
@@ -16,10 +17,12 @@ import org.fejoa.library.support.WeakListenable;
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
+import java.io.IOException;
 
 
 public class MessageThreadAdapter extends WeakListenable<ListDataListener> implements ListModel {
     final private MessageChannel messageChannel;
+    final private MessageBranch messageBranch;
 
     final private MessageBranch.IListener threadListener = new MessageBranch.IListener() {
         @Override
@@ -36,22 +39,24 @@ public class MessageThreadAdapter extends WeakListenable<ListDataListener> imple
     public MessageThreadAdapter(MessageChannel messageChannel) {
         this.messageChannel = messageChannel;
 
-        messageChannel.getBranch().addListener(threadListener);
+        messageBranch = messageChannel.getBranch();
+        messageBranch.addListener(threadListener);
     }
 
     @Override
     public void finalize() {
-        messageChannel.getBranch().removeListener(threadListener);
+        messageBranch.removeListener(threadListener);
     }
 
     @Override
     public int getSize() {
-        return messageChannel.getBranch().getNumberOfMessages();
+        return messageBranch.getNumberOfMessages();
     }
 
     @Override
     public Object getElementAt(int i) {
-        return messageChannel.getBranch().getMessage(i).getBody();
+        //Message message = messageChannel.getBranch().getMessage(i);
+        return messageBranch.getMessage(i).getBody();
     }
 
     @Override

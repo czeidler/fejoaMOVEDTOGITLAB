@@ -101,42 +101,43 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 
 		$signedToken = url_decode($params['signedToken']);
 		// verify branch access
-		if (!PublishBranchHelper::hasBranch($transaction->serverUser, $branch)
-			&& Session::get()->getAccountUser() == "") {
-			// new branch is coming from somebody else
-			if (!isset($params['channelHeader']) || !isset($params['channelSignatureKey']))
-				return $this->makeError($jsonId, "message channel is needed");
+		if (Session::get()->getAccountUser() != $transaction->serverUser) {
+			if (!PublishBranchHelper::hasBranch($transaction->serverUser, $branch)) {
+				// new branch is coming from somebody else
+				if (!isset($params['channelHeader']) || !isset($params['channelSignatureKey']))
+					return $this->makeError($jsonId, "message channel is needed");
 
-			// verify
-			$signatureKey = $params['channelSignatureKey'];
-			if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
-				return $this->makeError($jsonId, "mismatch between branch and signature key");
-			$signatureVerifier = new SignatureVerifier($signatureKey);
-			if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
-				return $this->makeError($jsonId, "failed to verify branch access");
+				// verify
+				$signatureKey = $params['channelSignatureKey'];
+				if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
+					return $this->makeError($jsonId, "mismatch between branch and signature key");
+				$signatureVerifier = new SignatureVerifier($signatureKey);
+				if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
+					return $this->makeError($jsonId, "failed to verify branch access");
 
-			$messageChannel->setChannelInfo(url_decode($params['channelHeader']));
-			$messageChannel->setSignatureKey($params['channelSignatureKey']);
-			if (!$messageChannel->commit())
-				return $this->makeError($jsonId, "failed to write channel");
+				$messageChannel->setChannelInfo(url_decode($params['channelHeader']));
+				$messageChannel->setSignatureKey($params['channelSignatureKey']);
+				if (!$messageChannel->commit())
+					return $this->makeError($jsonId, "failed to write channel");
 
-			Session::get()->addBranchAccess($branchAccessToken);
-		} else if (!Session::get()->hasBranchAccess($branchAccessToken)) {
-			// update existing branch
-			$signatureKey = $messageChannel->getSignatureKey();
-			if ($signatureKey === null)
-				return $this->makeError($jsonId, "bad message channel on server");
+				Session::get()->addBranchAccess($branchAccessToken);
+			} else if (!Session::get()->hasBranchAccess($branchAccessToken)) {
+				// update existing branch
+				$signatureKey = $messageChannel->getSignatureKey();
+				if ($signatureKey === null)
+					return $this->makeError($jsonId, "bad message channel on server");
 
-			// verify
-			if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
-				return $this->makeError($jsonId, "mismatch between branch and signature key");
-			$signatureVerifier = new SignatureVerifier($signatureKey);
-			if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
-				return $this->makeError($jsonId, "failed to verify branch access");
-			Session::get()->addBranchAccess($branchAccessToken);
+				// verify
+				if (strcasecmp(hash('sha256', $this->pemToDer($signatureKey)), $branch) != 0)
+					return $this->makeError($jsonId, "mismatch between branch and signature key");
+				$signatureVerifier = new SignatureVerifier($signatureKey);
+				if (!$signatureVerifier->verify($transaction->signToken, $signedToken))
+					return $this->makeError($jsonId, "failed to verify branch access");
+				Session::get()->addBranchAccess($branchAccessToken);
+			}
 		}
 
-		$database = new GitDatabase($messageChannel->getDatabaseDir());
+		$database = Session::get()->getDatabaseForBranch($transaction->serverUser, $branch);
 		$tip = $database->getBranchTip($branch);
 
 		// reply

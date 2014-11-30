@@ -8,6 +8,7 @@
 package org.fejoa.library.remote;
 
 import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.IStorageUid;
 import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.crypto.Crypto;
@@ -19,8 +20,9 @@ import java.io.IOException;
 
 
 public class RemoteStorageLink {
-    final private SecureStorageDir linkStorage;
     final private String uid;
+    final private SecureStorageDir linkStorage;
+    final private String storageUid;
     final private ContactPrivate myself;
     private ConnectionInfo connectionInfo;
     final private StorageDir localStorage;
@@ -30,9 +32,9 @@ public class RemoteStorageLink {
         this.linkStorage = linkStorage;
         this.uid = linkStorage.readString("uid");
         this.myself = myself;
-        String databasePath = linkStorage.readSecureString("databasePath");
-        String databaseBranch = linkStorage.readSecureString("databaseBranch");
-        localStorage = SecureStorageDirBucket.get(databasePath, databaseBranch);
+        storageUid = linkStorage.readSecureString("storageUid");
+        String databaseBranch = linkStorage.readSecureString("storageBranch");
+        localStorage = SecureStorageDirBucket.getByStorageId(storageUid, databaseBranch);
 
         try {
             String serverUser = linkStorage.readSecureString("serverUser");
@@ -43,10 +45,11 @@ public class RemoteStorageLink {
         }
     }
 
-    public RemoteStorageLink(SecureStorageDir baseDir, StorageDir localStorage, ContactPrivate myself) {
+    public RemoteStorageLink(SecureStorageDir baseDir, IStorageUid storeage, ContactPrivate myself) {
         this.uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(Crypto.get().generateInitializationVector(40)));
         this.linkStorage = new SecureStorageDir(baseDir, uid);
-        this.localStorage = localStorage;
+        this.localStorage = storeage.getStorageDir();
+        this.storageUid = storeage.getUid();
         this.connectionInfo = null;
         this.myself = myself;
     }
@@ -73,8 +76,8 @@ public class RemoteStorageLink {
 
     public void write() throws IOException, CryptoException {
         linkStorage.writeString("uid", uid);
-        linkStorage.writeSecureString("databasePath", localStorage.getPath());
-        linkStorage.writeSecureString("databaseBranch", localStorage.getBranch());
+        linkStorage.writeSecureString("storageUid", storageUid);
+        linkStorage.writeSecureString("storageBranch", localStorage.getBranch());
 
         if (connectionInfo != null) {
             linkStorage.writeSecureString("serverUser", connectionInfo.serverUser);

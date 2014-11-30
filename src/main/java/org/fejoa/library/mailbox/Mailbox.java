@@ -121,18 +121,8 @@ public class Mailbox extends UserData {
                 if (!hasChannel(channelId))
                     addChannelToList(new MessageChannelRef(channelId));
 
-                MessageChannelRef ref = getMessageChannel(channelId);
-                MessageChannel channel;
                 try {
-                    channel = ref.getNow();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    continue;
-                }
-
-                String branchName = channel.getBranchName();
-                try {
-                    bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), branchName);
+                    bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), channelId);
                     somethingDirty = true;
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -190,8 +180,12 @@ public class Mailbox extends UserData {
         return userIdentity;
     }
 
+    public String getMessageStoragePath() {
+        return getStorageDir().getPath();
+    }
+
     public MessageChannel createNewMessageChannel() throws CryptoException, IOException {
-        return new MessageChannel(getStorageDir().getPath(), this);
+        return new MessageChannel(getMessageStoragePath(), this);
     }
 
     public MailboxBookkeeping getBookkeeping() {
@@ -237,7 +231,9 @@ public class Mailbox extends UserData {
         SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
                 branchId.substring(0, 2) + "/" + branchId.substring(2));
         MessageChannel messageChannel = new MessageChannel(channelStorage, this);
-        messageChannelCache.put(branchId, messageChannel);
+        // only cache if the branch is there and loaded
+        if (messageChannel.getBranch() != null)
+            messageChannelCache.put(branchId, messageChannel);
         return messageChannel;
     }
 

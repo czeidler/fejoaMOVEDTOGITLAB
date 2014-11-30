@@ -12,6 +12,7 @@ import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.database.StorageDir;
 
 import java.io.IOException;
 import java.security.PublicKey;
@@ -41,6 +42,10 @@ public class MessageChannel extends Channel {
     public MessageChannel(SecureStorageDir dir, Mailbox mailbox) throws IOException, CryptoException {
         this.mailbox = mailbox;
         load(dir, mailbox);
+    }
+
+    public Mailbox getMailbox() {
+        return mailbox;
     }
 
     public MessageBranch getBranch() {
@@ -84,20 +89,28 @@ public class MessageChannel extends Channel {
         dir.writeString("signatureKey", CryptoHelper.convertToPEM(signatureKeyPublic));
         byte[] pack = pack(sender, senderKey, sender, senderKey);
         dir.writeBytes("d", pack);
-        dir.writeString("databasePath", dir.getPath());
         dir.writeString("branchTip", getBranch().getTip());
     }
 
-    private void load(SecureStorageDir dir, Mailbox mailbox)
-            throws IOException, CryptoException {
+    private void load(SecureStorageDir dir, Mailbox mailbox) throws IOException, CryptoException {
         PublicKey publicKey = CryptoHelper.publicKeyFromPem(dir.readString("signatureKey"));
         byte[] data = dir.readBytes("d");
         load(mailbox.getUserIdentity(), publicKey, data);
+        SecureStorageDir messageStorage = SecureStorageDirBucket.getChannelBranchStorage(getBranchName());
 
-        String databasePath = dir.readString("databasePath");
-        SecureStorageDir messageStorage = SecureStorageDirBucket.get(databasePath, getBranchName());
-
-        setBranch(MessageBranch.loadMessageBranch(messageStorage, mailbox, getParcelCrypto()));
+        // try to load the message branch but don't fail if it is not there
+        try {
+            MessageBranch messageBranch = MessageBranch.loadMessageBranch(messageStorage, mailbox, getParcelCrypto());
+            setBranch(messageBranch);
+        } catch (Exception e) {
+            return;
+        }
     }
 
+    public StorageDir getMessageStorage() throws IOException {
+        if (branch != null)
+            return branch.getMessageStorage();
+
+        return SecureStorageDirBucket.get(mailbox.getMessageStoragePath(), getBranchName());
+    }
 }

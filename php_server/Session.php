@@ -50,6 +50,11 @@ class Session {
 		return new GitDatabase($user."/.git");
 	}
 
+	public function getDatabaseForBranch($user, $branchUid) {
+		// ignore branchUid for now
+		return $this->getDatabase($user);
+	}
+
 	public function getProfile($serverUser) {
 		$database = $this->getDatabase($serverUser);
 		if ($database === null)

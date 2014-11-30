@@ -13,7 +13,7 @@ import org.fejoa.library.database.SecureStorageDir;
 import java.io.IOException;
 
 
-public class UserData {
+public class UserData implements IStorageUid {
     private String PATH_UID = "uid";
     private String PATH_KEY_STORE_ID = "keyStoreId";
     private String PATH_KEY_ID = "keyId";
@@ -81,10 +81,12 @@ public class UserData {
         return storageDir.getKeyStore();
     }
 
+    @Override
     public String getUid() {
         return uid;
     }
 
+    @Override
     public SecureStorageDir getStorageDir() {
         return storageDir;
     }

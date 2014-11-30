@@ -20,6 +20,19 @@ public class SecureStorageDirBucket {
 
     }
 
+    static public SecureStorageDir getDefault(String branch) throws IOException {
+        return get(".git", branch);
+    }
+
+    static public SecureStorageDir getChannelBranchStorage(String branch) throws IOException {
+        return getDefault(branch);
+    }
+
+    static public SecureStorageDir getByStorageId(String storageUid, String branch) throws IOException {
+        // ignore branch id for now
+        return getDefault(branch);
+    }
+
     static public SecureStorageDir get(String path, String branch) throws IOException {
         if (instance == null)
             instance = new SecureStorageDirBucket();

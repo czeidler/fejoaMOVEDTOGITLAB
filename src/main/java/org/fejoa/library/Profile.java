@@ -39,9 +39,9 @@ public class Profile extends UserData {
     final static private String PATH_USER_IDS = "userIds";
     final static private String PATH_MAILBOXES = "mailboxes";
     final static private String PATH_REMOTES = "remotes";
-    final static private String PATH_DATABASE_PATH = "databasePath";
-    final static private String PATH_DATABASE_BRANCH = "databaseBranch";
-    final static private String PATH_DATABASE_BASE_DIR = "databaseBaseDir";
+    final static private String PATH_STORAGE_UID = "storageUid";
+    final static private String PATH_STORAGE_BRANCH = "storageBranch";
+    final static private String PATH_STORAGE_BASE_DIR = "storageBaseDir";
 
 
     private class KeyStoreFinder implements IKeyStoreFinder {
@@ -114,11 +114,11 @@ public class Profile extends UserData {
         storageDir.writeString(PATH_MAIN_MAILBOX, mainMailbox.getUid());
 
         // ourself
-        addAndWriteRemoteStorageLink(storageDir, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(this, userIdentity.getMyself());
         // other branches
-        addAndWriteRemoteStorageLink(keyStoreBranch, userIdentity.getMyself());
-        addAndWriteRemoteStorageLink(userIdBranch, userIdentity.getMyself());
-        addAndWriteRemoteStorageLink(mailboxDir, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(keyStore, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(userIdentity, userIdentity.getMyself());
+        addAndWriteRemoteStorageLink(mailbox, userIdentity.getMyself());
 
         writeUserData(uid, storageDir);
     }
@@ -187,7 +187,7 @@ public class Profile extends UserData {
         path += keyStore.getUid();
         path += "/";
 
-        writeRef(path, keyStore.getStorageDir());
+        writeRef(path, keyStore.getUid(), keyStore.getStorageDir());
         keyStoreList.add(keyStore);
     }
 
@@ -196,7 +196,7 @@ public class Profile extends UserData {
         path += userIdentity.getUid();
         path += "/";
 
-        writeRef(path, userIdentity.getStorageDir());
+        writeRef(path, userIdentity.getUid(), userIdentity.getStorageDir());
         userIdentityList.add(userIdentity);
     }
 
@@ -205,18 +205,18 @@ public class Profile extends UserData {
         path += mailbox.getUid();
         path += "/";
 
-        writeRef(path, mailbox.getStorageDir());
+        writeRef(path, mailbox.getUid(), mailbox.getStorageDir());
         mailboxList.add(mailbox);
     }
 
-    private void addAndWriteRemoteStorageLink(StorageDir localStorage, ContactPrivate myself)
+    private void addAndWriteRemoteStorageLink(IStorageUid localStorage, ContactPrivate myself)
             throws IOException, CryptoException {
         if (remoteStorageLinks.containsKey(localStorage))
             return;
         RemoteStorageLink remoteStorageLink = new RemoteStorageLink(new SecureStorageDir(storageDir, PATH_REMOTES),
                 localStorage, myself);
         remoteStorageLink.write();
-        remoteStorageLinks.put(localStorage, remoteStorageLink);
+        remoteStorageLinks.put(localStorage.getStorageDir(), remoteStorageLink);
     }
 
     private void loadKeyStores() throws IOException {
@@ -225,7 +225,8 @@ public class Profile extends UserData {
         for (String keyStorePath : keyStores) {
             UserDataRef ref = readRef(PATH_KEY_STORES + "/" + keyStorePath);
             // use a secure storage without a key store (hack to use SecureStorageDirBucket)
-            StorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir, true);
+            StorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid, ref.branch),
+                    ref.basedir, true);
             KeyStore keyStore = new KeyStore(dir);
             keyStoreList.add(keyStore);
         }
@@ -237,8 +238,8 @@ public class Profile extends UserData {
         for (String uidPath : userIdentities) {
             UserDataRef ref = readRef(PATH_USER_IDS + "/" + uidPath);
             UserIdentity userIdentity = new UserIdentity();
-            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir,
-                    true);
+            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid,
+                    ref.branch), ref.basedir, true);
             userIdentity.open(dir, getKeyStoreFinder());
             userIdentityList.add(userIdentity);
         }
@@ -269,8 +270,8 @@ public class Profile extends UserData {
 
         for (String mailboxId : mailboxes) {
             UserDataRef ref = readRef(baseDir + "/" + mailboxId);
-            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.get(ref.path, ref.branch), ref.basedir,
-                    true);
+            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid,
+                    ref.branch), ref.basedir, true);
             Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder(), getUserIdentityFinder());
 
             mailboxList.add(mailbox);
@@ -285,14 +286,14 @@ public class Profile extends UserData {
         }
     }
 
-    private void writeRef(String path, StorageDir refTarget) throws IOException {
-        storageDir.writeString(path + PATH_DATABASE_PATH, refTarget.getPath());
-        storageDir.writeString(path + PATH_DATABASE_BRANCH, refTarget.getBranch());
-        storageDir.writeString(path + PATH_DATABASE_BASE_DIR, refTarget.getBaseDir());
+    private void writeRef(String path, String storageUid, StorageDir refTarget) throws IOException {
+        storageDir.writeString(path + PATH_STORAGE_UID, storageUid);
+        storageDir.writeString(path + PATH_STORAGE_BRANCH, refTarget.getBranch());
+        storageDir.writeString(path + PATH_STORAGE_BASE_DIR, refTarget.getBaseDir());
     }
 
     private class UserDataRef {
-        public String path;
+        public String branchUid;
         public String branch;
         public String basedir;
     }
@@ -302,9 +303,9 @@ public class Profile extends UserData {
 
         if (!path.equals(""))
             path += "/";
-        ref.path = storageDir.readString(path + PATH_DATABASE_PATH);
-        ref.branch = storageDir.readString(path + PATH_DATABASE_BRANCH);
-        ref.basedir = storageDir.readString(path + PATH_DATABASE_BASE_DIR);
+        ref.branchUid = storageDir.readString(path + PATH_STORAGE_UID);
+        ref.branch = storageDir.readString(path + PATH_STORAGE_BRANCH);
+        ref.basedir = storageDir.readString(path + PATH_STORAGE_BASE_DIR);
 
         return ref;
     }

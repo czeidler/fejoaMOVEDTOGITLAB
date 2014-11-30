@@ -16,10 +16,10 @@ class Profile extends UserData {
 		foreach ($ids as $identityId) {
 			$branch;
 			$baseDir;
-			$result = $this->read("userIds/".$identityId."/databaseBranch", $branch);
+			$result = $this->read("userIds/".$identityId."/storageBranch", $branch);
 			if (!$result)
 				continue;
-			$result = $this->read("userIds/".$identityId."/databaseBaseDir", $baseDir);
+			$result = $this->read("userIds/".$identityId."/storageBaseDir", $baseDir);
 			if (!$result)
 				continue;
 			$identity = new UserIdentity($this, $branch, $baseDir);
@@ -43,10 +43,10 @@ class Profile extends UserData {
 			return null;
 		$branch;
 		$baseDir;
-		$result = $this->read("keyStores/".$keyStoreId."/databaseBranch", $branch);
+		$result = $this->read("keyStores/".$keyStoreId."/storageBranch", $branch);
 		if (!$result)
 			return null;
-		$result = $this->read("keyStores/".$keyStoreId."/databaseBaseDir", $baseDir);
+		$result = $this->read("keyStores/".$keyStoreId."/storageBaseDir", $baseDir);
 		if (!$result)
 			return null;
 		$keyStore = new KeyStore($this->getDatabase(), $branch, $baseDir);
@@ -60,10 +60,10 @@ class Profile extends UserData {
 		$result = $this->read("mainMailbox", $maiboxUid);
 		if (!$result)
 			return null;
-		$result = $this->read("mailboxes/".$maiboxUid."/databaseBranch", $branch);
+		$result = $this->read("mailboxes/".$maiboxUid."/storageBranch", $branch);
 		if (!$result)
 			return null;
-		$result = $this->read("mailboxes/".$maiboxUid."/databaseBaseDir", $baseDir);
+		$result = $this->read("mailboxes/".$maiboxUid."/storageBaseDir", $baseDir);
 		if (!$result)
 			return null;
 

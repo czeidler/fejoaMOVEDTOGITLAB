@@ -17,7 +17,7 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-public class KeyStore {
+public class KeyStore implements IStorageUid {
 
     final private String PATH_MASTER_KEY = "masterKey";
     final private String PATH_MASTER_KEY_IV = "masterKeyIV";
@@ -65,10 +65,12 @@ public class KeyStore {
         }
     }
 
+    @Override
     public String getUid() {
         return uid;
     }
 
+    @Override
     public StorageDir getStorageDir() {
         return storageDir;
     }

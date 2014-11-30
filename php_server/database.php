@@ -207,6 +207,8 @@ class GitDatabase extends Git {
 
     //! \return hex tip commit
     public function getBranchTip($branchName) {
+		return sha1_hex($this->getTip($branchName));
+    /*
 		if (!file_exists($this->dir."/refs/heads/$branchName"))
 			return "";
 		$f = fopen($this->dir."/refs/heads/$branchName", 'r');
@@ -218,7 +220,7 @@ class GitDatabase extends Git {
 		if (!preg_match('#^ref: refs/heads/(.*)$#', $line, $tip))
 			$tip = "";
 		fclose($f);
-		return $tip;
+		return $tip;*/
     }
 
 	public function setHead($commitHex) {

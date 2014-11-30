@@ -73,7 +73,7 @@ public class Main {
         Profile profile = null;
 
         try {
-            profile = new Profile(SecureStorageDirBucket.get(".git", "profile"), "");
+            profile = new Profile(SecureStorageDirBucket.getDefault("profile"), "");
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(-1);

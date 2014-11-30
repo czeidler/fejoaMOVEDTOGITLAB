@@ -74,6 +74,17 @@ public class UserIdentity extends UserData {
                 }
                 return null;
             }
+
+            @Override
+            public Contact findByAddress(String address) {
+                if (myself.getAddress().equals(address))
+                    return myself;
+                for (Contact contact : allContacts) {
+                    if (contact.getAddress().equals(address))
+                        return contact;
+                }
+                return null;
+            }
         };
     }
 

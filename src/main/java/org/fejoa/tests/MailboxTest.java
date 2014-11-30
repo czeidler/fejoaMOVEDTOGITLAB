@@ -50,6 +50,11 @@ public class MailboxTest extends TestCase {
                     return contactPrivate;
                 return null;
             }
+
+            @Override
+            public Contact findByAddress(String address) {
+                return null;
+            }
         };
     }
     public void testSignatureEnvelope() throws IOException, CryptoException {

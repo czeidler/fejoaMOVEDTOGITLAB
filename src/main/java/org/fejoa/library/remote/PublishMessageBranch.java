@@ -189,8 +189,11 @@ public class PublishMessageBranch {
             if (messageBranch != null)
                 localTip = messageBranch.getMessageStorage().getTip();
             String remoteTip = result.getString("remoteTip");
-            if (localTip.equals(remoteTip))
-                return new Result(Result.DONE, "branch in sync");
+            if (localTip.equals(remoteTip)) {
+                String branchName = messageChannel.getBranchName();
+                return new Result(Result.DONE, new SyncResultData(connectionInfo.getRemoteId(), branchName, localTip),
+                        "branch in sync");
+            }
 
             StorageDir messageStorage = messageChannel.getMessageStorage();
             setFollowUpJob(new JsonSync(messageStorage, connectionInfo.serverUser, connectionInfo.getRemoteId()));

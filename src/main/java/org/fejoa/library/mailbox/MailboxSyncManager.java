@@ -92,8 +92,8 @@ public class MailboxSyncManager {
                             SyncResultData syncResultData = (SyncResultData) result.data;
                             MailboxBookkeeping bookkeeping = mailbox.getBookkeeping();
                             try {
-                                bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch);
-                                syncCookie.bookkeepingNeedsCommit = true;
+                                if (bookkeeping.cleanDirtyBranch(syncResultData.remoteUid, syncResultData.branch))
+                                    syncCookie.bookkeepingNeedsCommit = true;
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }

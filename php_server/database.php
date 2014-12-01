@@ -207,7 +207,12 @@ class GitDatabase extends Git {
 
     //! \return hex tip commit
     public function getBranchTip($branchName) {
-		return sha1_hex($this->getTip($branchName));
+		try {
+			return sha1_hex($this->getTip($branchName));
+		} catch (Exception $e) {
+			return "";
+		}
+		
     /*
 		if (!file_exists($this->dir."/refs/heads/$branchName"))
 			return "";

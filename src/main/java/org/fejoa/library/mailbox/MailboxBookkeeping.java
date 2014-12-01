@@ -78,13 +78,14 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         dirtyRemote.markAsDirty(branch);
     }
 
-    public void cleanDirtyBranch(String remoteId, String branch) throws IOException {
+    public boolean cleanDirtyBranch(String remoteId, String branch) throws IOException {
         if (!dirtyRemotes.containsKey(remoteId))
-            return;
+            return false;
         DirtyRemote dirtyRemote = dirtyRemotes.get(remoteId);
         dirtyRemote.cleanDirtyBranch(branch);
         if (dirtyRemote.getDirtyBranches().size() == 0)
             dirtyRemotes.remove(remoteId);
+        return true;
     }
 
     class DirtyRemote {

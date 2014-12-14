@@ -138,7 +138,7 @@ class JSONLoginPublishBranchHandler extends JSONHandler {
 		}
 
 		$database = Session::get()->getDatabaseForBranch($transaction->serverUser, $branch);
-		$tip = $database->getBranchTip($branch);
+		$tip = $database->getTipHex($branch);
 
 		// reply
 		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'message' => "ready to sync",

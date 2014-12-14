@@ -63,7 +63,11 @@ class JSONSyncPushHandler extends JSONHandler {
 		$serverUser = $params['serverUser'];
 		$branch = $params['branch'];
 		$startCommit = $params['startCommit'];
+		if (isSHA1Hex($startCommit))
+			$startCommit = sha1_bin($startCommit);
 		$lastCommit = $params['lastCommit'];
+		if (isSHA1Hex($lastCommit))
+			$lastCommit = sha1_bin($lastCommit);
 		$pack = url_decode($params['pack']);
  
 		// push
@@ -78,7 +82,7 @@ class JSONSyncPushHandler extends JSONHandler {
 		if (!$packManager->importPack($branch, $pack, $startCommit, $lastCommit))
 			return $this->makeError($jsonId, "Push: unable to import pack.");
 
-		$localTip = sha1_hex($database->getTip($branch));
+		$localTip = $database->getTipHex($branch);
 
 		// if somebody else sent us the branch update the tip in the mailbox so that the client
 		// finds out about the new update

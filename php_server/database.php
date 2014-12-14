@@ -196,7 +196,7 @@ class GitDatabase extends Git {
 		return false;
 	}
 
-	public function setBranchTip($branchName, $commitHex) {
+	public function setTipHex($branchName, $commitHex) {
 		$f = fopen($this->dir."/refs/heads/$branchName", 'cb');
 		flock($f, LOCK_SH);
 		ftruncate($f, 0);
@@ -206,7 +206,7 @@ class GitDatabase extends Git {
 	}
 
     //! \return hex tip commit
-    public function getBranchTip($branchName) {
+    public function getTipHex($branchName) {
 		try {
 			return sha1_hex($this->getTip($branchName));
 		} catch (Exception $e) {
@@ -345,7 +345,7 @@ class GitDatabase extends Git {
 		$commit->rehash();
 		$commit->write();
 
-		$this->setBranchTip($branch, sha1_hex($commit->getName()));
+		$this->setTipHex($branch, sha1_hex($commit->getName()));
 
 		$this->currentRootTree = null;
 		return $commit;
@@ -391,9 +391,17 @@ class PackManager {
 		return $this->packObjects($blobs);
 	}
 
+	 /*
+     * @param $branch (string) branch name
+     * @param $pack the data
+     * @param $startCommit (string) start commit binary sha1
+     * @param $endCommit (string) end commit binary sha1
+     */
 	public function importPack($branch, $pack, $startCommit, $endCommit, $format = -1) {
-		if (!isSHA1Hex($endCommit))
+		if (!isSHA1Bin($endCommit)) {
 			return false;
+		}
+
 		$objectStart = 0;
 		while ($objectStart < strlen($pack)) {
 			$hash = "";
@@ -406,15 +414,21 @@ class PackManager {
 		}
   
 		// update tip
-		$currentTip = $this->repository->getBranchTip($branch);
-		if ($currentTip == "")
-			return $this->repository->setBranchTip($branch, $endCommit);
+		$currentTipHex = $this->repository->getTipHex($branch);
+		$currentTip = "";
+		if ($currentTipHex != "")
+			$currentTip = sha1_bin($currentTipHex);
+		if ($currentTip != $startCommit) {
+			return false;
+		}
 
 		// check if all commit objects are in place
-		if (!$this-isAncestorCommit($endCommit, $currentTip))
+		if ($currentTipHex != "" && !$this->isAncestorCommit($endCommit, $currentTip))
 			return false;
+
 		// TODO also check if all blobs for the new commits are in place
-		return $this->repository->setBranchTip($branch, $endCommit);
+
+		return $this->repository->setTipHex($branch, sha1_hex($endCommit));
 	}
 
 	private function readTill($in, &$out, $start, $stopChar)
@@ -437,13 +451,14 @@ class PackManager {
 			if ($currentCommit == NULL)
 				break;
 			if ($currentCommit == $ancestor)
-				true;
+				return true;
 			if (in_array($currentCommit, $handledCommits))
 				continue;
 			$handledCommits[] = $currentCommit;
 
 			$commitObject = $this->repository->getObject($currentCommit);
-			$commits[] = $commitObject->parents;
+			foreach ($commitObject->parents as $parent)
+				$commits[] = $parent;
 		}
 
 		return false;

@@ -9,7 +9,10 @@ package org.fejoa.library;
 
 
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.DatabaseDiff;
+import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.StorageDir;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -23,6 +26,27 @@ public class UserIdentity extends UserData {
     private ICryptoInterface crypto = Crypto.get();
     private ContactPrivate myself;
     private List<ContactPublic> allContacts = new ArrayList<>();
+
+    private StorageDir.IListener storageListener = new StorageDir.IListener() {
+        @Override
+        public void onTipChanged(DatabaseDiff diff, String base, String tip) {
+            DatabaseDir baseDir = diff.added.findDirectory(storageDir.getBaseDir());
+            if (baseDir == null)
+                return;
+            DatabaseDir contactBaseDir = baseDir.findDirectory("contacts");
+            for (DatabaseDir contactDir : contactBaseDir.getDirectories()) {
+                String contactId = contactDir.getDirName();
+                ContactPublic contactPublic;
+                try {
+                    contactPublic = new ContactPublic(new SecureStorageDir(storageDir, "contacts/" + contactId));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
+                }
+                allContacts.add(contactPublic);
+            }
+        }
+    };
 
     public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
         KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
@@ -56,6 +80,7 @@ public class UserIdentity extends UserData {
             allContacts.add(contactPublic);
         }
 
+        storageDir.addListener(storageListener);
     }
 
     public ContactPrivate getMyself() {

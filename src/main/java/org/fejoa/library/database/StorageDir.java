@@ -10,6 +10,7 @@ package org.fejoa.library.database;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,8 @@ public class StorageDir {
      */
     class StorageDirCache extends WeakListenable<StorageDir.IListener> {
         final private IDatabaseInterface database;
-        final private Map<String, byte[]> map = new HashMap<>();
+        final private Map<String, byte[]> toAdd = new HashMap<>();
+        final private List<String> toDelete = new ArrayList<>();
 
         private void notifyTipChanged(DatabaseDiff diff, String base, String tip) {
             for (IListener listener : getListeners())
@@ -48,19 +50,23 @@ public class StorageDir {
         }
 
         public void writeBytes(String path, byte[] data) {
-            this.map.put(path, data);
+            this.toAdd.put(path, data);
         }
 
         public byte[] readBytes(String path) throws IOException {
-            if (map.containsKey(path))
-                return map.get(path);
+            if (toAdd.containsKey(path))
+                return toAdd.get(path);
             return database.readBytes(path);
         }
 
         public void flush() throws IOException {
-            for (Map.Entry<String, byte[]> entry : map.entrySet())
+            for (Map.Entry<String, byte[]> entry : toAdd.entrySet())
                 database.writeBytes(entry.getKey(), entry.getValue());
-            map.clear();
+            toAdd.clear();
+
+            for (String path : toDelete)
+                database.remove(path);
+            toDelete.clear();
         }
 
         public void commit() throws IOException {
@@ -88,7 +94,7 @@ public class StorageDir {
         }
 
         public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
-            if (!map.isEmpty())
+            if (!toAdd.isEmpty())
                 throw new IOException("cache must be empty before importing a pack!");
 
             String base = database.getTip();
@@ -99,6 +105,10 @@ public class StorageDir {
                 DatabaseDiff diff = getDatabase().getDiff(base, tip);
                 notifyTipChanged(diff, base, tip);
             }
+        }
+
+        public void remove(String path) {
+            toDelete.add(path);
         }
     }
 
@@ -124,7 +134,7 @@ public class StorageDir {
     }
 
     static public String appendDir(String baseDir, String dir) {
-        String newDir = new String(baseDir);
+        String newDir = baseDir;
         if (dir.equals(""))
             return baseDir;
         if (!newDir.equals(""))
@@ -160,8 +170,8 @@ public class StorageDir {
         return appendDir(baseDir, path);
     }
 
-    public boolean remove(String path) {
-        return false;
+    public void remove(String path) {
+        cache.remove(getRealPath(path));
     }
 
     public List<String> listFiles(String path) throws IOException {

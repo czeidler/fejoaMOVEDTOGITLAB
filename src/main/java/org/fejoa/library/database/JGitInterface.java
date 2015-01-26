@@ -123,7 +123,7 @@ public class JGitInterface implements IDatabaseInterface {
             if (create)
                 repository.create(create);
             else
-                return;;
+                return;
         }
 
         // get root tree if existing

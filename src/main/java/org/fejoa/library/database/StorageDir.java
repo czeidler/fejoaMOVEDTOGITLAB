@@ -98,7 +98,6 @@ public class StorageDir {
                 throw new IOException("cache must be empty before importing a pack!");
 
             String base = database.getTip();
-
             database.importPack(pack, lastSyncCommit, tip, format);
 
             if (getListeners().size() > 0) {

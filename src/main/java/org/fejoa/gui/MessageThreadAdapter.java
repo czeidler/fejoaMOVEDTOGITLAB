@@ -7,8 +7,6 @@
  */
 package org.fejoa.gui;
 
-
-import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.mailbox.Message;
 import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageChannel;
@@ -17,7 +15,6 @@ import org.fejoa.library.support.WeakListenable;
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
-import java.io.IOException;
 
 
 public class MessageThreadAdapter extends WeakListenable<ListDataListener> implements ListModel {

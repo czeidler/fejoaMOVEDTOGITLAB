@@ -8,6 +8,8 @@
 package org.fejoa.gui;
 
 import org.fejoa.library.mailbox.Mailbox;
+import org.fejoa.library.mailbox.MessageBranch;
+import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observer;
@@ -91,7 +93,17 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
     }
 
     private String makeString(MessageChannel channel) {
-        return channel.getBranchName();
+        MessageBranch branch = channel.getBranch();
+        String subject = branch.getMessageBranchInfo().getSubject();
+        if (subject.equals(""))
+            subject = "no subject";
+        String participants = "";
+        for (MessageBranchInfo.Participant participant : branch.getMessageBranchInfo().getParticipants()) {
+            if (!participants.equals(""))
+                participants += ", ";
+            participants += participant.address;
+        }
+        return subject + " (" + participants + ")";
     }
 
     @Override

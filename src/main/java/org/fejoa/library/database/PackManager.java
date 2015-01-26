@@ -50,11 +50,10 @@ class PackManager {
         }
 
         String currentTip = database.getTip();
-        String newTip = last;
-        if (!currentTip.equals("") && !currentTip.equals(base))
-            mergeBranches(base, currentTip, last, newTip);
+        if (!base.equals("") && !currentTip.equals("") && !currentTip.equals(base))
+            mergeBranches(base, currentTip, last);
         else
-            database.updateTip(newTip);
+            database.updateTip(last);
     }
 
     private void writeFile(String hash, DataInputStream stream, int size) throws IOException {
@@ -284,7 +283,7 @@ class PackManager {
         return mode != 0 && !FileMode.TREE.equals(mode);
     }
 
-    private void mergeBranches(String baseCommit, String ours, String theirs, String merge) throws IOException {
+    private void mergeBranches(String baseCommit, String ours, String theirs) throws IOException {
         final ObjectReader reader = repository.getObjectDatabase().newReader();
 
         RevCommit baseRevCommit = new RevWalk(repository).parseCommit(ObjectId.fromString(baseCommit));

@@ -101,40 +101,37 @@ public class Mailbox extends UserData {
     };
 
     private void updateBookkeeping(DatabaseDiff diff, String base, String tip) {
-        boolean somethingDirty = false;
         String bookkeepingMailboxTip = bookkeeping.getMailboxTip();
-        if (bookkeepingMailboxTip.equals(""))
-            somethingDirty = true;
-        else if (!bookkeepingMailboxTip.equals(base))
+        if (!bookkeepingMailboxTip.equals(base))
             throw new RuntimeException("TODO: handle this case!");
 
-        DatabaseDir added = diff.added;
+        try {
+            DatabaseDir added = diff.added;
+            // TODO maybe only watch the base dir?
+            DatabaseDir baseDir = added.findDirectory(storageDir.getBaseDir());
+            if (baseDir == null)
+                return;
 
-        // TODO maybe only watch the base dir?
-        DatabaseDir baseDir = added.findDirectory(storageDir.getBaseDir());
-        if (baseDir == null)
-            return;
-        List<DatabaseDir> part1List = baseDir.getDirectories();
-        for (DatabaseDir part1 : part1List) {
-            for (DatabaseDir part2 : baseDir.findDirectory(part1.getDirName()).getDirectories()) {
-                String channelId = part1.getDirName() + part2.getDirName();
-                if (!hasChannel(channelId))
-                    addChannelToList(new MessageChannelRef(channelId));
+            List<DatabaseDir> part1List = baseDir.getDirectories();
+            for (DatabaseDir part1 : part1List) {
+                for (DatabaseDir part2 : baseDir.findDirectory(part1.getDirName()).getDirectories()) {
+                    String channelId = part1.getDirName() + part2.getDirName();
+                    if (!hasChannel(channelId))
+                        addChannelToList(new MessageChannelRef(channelId));
 
-                try {
-                    bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), channelId);
-                    somethingDirty = true;
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    try {
+                        bookkeeping.markAsDirty(getUserIdentity().getMyself().getAddress(), channelId);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
-        }
-
-        try {
-            if (somethingDirty)
+        } finally {
+            try {
                 bookkeeping.commit(tip);
-        } catch (IOException e) {
-            e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

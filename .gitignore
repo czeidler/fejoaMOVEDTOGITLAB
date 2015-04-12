@@ -3,6 +3,10 @@ out/*
 gen/*
 LabletTests/gen/*
 target/*
+libs/*
+.idea/*
+workingdir/*
+php_server/*/*
 
 # IDEA project files
 workspace.xml

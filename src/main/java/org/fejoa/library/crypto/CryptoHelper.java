@@ -87,8 +87,7 @@ public class CryptoHelper {
     }
 
     static private String convertToPEM(String type, Key key) {
-        String pemKey = new String();
-        pemKey += "-----BEGIN " + type + "-----\n";
+        String pemKey = "-----BEGIN " + type + "-----\n";
         List<String> parts = splitIntoEqualParts(DatatypeConverter.printBase64Binary(key.getEncoded()), 64);
         for (String part : parts)
             pemKey += part + "\n";

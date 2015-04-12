@@ -175,6 +175,13 @@ public class JGitInterfaceTest extends TestCase {
         git.remove("");
         entries = git.listDirectories("");
         assertTrue(entries.size() == 0);
+
+        final String remoteUid = "testRemoteUid";
+        final String remoteBranch = "testRemoteBranch";
+        final String tip = git.getTip();
+        git.updateLastSyncCommit(remoteUid, remoteBranch, tip);
+        String readRemoteTip = git.getLastSyncCommit(remoteUid, remoteBranch);
+        assertEquals(readRemoteTip, tip);
     }
 
     private boolean equals(List<String> list1, List<String> list2) {

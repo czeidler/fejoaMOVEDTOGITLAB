@@ -399,7 +399,7 @@ class PackManager {
      */
 	public function importPack($branch, $pack, $startCommit, $endCommit, $format = -1) {
 		if (!isSHA1Bin($endCommit)) {
-			return false;
+			return "endCommit is not SHA1 bin";
 		}
 
 		$objectStart = 0;
@@ -419,12 +419,12 @@ class PackManager {
 		if ($currentTipHex != "")
 			$currentTip = sha1_bin($currentTipHex);
 		if ($currentTip != $startCommit) {
-			return false;
+			return "currentTip != startCommit";
 		}
 
 		// check if all commit objects are in place
 		if ($currentTipHex != "" && !$this->isAncestorCommit($endCommit, $currentTip))
-			return false;
+			return "currentTip is not empty and endCommit is not an ancestor commit";
 
 		// TODO also check if all blobs for the new commits are in place
 

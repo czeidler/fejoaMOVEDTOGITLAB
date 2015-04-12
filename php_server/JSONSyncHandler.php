@@ -79,8 +79,9 @@ class JSONSyncPushHandler extends JSONHandler {
 			return $this->makeError($jsonId, "Push: no such branch.");
 
 		$packManager = new PackManager($database);
-		if (!$packManager->importPack($branch, $pack, $startCommit, $lastCommit))
-			return $this->makeError($jsonId, "Push: unable to import pack.");
+		$result = $packManager->importPack($branch, $pack, $startCommit, $lastCommit);
+		if ($result !== true)
+			return $this->makeError($jsonId, "Push: unable to import pack: ".$result);
 
 		$localTip = $database->getTipHex($branch);
 

@@ -14,6 +14,7 @@ import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.remote.ConnectionInfo;
+import org.fejoa.library.remote.ConnectionManager;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observable;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 public class Mailbox extends UserData {
     public interface Listener {
-        public void onMessageChannelAdded(MessageChannelRef channelRef);
+        void onMessageChannelAdded(MessageChannelRef channelRef);
     }
 
     final private WeakListenable<Listener> mailboxListeners = new WeakListenable();
@@ -39,7 +40,6 @@ public class Mailbox extends UserData {
     final private UserIdentity userIdentity;
 
     private MailboxBookkeeping bookkeeping;
-    private MailboxSyncManager mailboxSyncManager;
 
     final private int CACHE_SIZE = 10;
     final private Map<String, MessageChannel> messageChannelCache = new LinkedHashMap(CACHE_SIZE + 1, .75F, true) {
@@ -167,10 +167,6 @@ public class Mailbox extends UserData {
             DatabaseDiff diff = storageDir.getDiff(bookkeepingMailboxTip, mailBoxTip);
             updateBookkeeping(diff, bookkeepingMailboxTip, mailBoxTip);
         }
-    }
-
-    public void startSyncing(INotifications notifications) {
-        mailboxSyncManager = new MailboxSyncManager(this, notifications);
     }
 
     public UserIdentity getUserIdentity() {

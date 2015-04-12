@@ -8,9 +8,9 @@
 package org.fejoa.library.remote;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.CookieStore;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
@@ -18,9 +18,6 @@ import org.apache.http.impl.client.*;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.List;
 
 /*
 public class HTMLRequest implements IRemoteRequest {
@@ -110,13 +107,14 @@ public class HTMLRequest implements IRemoteRequest {
 }*/
 
 public class HTMLRequest implements IRemoteRequest {
-    static private BasicCookieStore cookieStore = new BasicCookieStore();
+    final private CookieStore cookieStore;
     private String url;
     private HttpPost httpPost;
     private boolean canceled = false;
 
-    public HTMLRequest(String url) {
+    public HTMLRequest(String url, CookieStore cookieStore) {
         this.url = url;
+        this.cookieStore = cookieStore;
     }
 
     @Override

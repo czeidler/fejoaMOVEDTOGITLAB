@@ -7,6 +7,8 @@
  */
 package org.fejoa.library.remote;
 
+import org.apache.http.client.CookieStore;
+import org.apache.http.impl.client.BasicCookieStore;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.INotifications;
 import rx.Observable;
@@ -20,13 +22,21 @@ import java.util.*;
 
 
 class SharedConnection {
-    private String server;
+    final private ConnectionManager connectionManager;
+    final private String server;
+    final private CookieStore cookieStore;
     private Map<ContactPrivate, RoleManager> contactRoles = new HashMap<>();
     private Object initLock = new Object();
     private boolean sessionInitialized = false;
 
-    public SharedConnection(String server) {
+    public SharedConnection(ConnectionManager connectionManager, String server, CookieStore cookieStore) {
+        this.connectionManager = connectionManager;
         this.server = server;
+        this.cookieStore = cookieStore;
+    }
+
+    public ConnectionManager getConnectionManager() {
+        return connectionManager;
     }
 
     public RoleManager getRoleManager(ContactPrivate myself) {
@@ -43,7 +53,7 @@ class SharedConnection {
             @Override
             public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
                 String fullAddress = "http://" + server + "/php_server/portal.php";
-                HTMLRequest remoteRequest = new HTMLRequest(fullAddress);
+                HTMLRequest remoteRequest = new HTMLRequest(fullAddress, cookieStore);
 
                 synchronized (initLock) {
                     // Create a php session id (when using php). If there are concurrent requests without a session id
@@ -76,12 +86,13 @@ class SharedConnection {
 class RoleManager {
     final private SharedConnection sharedConnection;
     final private RequestQueue requestQueue;
-    final private ServerWatcher serverWatcher = new ServerWatcher();
+    final private ServerWatcher serverWatcher;
     final private List<String> roles = Collections.synchronizedList(new ArrayList<String>());
 
     public RoleManager(SharedConnection sharedConnection) {
         this.sharedConnection = sharedConnection;
         requestQueue = new RequestQueue(null);
+        serverWatcher = new ServerWatcher(sharedConnection.getConnectionManager());
     }
 
     public void setListener(ServerWatcher.IListener listener) {
@@ -175,18 +186,11 @@ class RoleManager {
 }
 
 public class ConnectionManager {
-    static private ConnectionManager connectionManager = null;
-    static public ConnectionManager get() {
-        if (connectionManager != null)
-            return connectionManager;
-        connectionManager = new ConnectionManager();
-        return connectionManager;
-    }
-
+    final private CookieStore cookieStore = new BasicCookieStore();
     final private Map<String, SharedConnection> servers = new HashMap<>();
     private INotifications notifications = null;
 
-    private ConnectionManager() {
+    public ConnectionManager() {
     }
 
     public void setNotifications(INotifications notifications) {
@@ -196,7 +200,7 @@ public class ConnectionManager {
     private SharedConnection getContactRoles(String server) {
         SharedConnection sharedConnection;
         if (!servers.containsKey(server)) {
-            sharedConnection = new SharedConnection(server);
+            sharedConnection = new SharedConnection(this, server, cookieStore);
             servers.put(server, sharedConnection);
             return sharedConnection;
         }

@@ -8,6 +8,7 @@
 package org.fejoa.library.mailbox;
 
 import org.fejoa.library.INotifications;
+import org.fejoa.library.remote.ConnectionManager;
 import org.fejoa.library.remote.PublishMessageBranch;
 import org.fejoa.library.remote.RemoteConnectionJob;
 import org.fejoa.library.remote.SyncResultData;
@@ -20,6 +21,7 @@ import java.util.List;
 
 
 public class MailboxSyncManager {
+    final ConnectionManager connectionManager;
     final private Mailbox mailbox;
     final INotifications notifications;
     private SyncCookie syncCookie = null;
@@ -32,7 +34,8 @@ public class MailboxSyncManager {
         }
     };
 
-    public MailboxSyncManager(Mailbox mailbox, INotifications notifications) {
+    public MailboxSyncManager(ConnectionManager connectionManager, Mailbox mailbox, INotifications notifications) {
+        this.connectionManager = connectionManager;
         this.mailbox = mailbox;
         this.notifications = notifications;
         mailbox.getBookkeeping().addListener(listener);
@@ -63,7 +66,8 @@ public class MailboxSyncManager {
             ref.get().mapMany(new Func1<MessageChannel, Observable<RemoteConnectionJob.Result>>() {
                 @Override
                 public Observable<RemoteConnectionJob.Result> call(MessageChannel messageChannel) {
-                    PublishMessageBranch publishMessageBranch = new PublishMessageBranch(messageChannel);
+                    PublishMessageBranch publishMessageBranch = new PublishMessageBranch(connectionManager,
+                            messageChannel);
                     return publishMessageBranch.publish();
                 }
             }).subscribe(new Observer<RemoteConnectionJob.Result>() {

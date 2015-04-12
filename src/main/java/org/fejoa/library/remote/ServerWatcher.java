@@ -57,7 +57,7 @@ class WatchItemsChangedHandler extends InStanzaHandler {
 };
 
 
-public class ServerWatcher implements RequestQueue.IIdleJob {
+public class ServerWatcher extends RemoteTask implements RequestQueue.IIdleJob {
     public interface IListener {
         void onBranchesUpdated(List<RemoteStorageLink> links);
         void onError(String message);
@@ -88,7 +88,8 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
         }
     };
 
-    public ServerWatcher() {
+    public ServerWatcher(ConnectionManager connectionManager) {
+        super(connectionManager);
     }
 
     public void setListener(IListener listener) {
@@ -114,7 +115,7 @@ public class ServerWatcher implements RequestQueue.IIdleJob {
         // TODO: at the moment we only support watching one user per server so we just take the first connection info
         ConnectionInfo connectionInfo = remoteStorageLinkList.get(0).getConnectionInfo();
 
-        final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
+        final RemoteConnection remoteConnection = connectionManager.getConnection(connectionInfo);
         return remoteConnection.runJob(new JsonWatch());
     }
 

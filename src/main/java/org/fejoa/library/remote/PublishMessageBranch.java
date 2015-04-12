@@ -26,10 +26,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class PublishMessageBranch {
+public class PublishMessageBranch extends RemoteTask {
     private MessageChannel messageChannel;
 
-    public PublishMessageBranch(MessageChannel messageChannel) {
+    public PublishMessageBranch(ConnectionManager connectionManager, MessageChannel messageChannel) {
+        super(connectionManager);
         this.messageChannel = messageChannel;
     }
 
@@ -41,7 +42,7 @@ public class PublishMessageBranch {
             ConnectionInfo connectionInfo = new ConnectionInfo(myself.getServer(), myself.getServerUser(), myself);
             InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
                     connectionInfo, myself);
-            final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
+            final RemoteConnection remoteConnection = connectionManager.getConnection(connectionInfo);
             return remoteConnection.queueJob(initPublishMessageBranchJob);
         }
 
@@ -75,7 +76,7 @@ public class PublishMessageBranch {
 
             InitPublishMessageBranchJob initPublishMessageBranchJob = new InitPublishMessageBranchJob(messageChannel,
                     connectionInfo, contactPublic);
-            final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(connectionInfo);
+            final RemoteConnection remoteConnection = connectionManager.getConnection(connectionInfo);
             if (contactRequestJob != null) {
                 // set listener so that the initPublishMessageBranchJob knows where to send the branch
                 contactRequestJob.setListener(initPublishMessageBranchJob.getContactListener());

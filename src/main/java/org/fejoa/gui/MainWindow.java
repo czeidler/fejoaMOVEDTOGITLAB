@@ -10,6 +10,7 @@ package org.fejoa.gui;
 import org.fejoa.library.INotifications;
 import org.fejoa.library.Profile;
 import org.fejoa.library.mailbox.Mailbox;
+import org.fejoa.library.mailbox.MailboxSyncManager;
 import org.fejoa.library.remote.*;
 import rx.Observer;
 
@@ -88,6 +89,9 @@ public class MainWindow extends JDialog {
     final String NEW_MESSAGE_CARD = "new message";
     final String THREAD_CARD = "thread";
 
+    final ConnectionManager connectionManager = new ConnectionManager();
+    MailboxSyncManager mailboxSyncManager;
+
     public MainWindow(Profile profile) {
         this.profile = profile;
 
@@ -120,7 +124,7 @@ public class MainWindow extends JDialog {
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
-                ConnectionManager.get().shutdown(true);
+                connectionManager.shutdown(true);
                 dispose();
             }
 
@@ -156,7 +160,7 @@ public class MainWindow extends JDialog {
 
         List<RemoteStorageLink> links = new ArrayList<>(profile.getRemoteStorageLinks().values());
 
-        ConnectionManager.get().startWatching(links, new ServerWatcher.IListener() {
+        connectionManager.startWatching(links, new ServerWatcher.IListener() {
             @Override
             public void onBranchesUpdated(List<RemoteStorageLink> links) {
                 for (RemoteStorageLink link : links)
@@ -174,12 +178,12 @@ public class MainWindow extends JDialog {
             }
         });
 
-        profile.getMainMailbox().startSyncing(notifications);
+        mailboxSyncManager = new MailboxSyncManager(connectionManager, profile.getMainMailbox(), notifications);
     }
 
     private void syncBranch(RemoteStorageLink remoteStorageLink) {
         final String branch = remoteStorageLink.getLocalStorage().getBranch();
-        ServerSync serverSync = new ServerSync(remoteStorageLink);
+        ServerSync serverSync = new ServerSync(connectionManager, remoteStorageLink);
         serverSync.sync().subscribe(new Observer<RemoteConnectionJob.Result>() {
             @Override
             public void onCompleted() {

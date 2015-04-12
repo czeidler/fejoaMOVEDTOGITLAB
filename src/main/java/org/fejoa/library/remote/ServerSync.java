@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.remote;
 
+import org.apache.http.client.CookieStore;
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.support.*;
@@ -138,10 +139,11 @@ class JsonPush extends JsonRemoteConnectionJob {
 }
 
 
-public class ServerSync {
+public class ServerSync extends RemoteTask{
     final private RemoteStorageLink remoteStorageLink;
 
-    public ServerSync(RemoteStorageLink remoteStorageLink) {
+    public ServerSync(ConnectionManager connectionManager, RemoteStorageLink remoteStorageLink) {
+        super(connectionManager);
         this.remoteStorageLink = remoteStorageLink;
     }
 
@@ -149,7 +151,7 @@ public class ServerSync {
         final JsonSync sync = new JsonSync(remoteStorageLink.getLocalStorage(),
                 remoteStorageLink.getConnectionInfo().serverUser, remoteStorageLink.getUid());
 
-        final RemoteConnection remoteConnection = ConnectionManager.get().getConnection(
+        final RemoteConnection remoteConnection = connectionManager.getConnection(
                 remoteStorageLink.getConnectionInfo());
 
         return remoteConnection.queueJob(sync);

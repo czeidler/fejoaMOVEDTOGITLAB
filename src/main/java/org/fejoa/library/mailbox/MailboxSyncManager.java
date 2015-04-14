@@ -14,6 +14,7 @@ import org.fejoa.library.remote.RemoteConnectionJob;
 import org.fejoa.library.remote.SyncResultData;
 import rx.Observable;
 import rx.Observer;
+import rx.Scheduler;
 import rx.util.functions.Func1;
 
 import java.io.IOException;
@@ -61,9 +62,10 @@ public class MailboxSyncManager {
         if (dirtyBranches.size() == 0)
             return;
         syncCookie = new SyncCookie(dirtyBranches.size());
+        Scheduler observerScheduler = connectionManager.getFejoaSchedulers().mainScheduler();
         for (String branch : dirtyBranches) {
             Mailbox.MessageChannelRef ref = mailbox.getMessageChannel(branch);
-            ref.get().mapMany(new Func1<MessageChannel, Observable<RemoteConnectionJob.Result>>() {
+            ref.get(observerScheduler).mapMany(new Func1<MessageChannel, Observable<RemoteConnectionJob.Result>>() {
                 @Override
                 public Observable<RemoteConnectionJob.Result> call(MessageChannel messageChannel) {
                     PublishMessageBranch publishMessageBranch = new PublishMessageBranch(connectionManager,

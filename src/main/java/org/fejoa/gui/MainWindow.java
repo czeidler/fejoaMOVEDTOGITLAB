@@ -12,7 +12,10 @@ import org.fejoa.library.Profile;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.mailbox.MailboxSyncManager;
 import org.fejoa.library.remote.*;
+import org.fejoa.library.support.IFejoaSchedulers;
 import rx.Observer;
+import rx.Scheduler;
+import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
@@ -69,6 +72,13 @@ class LabelNotifications implements INotifications {
     }
 }
 
+
+class FejoaSchedulersSwing implements IFejoaSchedulers {
+    public Scheduler mainScheduler() {
+        return SwingScheduler.getInstance();
+    }
+}
+
 public class MainWindow extends JDialog {
     private JPanel contentPane;
     private JLabel statusLabel;
@@ -89,7 +99,7 @@ public class MainWindow extends JDialog {
     final String NEW_MESSAGE_CARD = "new message";
     final String THREAD_CARD = "thread";
 
-    final ConnectionManager connectionManager = new ConnectionManager();
+    final ConnectionManager connectionManager = new ConnectionManager(new FejoaSchedulersSwing());
     MailboxSyncManager mailboxSyncManager;
 
     public MainWindow(Profile profile) {

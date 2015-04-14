@@ -13,6 +13,7 @@ import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observer;
+import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
@@ -69,7 +70,7 @@ public class MessageChannelAdapter extends WeakListenable<ListDataListener> impl
 
         Mailbox.MessageChannelRef ref =  mailbox.getMessageChannel(index);
         final String[] label = {""};
-        ref.get().subscribe(new Observer<MessageChannel>() {
+        ref.get(SwingScheduler.getInstance()).subscribe(new Observer<MessageChannel>() {
             @Override
             public void onCompleted() {
 

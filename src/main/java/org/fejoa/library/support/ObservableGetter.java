@@ -43,12 +43,8 @@ public abstract class ObservableGetter<T> {
         return result.get(0);
     }
 
-    public Observable<T> get() {
-        return get(FejoaSchedulers.mainGuiScheduler());
-    }
-
     public Observable<T> get(Scheduler observerOn) {
-        return get(FejoaSchedulers.currentThreadScheduler(), observerOn);
+        return get(Schedulers.currentThread(), observerOn);
     }
 
     public Observable<T> get(final Scheduler subscribeOn, final Scheduler observerOn) {

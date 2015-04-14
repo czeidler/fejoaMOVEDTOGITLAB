@@ -11,6 +11,7 @@ import org.apache.http.client.CookieStore;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.INotifications;
+import org.fejoa.library.support.IFejoaSchedulers;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
@@ -91,7 +92,7 @@ class RoleManager {
 
     public RoleManager(SharedConnection sharedConnection) {
         this.sharedConnection = sharedConnection;
-        requestQueue = new RequestQueue(null);
+        requestQueue = new RequestQueue(null, sharedConnection.getConnectionManager().getFejoaSchedulers());
         serverWatcher = new ServerWatcher(sharedConnection.getConnectionManager());
     }
 
@@ -186,11 +187,17 @@ class RoleManager {
 }
 
 public class ConnectionManager {
-    final private CookieStore cookieStore = new BasicCookieStore();
-    final private Map<String, SharedConnection> servers = new HashMap<>();
-    private INotifications notifications = null;
+    final IFejoaSchedulers fejoaSchedulers;
+    final CookieStore cookieStore = new BasicCookieStore();
+    final Map<String, SharedConnection> servers = new HashMap<>();
+    INotifications notifications = null;
 
-    public ConnectionManager() {
+    public ConnectionManager(IFejoaSchedulers fejoaSchedulers) {
+        this.fejoaSchedulers = fejoaSchedulers;
+    }
+
+    public IFejoaSchedulers getFejoaSchedulers() {
+        return fejoaSchedulers;
     }
 
     public void setNotifications(INotifications notifications) {

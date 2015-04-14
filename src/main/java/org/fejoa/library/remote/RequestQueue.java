@@ -1,12 +1,19 @@
+/*
+ * Copyright 2014-2015.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.remote;
 
 
+import org.fejoa.library.support.IFejoaSchedulers;
 import rx.Observable;
 import rx.Observer;
 import rx.Scheduler;
 import rx.Subscription;
 import rx.concurrency.Schedulers;
-import rx.concurrency.SwingScheduler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 class RequestQueue {
     public interface IIdleJob {
-        public Observable getObservable();
-        public Observer getObserver();
+        Observable getObservable();
+        Observer getObserver();
     }
 
     class QueueEntry <T> {
@@ -53,6 +60,7 @@ class RequestQueue {
         }
     }
 
+    final IFejoaSchedulers fejoaSchedulers;
     private List<QueueEntry> queue = new ArrayList<>();
     private QueueEntry runningEntry = null;
     private final Lock queueLock = new ReentrantLock();
@@ -60,8 +68,9 @@ class RequestQueue {
     private IIdleJob idleJob;
     private Subscription idleJobSubscription;
 
-    public RequestQueue(IIdleJob idleJob) {
+    public RequestQueue(IIdleJob idleJob, IFejoaSchedulers fejoaSchedulers) {
         setIdleJob(idleJob);
+        this.fejoaSchedulers = fejoaSchedulers;
     }
 
     public <T> Observable<T> queue(final Observable<T> observable) {
@@ -103,7 +112,7 @@ class RequestQueue {
     }
 
     private Scheduler observeScheduler() {
-        return SwingScheduler.getInstance();
+        return fejoaSchedulers.mainScheduler();
     }
 
     private void stopIdleJob() {
@@ -131,7 +140,7 @@ class RequestQueue {
     private <T> void runIdleJob() {
         QueueEntry<T> entry = new QueueEntry<>();
         entry.observable = idleJob.getObservable();
-        entry.observer = new RequestObserver<T>(idleJob.getObserver());
+        entry.observer = new RequestObserver<>(idleJob.getObserver());
         runEntry(entry);
         idleJobSubscription = entry.subscription;
     }
@@ -180,7 +189,6 @@ class RequestQueue {
                 entry.subscription.unsubscribe();
                 onJobFinished();
             }
-
         } finally {
             queueLock.unlock();
         }

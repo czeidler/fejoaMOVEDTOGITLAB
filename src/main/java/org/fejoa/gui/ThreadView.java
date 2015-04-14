@@ -12,6 +12,7 @@ import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.mailbox.MessageChannel;
 import org.fejoa.library.mailbox.Messenger;
 import rx.Observer;
+import rx.concurrency.SwingScheduler;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -60,7 +61,7 @@ public class ThreadView {
         selectedMessageChannel = messageChannelRef;
         messageList.setModel(loadingListModel);
 
-        messageChannelRef.get().subscribe(new Observer<MessageChannel>() {
+        messageChannelRef.get(SwingScheduler.getInstance()).subscribe(new Observer<MessageChannel>() {
             @Override
             public void onCompleted() {
 

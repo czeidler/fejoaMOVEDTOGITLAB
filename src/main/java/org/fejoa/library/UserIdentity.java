@@ -62,8 +62,6 @@ public class UserIdentity extends UserData {
         myself = new ContactPrivate(new SecureStorageDir(storageDir, "myself"), storageDir.getKeyStore(), personalKeyId,
                 personalKey);
         myself.write();
-
-        writePublicSignature("signature.pup", CryptoHelper.convertToPEM(personalKey.getPublic()));
     }
 
     public void open(SecureStorageDir dir, IKeyStoreFinder keyStoreFinder)
@@ -113,8 +111,10 @@ public class UserIdentity extends UserData {
         };
     }
 
-    private void writePublicSignature(String filename, String publicKey) throws IOException {
-        File file = new File(filename);
+    public static void writePublicSignature(File file, UserIdentity userIdentity) throws IOException {
+        Contact myself = userIdentity.getMyself();
+        String publicKey = CryptoHelper.convertToPEM(myself.getPublicKey(myself.getMainKeyId()));
+
         FileWriter fileWriter = new FileWriter(file);
         try {
             fileWriter.write(publicKey);

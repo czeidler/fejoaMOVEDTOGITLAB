@@ -7,41 +7,43 @@
  */
 package org.fejoa.library.database;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class SecureStorageDirBucket {
+public class FejoaEnvironment {
+    final String homeDir;
+
     private List<SecureStorageDir> secureStorageDirs = new ArrayList<>();
-    static private SecureStorageDirBucket instance;
 
-    private SecureStorageDirBucket() {
-
+    public FejoaEnvironment(String homeDir) {
+        this.homeDir = homeDir;
     }
 
-    static public SecureStorageDir getDefault(String branch) throws IOException {
+    public String getHomeDir() {
+        return homeDir;
+    }
+
+    public SecureStorageDir getDefault(String branch) throws IOException {
         return get(".git", branch);
     }
 
-    static public SecureStorageDir getChannelBranchStorage(String branch) throws IOException {
+    public SecureStorageDir getChannelBranchStorage(String branch) throws IOException {
         return getDefault(branch);
     }
 
-    static public SecureStorageDir getByStorageId(String storageUid, String branch) throws IOException {
+    public SecureStorageDir getByStorageId(String storageUid, String branch) throws IOException {
         // ignore branch id for now
         return getDefault(branch);
     }
 
-    static public SecureStorageDir get(String path, String branch) throws IOException {
-        if (instance == null)
-            instance = new SecureStorageDirBucket();
-        return instance.getPrivate(path, branch);
-    }
-
-    private SecureStorageDir getPrivate(String path, String branch) throws IOException {
+    public SecureStorageDir get(String path, String branch) throws IOException {
+        File pathFile = new File(homeDir);
+        path = new File(pathFile, path).getPath();
         for (SecureStorageDir dir : secureStorageDirs) {
-            if (dir.getPath().equals(path) && dir.getBranch().equals(branch))
+            if (dir.getDatabasePath().equals(path) && dir.getBranch().equals(branch))
                 return dir;
         }
         // not found create one

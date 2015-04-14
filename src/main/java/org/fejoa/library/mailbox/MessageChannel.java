@@ -10,8 +10,8 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.database.SecureStorageDir;
-import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.database.StorageDir;
 
 import java.io.IOException;
@@ -25,21 +25,26 @@ import java.security.PublicKey;
  *
  */
 public class MessageChannel extends Channel {
+    final FejoaEnvironment environment;
     private MessageBranch branch;
     final private Mailbox mailbox;
 
     // create new
-    public MessageChannel(String branchDatabasePath, Mailbox mailbox) throws CryptoException, IOException {
+    public MessageChannel(FejoaEnvironment environment, String branchDatabasePath, Mailbox mailbox)
+            throws CryptoException, IOException {
+        this.environment = environment;
         this.mailbox = mailbox;
 
         create();
 
-        SecureStorageDir branchStorage = SecureStorageDirBucket.get(branchDatabasePath, getBranchName());
+        SecureStorageDir branchStorage = environment.get(branchDatabasePath, getBranchName());
         setBranch(MessageBranch.createNewMessageBranch(branchStorage, mailbox, getParcelCrypto()));
     }
 
     // load
-    public MessageChannel(SecureStorageDir dir, Mailbox mailbox) throws IOException, CryptoException {
+    public MessageChannel(FejoaEnvironment environment, SecureStorageDir dir, Mailbox mailbox) throws IOException,
+            CryptoException {
+        this.environment = environment;
         this.mailbox = mailbox;
         load(dir, mailbox);
     }
@@ -96,7 +101,7 @@ public class MessageChannel extends Channel {
         PublicKey publicKey = CryptoHelper.publicKeyFromPem(dir.readString("signatureKey"));
         byte[] data = dir.readBytes("d");
         load(mailbox.getUserIdentity(), publicKey, data);
-        SecureStorageDir messageStorage = SecureStorageDirBucket.getChannelBranchStorage(getBranchName());
+        SecureStorageDir messageStorage = environment.getChannelBranchStorage(getBranchName());
 
         // try to load the message branch but don't fail if it is not there
         try {
@@ -111,6 +116,6 @@ public class MessageChannel extends Channel {
         if (branch != null)
             return branch.getMessageStorage();
 
-        return SecureStorageDirBucket.get(mailbox.getMessageStoragePath(), getBranchName());
+        return environment.get(mailbox.getMessageStoragePath(), getBranchName());
     }
 }

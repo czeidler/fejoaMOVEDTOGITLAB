@@ -7,11 +7,10 @@
  */
 package org.fejoa.tests;
 
-
 import junit.framework.TestCase;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
-import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.mailbox.*;
 import org.fejoa.library.support.StorageLib;
@@ -39,17 +38,16 @@ public class ProfileTest extends TestCase {
     }
 
     public void testProfile() throws Exception {
-        final String gitDir = ".git";
+        FejoaEnvironment environment = new FejoaEnvironment("");
         final String password = "password";
         final String userName = "testName";
         final String server = "localhost";
         final String messageBody = "message body";
         final String subject = "test branch";
 
-        cleanUpDirs.add(gitDir);
-
         // creation
-        Profile profile = new Profile(SecureStorageDirBucket.get(gitDir, "profile"), "");
+        Profile profile = new Profile(environment, "profile", "");
+        cleanUpDirs.add(profile.getStorageDir().getDatabasePath());
         profile.createNew(password);
 
         ContactPrivate myself = profile.getMainUserIdentity().getMyself();
@@ -65,7 +63,8 @@ public class ProfileTest extends TestCase {
         profile.commit();
 
         // open
-        profile = new Profile(SecureStorageDirBucket.get(gitDir, "profile"), "");
+        environment = new FejoaEnvironment("");
+        profile = new Profile(environment, "profile", "");
         assertTrue(profile.open(password));
 
         userIdentity = profile.getMainUserIdentity();

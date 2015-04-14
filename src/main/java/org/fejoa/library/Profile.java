@@ -8,13 +8,14 @@
 package org.fejoa.library;
 
 import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.database.SecureStorageDir;
-import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.remote.RemoteStorageLink;
 
 import javax.crypto.SecretKey;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import java.util.Map;
 
 
 public class Profile extends UserData {
+    final FejoaEnvironment environment;
     final private List<KeyStore> keyStoreList = new ArrayList<>();
     final private List<UserIdentity> userIdentityList = new ArrayList<>();
     final private List<Mailbox> mailboxList = new ArrayList<>();
@@ -43,6 +45,7 @@ public class Profile extends UserData {
     final static private String PATH_STORAGE_BRANCH = "storageBranch";
     final static private String PATH_STORAGE_BASE_DIR = "storageBaseDir";
 
+    final static public String SIGNATURE_FILE = "signature.pup";
 
     private class KeyStoreFinder implements IKeyStoreFinder {
         final List<KeyStore> keyStoreList;
@@ -61,8 +64,9 @@ public class Profile extends UserData {
         }
     }
 
-    public Profile(SecureStorageDir storageDir, String baseDir) {
-        this.storageDir = new SecureStorageDir(storageDir, baseDir, true);
+    public Profile(FejoaEnvironment environment, String branch, String baseDir) throws IOException {
+        this.environment = environment;
+        this.storageDir = new SecureStorageDir(environment.getDefault(branch), baseDir, true);
     }
 
     public Map<StorageDir, RemoteStorageLink> getRemoteStorageLinks() {
@@ -83,7 +87,7 @@ public class Profile extends UserData {
 
         // init key store and master key
         KeyStore keyStore = new KeyStore(password);
-        SecureStorageDir keyStoreBranch = SecureStorageDirBucket.get(storageDir.getPath(),
+        SecureStorageDir keyStoreBranch = environment.get(storageDir.getDatabasePath(),
                 KEY_STORES_BRANCH);
         keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
@@ -94,18 +98,19 @@ public class Profile extends UserData {
         storageDir.setTo(keyStore, keyId);
 
         UserIdentity userIdentity = new UserIdentity();
-        SecureStorageDir userIdBranch = SecureStorageDirBucket.get(storageDir.getPath(),
+        SecureStorageDir userIdBranch = environment.get(storageDir.getDatabasePath(),
                 USER_IDENTITIES_BRANCH);
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
         userIdDir.setTo(keyStore, keyId);
         userIdentity.write(userIdDir);
+        UserIdentity.writePublicSignature(new File(environment.getHomeDir(), SIGNATURE_FILE), userIdentity);
+
         addAndWriteUseIdentity(userIdentity);
         mainUserIdentity = userIdentity;
         storageDir.writeSecureString(PATH_MAIN_USER_IDENTITY, mainUserIdentity.getUid());
 
-        Mailbox mailbox = new Mailbox(mainUserIdentity);
-        SecureStorageDir mailboxesBranch = SecureStorageDirBucket.get(storageDir.getPath(),
-                MAILBOXES_BRANCH);
+        Mailbox mailbox = new Mailbox(environment, mainUserIdentity);
+        SecureStorageDir mailboxesBranch = environment.get(storageDir.getDatabasePath(), MAILBOXES_BRANCH);
         SecureStorageDir mailboxDir = new SecureStorageDir(mailboxesBranch, mailbox.getUid());
         mailboxDir.setTo(keyStore, keyId);
         mailbox.write(mailboxDir);
@@ -225,7 +230,7 @@ public class Profile extends UserData {
         for (String keyStorePath : keyStores) {
             UserDataRef ref = readRef(PATH_KEY_STORES + "/" + keyStorePath);
             // use a secure storage without a key store (hack to use SecureStorageDirBucket)
-            StorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid, ref.branch),
+            StorageDir dir = new SecureStorageDir(environment.getByStorageId(ref.branchUid, ref.branch),
                     ref.basedir, true);
             KeyStore keyStore = new KeyStore(dir);
             keyStoreList.add(keyStore);
@@ -238,7 +243,7 @@ public class Profile extends UserData {
         for (String uidPath : userIdentities) {
             UserDataRef ref = readRef(PATH_USER_IDS + "/" + uidPath);
             UserIdentity userIdentity = new UserIdentity();
-            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid,
+            SecureStorageDir dir = new SecureStorageDir(environment.getByStorageId(ref.branchUid,
                     ref.branch), ref.basedir, true);
             userIdentity.open(dir, getKeyStoreFinder());
             userIdentityList.add(userIdentity);
@@ -259,7 +264,7 @@ public class Profile extends UserData {
 
         for (String uidPath : remoteUids) {
             SecureStorageDir linkDir = new SecureStorageDir(storageDir, baseDir + "/" + uidPath);
-            RemoteStorageLink link = new RemoteStorageLink(linkDir, mainUserIdentity.getMyself());
+            RemoteStorageLink link = new RemoteStorageLink(environment, linkDir, mainUserIdentity.getMyself());
             remoteStorageLinks.put(link.getLocalStorage(), link);
         }
     }
@@ -270,9 +275,9 @@ public class Profile extends UserData {
 
         for (String mailboxId : mailboxes) {
             UserDataRef ref = readRef(baseDir + "/" + mailboxId);
-            SecureStorageDir dir = new SecureStorageDir(SecureStorageDirBucket.getByStorageId(ref.branchUid,
+            SecureStorageDir dir = new SecureStorageDir(environment.getByStorageId(ref.branchUid,
                     ref.branch), ref.basedir, true);
-            Mailbox mailbox = new Mailbox(dir, getKeyStoreFinder(), getUserIdentityFinder());
+            Mailbox mailbox = new Mailbox(environment, dir, getKeyStoreFinder(), getUserIdentityFinder());
 
             mailboxList.add(mailbox);
         }

@@ -7,9 +7,9 @@
  */
 package org.fejoa.library.mailbox;
 
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.database.SecureStorageDirBucket;
 import org.fejoa.library.remote.ConnectionInfo;
 import org.fejoa.library.support.WeakListenable;
 
@@ -130,7 +130,6 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
             for (String remoteId : remoteIds)
                 dirtyRemotes.put(remoteId, new DirtyRemote(remoteId));
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
@@ -157,7 +156,8 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
         }
 
         private String getLocalTip(String branch) throws IOException {
-            return SecureStorageDirBucket.get(mailbox.getStorageDir().getPath(), branch).getTip();
+            FejoaEnvironment environment = mailbox.getEnvironment();
+            return environment.get(mailbox.getStorageDir().getDatabasePath(), branch).getTip();
         }
 
         public String getRemoteTip(String branch) {

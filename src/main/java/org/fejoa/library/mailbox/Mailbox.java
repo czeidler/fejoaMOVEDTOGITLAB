@@ -9,12 +9,7 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.*;
-import org.fejoa.library.database.DatabaseDiff;
-import org.fejoa.library.database.DatabaseDir;
-import org.fejoa.library.database.SecureStorageDir;
-import org.fejoa.library.database.StorageDir;
-import org.fejoa.library.remote.ConnectionInfo;
-import org.fejoa.library.remote.ConnectionManager;
+import org.fejoa.library.database.*;
 import org.fejoa.library.support.ObservableGetter;
 import org.fejoa.library.support.WeakListenable;
 import rx.Observable;
@@ -22,6 +17,7 @@ import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,6 +30,7 @@ public class Mailbox extends UserData {
         void onMessageChannelAdded(MessageChannelRef channelRef);
     }
 
+    final FejoaEnvironment environment;
     final private WeakListenable<Listener> mailboxListeners = new WeakListenable();
     final private ICryptoInterface crypto = Crypto.get();
     final private List<MessageChannelRef> messageChannels = new ArrayList<>();
@@ -136,7 +133,8 @@ public class Mailbox extends UserData {
     }
 
     // create new
-    public Mailbox(UserIdentity userIdentity) throws IOException, CryptoException {
+    public Mailbox(FejoaEnvironment environment, UserIdentity userIdentity) throws IOException, CryptoException {
+        this.environment = environment;
         this.userIdentity = userIdentity;
 
         byte hashResult[] = CryptoHelper.sha1Hash(crypto.generateInitializationVector(40));
@@ -144,8 +142,10 @@ public class Mailbox extends UserData {
     }
 
     // load existing
-    public Mailbox(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder, IUserIdentityFinder userIdentityFinder)
-            throws IOException, CryptoException {
+    public Mailbox(FejoaEnvironment environment, SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder,
+                   IUserIdentityFinder userIdentityFinder) throws IOException, CryptoException {
+        this.environment = environment;
+
         readUserData(storageDir, keyStoreFinder);
 
         String userIdentityId = storageDir.readSecureString("userIdentity");
@@ -158,8 +158,13 @@ public class Mailbox extends UserData {
         this.storageDir.addListener(storageListener);
     }
 
+    public FejoaEnvironment getEnvironment() {
+        return environment;
+    }
+
     private void initBookkeeping() throws IOException, CryptoException {
-        bookkeeping = new MailboxBookkeeping(".gitMailboxBookkeeping", this);
+        File file = new File(new File(storageDir.getDatabasePath()).getParentFile(), ".gitMailboxBookkeeping");
+        bookkeeping = new MailboxBookkeeping(file.getPath(), this);
 
         String bookkeepingMailboxTip = bookkeeping.getMailboxTip();
         String mailBoxTip = storageDir.getTip();
@@ -174,11 +179,11 @@ public class Mailbox extends UserData {
     }
 
     public String getMessageStoragePath() {
-        return getStorageDir().getPath();
+        return getStorageDir().getDatabasePath();
     }
 
     public MessageChannel createNewMessageChannel() throws CryptoException, IOException {
-        return new MessageChannel(getMessageStoragePath(), this);
+        return new MessageChannel(environment, getMessageStoragePath(), this);
     }
 
     public MailboxBookkeeping getBookkeeping() {
@@ -223,7 +228,7 @@ public class Mailbox extends UserData {
     private MessageChannel loadMessageChannel(final String branchId) throws IOException, CryptoException {
         SecureStorageDir channelStorage = new SecureStorageDir(storageDir,
                 branchId.substring(0, 2) + "/" + branchId.substring(2));
-        MessageChannel messageChannel = new MessageChannel(channelStorage, this);
+        MessageChannel messageChannel = new MessageChannel(environment, channelStorage, this);
         // only cache if the branch is there and loaded
         if (messageChannel.getBranch() != null)
             messageChannelCache.put(branchId, messageChannel);

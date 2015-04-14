@@ -47,22 +47,19 @@ public class KeyStore implements IStorageUid {
         uid = storageDir.readString("uid");
     }
 
-    public KeyStore(String password) {
+    public KeyStore(String password) throws CryptoException {
         crypto = Crypto.get();
 
         salt = crypto.generateSalt();
-        try {
-            SecretKey passwordKey = crypto.deriveKey(password, salt, CryptoSettings.KDF_ALGORITHM,
-                    CryptoSettings.MASTER_PASSWORD_ITERATIONS, CryptoSettings.MASTER_PASSWORD_LENGTH);
 
-            masterKeyIV = crypto.generateInitializationVector(CryptoSettings.MASTER_PASSWORD_IV_LENGTH);
-            masterKey = crypto.generateSymmetricKey(CryptoSettings.MASTER_PASSWORD_LENGTH);
-            encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV);
+        SecretKey passwordKey = crypto.deriveKey(password, salt, CryptoSettings.KDF_ALGORITHM,
+                CryptoSettings.MASTER_PASSWORD_ITERATIONS, CryptoSettings.MASTER_PASSWORD_LENGTH);
 
-            makeUidFromEncryptedMasterKey(encryptedMasterKey);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
+        masterKeyIV = crypto.generateInitializationVector(CryptoSettings.MASTER_PASSWORD_IV_LENGTH);
+        masterKey = crypto.generateSymmetricKey(CryptoSettings.MASTER_PASSWORD_LENGTH);
+        encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV);
+
+        makeUidFromEncryptedMasterKey(encryptedMasterKey);
     }
 
     @Override

@@ -189,7 +189,7 @@ public class StorageDir {
         return getDatabase().getTip();
     }
 
-    public String getPath() {
+    public String getDatabasePath() {
         return getDatabase().getPath();
     }
 

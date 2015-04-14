@@ -9,7 +9,7 @@ package org.fejoa.library.remote;
 
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.IStorageUid;
-import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
@@ -27,14 +27,14 @@ public class RemoteStorageLink {
     private ConnectionInfo connectionInfo;
     final private StorageDir localStorage;
 
-    public RemoteStorageLink(SecureStorageDir linkStorage, ContactPrivate myself)
+    public RemoteStorageLink(FejoaEnvironment environment, SecureStorageDir linkStorage, ContactPrivate myself)
             throws IOException, CryptoException {
         this.linkStorage = linkStorage;
         this.uid = linkStorage.readString("uid");
         this.myself = myself;
         storageUid = linkStorage.readSecureString("storageUid");
         String databaseBranch = linkStorage.readSecureString("storageBranch");
-        localStorage = SecureStorageDirBucket.getByStorageId(storageUid, databaseBranch);
+        localStorage = environment.getByStorageId(storageUid, databaseBranch);
 
         try {
             String serverUser = linkStorage.readSecureString("serverUser");

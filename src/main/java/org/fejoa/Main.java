@@ -11,7 +11,7 @@ import org.fejoa.gui.CreateProfileDialog;
 import org.fejoa.gui.MainWindow;
 import org.fejoa.gui.PasswordDialog;
 import org.fejoa.library.ContactPrivate;
-import org.fejoa.library.database.SecureStorageDirBucket;
+import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.Profile;
 import org.fejoa.library.crypto.CryptoException;
 
@@ -70,10 +70,11 @@ public class Main {
         // convenient hack
         String password = readPassword();
 
+        FejoaEnvironment environment = new FejoaEnvironment("");
         Profile profile = null;
 
         try {
-            profile = new Profile(SecureStorageDirBucket.getDefault("profile"), "");
+            profile = new Profile(environment, "profile", "");
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -85,7 +86,7 @@ public class Main {
             } catch (IOException e) {
                 break;
             } catch (CryptoException e) {
-                e.printStackTrace();
+                System.out.println("Invalid password.");
             }
             if (!opened) {
                 // open password dialog

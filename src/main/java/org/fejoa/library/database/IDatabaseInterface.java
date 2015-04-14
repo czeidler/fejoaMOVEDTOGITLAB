@@ -12,30 +12,30 @@ import java.util.List;
 
 
 interface IDatabaseInterface {
-    public void init(String path, String branch, boolean create) throws IOException;
+    void init(String path, String branch, boolean create) throws IOException;
 
-    public String getPath();
-    public String getBranch();
+    String getPath();
+    String getBranch();
 
-    public byte[] readBytes(String path) throws IOException;
-    public void writeBytes(String path, byte[] bytes) throws IOException;
+    byte[] readBytes(String path) throws IOException;
+    void writeBytes(String path, byte[] bytes) throws IOException;
 
-    public String commit() throws IOException;
+    String commit() throws IOException;
 
-    public List<String> listFiles(String path) throws IOException;
-    public List<String> listDirectories(String path) throws IOException;
+    List<String> listFiles(String path) throws IOException;
+    List<String> listDirectories(String path) throws IOException;
 
-    public String getTip() throws IOException;
-    public void updateTip(String commit) throws IOException;
+    String getTip() throws IOException;
+    void updateTip(String commit) throws IOException;
 
-    public void remove(String path) throws IOException;
+    void remove(String path) throws IOException;
 
-    public DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException;
+    DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException;
 
     // sync
-    public String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;
-    public void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException;
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException;
+    String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;
+    void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException;
+    byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException;
     //! import pack, tries to merge and update the tip
-    public void importPack(byte pack[], String baseCommit, String endCommit, int format) throws IOException;
+    void importPack(byte pack[], String baseCommit, String endCommit, int format) throws IOException;
 }

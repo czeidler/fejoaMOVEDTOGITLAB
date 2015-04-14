@@ -10,6 +10,7 @@ package org.fejoa.library.crypto;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -23,10 +24,14 @@ public class BCCryptoInterface implements ICryptoInterface {
 
     @Override
     public SecretKey deriveKey(String secret, byte[] salt, String algorithm, int iterations, int keyLength)
-            throws Exception {
-        SecretKeyFactory factory = SecretKeyFactory.getInstance(algorithm);
-        KeySpec spec = new PBEKeySpec(secret.toCharArray(), salt, iterations, keyLength);
-        return factory.generateSecret(spec);
+            throws CryptoException {
+        try {
+            SecretKeyFactory factory = SecretKeyFactory.getInstance(algorithm);
+            KeySpec spec = new PBEKeySpec(secret.toCharArray(), salt, iterations, keyLength);
+            return factory.generateSecret(spec);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
     }
 
     @Override

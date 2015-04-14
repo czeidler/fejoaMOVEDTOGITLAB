@@ -12,20 +12,19 @@ import java.security.*;
 
 
 public interface ICryptoInterface {
-    public SecretKey deriveKey(String secret, byte[] salt, String algorithm, int keyLength, int iterations)
-            throws Exception;
+    SecretKey deriveKey(String secret, byte[] salt, String algorithm, int keyLength, int iterations) throws CryptoException;
 
-    public KeyPair generateKeyPair(int size) throws CryptoException;
-    public SecretKey generateSymmetricKey(int size) throws CryptoException;
-    public byte[] generateInitializationVector(int size);
-    public byte[] generateSalt();
+    KeyPair generateKeyPair(int size) throws CryptoException;
+    SecretKey generateSymmetricKey(int size) throws CryptoException;
+    byte[] generateInitializationVector(int size);
+    byte[] generateSalt();
 
-    public byte[] encryptAsymmetric(byte[] input, PublicKey key) throws CryptoException;
-    public byte[] decryptAsymmetric(byte[] input, PrivateKey key) throws CryptoException;
+    byte[] encryptAsymmetric(byte[] input, PublicKey key) throws CryptoException;
+    byte[] decryptAsymmetric(byte[] input, PrivateKey key) throws CryptoException;
 
-    public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException;
-    public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException;
+    byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException;
+    byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv) throws CryptoException;
 
-    public byte[] sign(byte[] input, PrivateKey key) throws CryptoException;
-    public boolean verifySignature(byte[] message, byte[] signature, PublicKey key) throws CryptoException;
+    byte[] sign(byte[] input, PrivateKey key) throws CryptoException;
+    boolean verifySignature(byte[] message, byte[] signature, PublicKey key) throws CryptoException;
 }

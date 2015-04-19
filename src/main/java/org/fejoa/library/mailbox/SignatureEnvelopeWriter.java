@@ -11,6 +11,7 @@ import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.crypto.CryptoSettings;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -18,13 +19,16 @@ import java.io.IOException;
 
 
 public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
-    private String uid;
-    private ContactPrivate sender;
-    private KeyId signatureKey;
-    private byte signature[];
-    private IParcelEnvelopeWriter childWriter;
+    String uid;
+    final ContactPrivate sender;
+    final KeyId signatureKey;
+    byte signature[];
+    IParcelEnvelopeWriter childWriter;
+    final CryptoSettings signatureSettings;
 
-    public SignatureEnvelopeWriter(ContactPrivate sender, KeyId signatureKey, IParcelEnvelopeWriter childWriter) {
+    public SignatureEnvelopeWriter(ContactPrivate sender, KeyId signatureKey, CryptoSettings signatureSettings,
+                                   IParcelEnvelopeWriter childWriter) {
+        this.signatureSettings = signatureSettings;
         this.sender = sender;
         this.signatureKey = signatureKey;
     }
@@ -61,11 +65,12 @@ public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
 
         // sender and key id
         stream.writeBytes(sender.getUid() + "\n");
+        stream.writeBytes(signatureSettings.signatureAlgorithm + "\n");
         stream.writeBytes(signatureKey.getKeyId() + "\n");
 
         // signature
         String signatureHash = CryptoHelper.toHex(CryptoHelper.sha256Hash(packageData.toByteArray()));
-        signature = sender.sign(signatureKey, signatureHash.getBytes());
+        signature = sender.sign(signatureKey, signatureHash.getBytes(), signatureSettings);
         stream.writeInt(signature.length);
         stream.write(signature, 0, signature.length);
 

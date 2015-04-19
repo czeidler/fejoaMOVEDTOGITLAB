@@ -10,6 +10,7 @@ package org.fejoa.library.mailbox;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.database.SecureStorageDir;
 import org.fejoa.library.database.StorageDir;
@@ -35,7 +36,7 @@ public class MessageChannel extends Channel {
         this.environment = environment;
         this.mailbox = mailbox;
 
-        create();
+        create(CryptoSettings.messageChannel());
 
         SecureStorageDir branchStorage = environment.get(branchDatabasePath, getBranchName());
         setBranch(MessageBranch.createNewMessageBranch(branchStorage, mailbox, getParcelCrypto()));

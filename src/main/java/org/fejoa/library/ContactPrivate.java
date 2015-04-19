@@ -9,6 +9,7 @@ package org.fejoa.library;
 
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.crypto.ICryptoInterface;
 import org.fejoa.library.database.SecureStorageDir;
 
@@ -22,17 +23,18 @@ import java.util.Map;
 
 public class ContactPrivate extends Contact {
     private KeyStore keyStore;
-    final private Map<String, KeyPair> keys = new HashMap<>();
+    final private Map<String, KeyStore.AsymmetricKeyData> keys = new HashMap<>();
 
 
     // create a new contact
-    public ContactPrivate(SecureStorageDir storageDir, KeyStore keyStore, KeyId keyId, KeyPair keyPair) {
+    public ContactPrivate(SecureStorageDir storageDir, KeyStore keyStore, KeyId keyId,
+                          KeyStore.AsymmetricKeyData keyData) {
         super(storageDir);
 
         this.uid = keyId.getKeyId();
         this.keyStore = keyStore;
 
-        addKeyPair(keyId, keyPair);
+        addAsymmetricKey(keyId, keyData);
         setMainKey(keyId);
     }
 
@@ -52,7 +54,7 @@ public class ContactPrivate extends Contact {
         super.write();
 
         storageDir.writeString("keyStoreId", keyStore.getUid());
-        for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
+        for (Map.Entry<String, KeyStore.AsymmetricKeyData> entry : keys.entrySet()) {
             String keyId = entry.getKey();
             storageDir.writeString("keys/" + keyId + "/keyId", keyId);
         }
@@ -67,40 +69,40 @@ public class ContactPrivate extends Contact {
             throw new IOException("key store not found");
         List<String> keyIds = storageDir.listDirectories("keys");
         for (String keyId : keyIds) {
-            KeyPair keyPair = keyStore.readAsymmetricKey(keyId);
-            keys.put(keyId, keyPair);
+            KeyStore.AsymmetricKeyData data = keyStore.readAsymmetricKey(keyId);
+            keys.put(keyId, data);
         }
     }
 
     public KeyPair getKeyPair(String keyId) {
         if (!keys.containsKey(keyId))
             return null;
-        return keys.get(keyId);
+        return keys.get(keyId).keyPair;
     }
 
-    public void addKeyPair(String keyId, KeyPair keyPair) {
-        keys.put(keyId, keyPair);
+    public void addAsymmetricKey(String keyId, KeyStore.AsymmetricKeyData keyData) {
+        keys.put(keyId, keyData);
     }
 
-    public void addKeyPair(KeyId keyId, KeyPair keyPair) {
-        keys.put(keyId.getKeyId(), keyPair);
+    public void addAsymmetricKey(KeyId keyId, KeyStore.AsymmetricKeyData keyData) {
+        keys.put(keyId.getKeyId(), keyData);
     }
 
-    public byte[] sign(KeyId keyId, byte data[]) throws CryptoException {
+    public byte[] sign(KeyId keyId, byte data[], CryptoSettings signatureSettings) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         KeyPair keyPair = getKeyPair(keyId.getKeyId());
         if (keyPair == null)
             throw new IllegalArgumentException();
-        return crypto.sign(data, keyPair.getPrivate());
+        return crypto.sign(data, keyPair.getPrivate(), signatureSettings);
     }
 
     @Override
-    public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException {
+    public boolean verify(KeyId keyId, byte data[], byte signature[], CryptoSettings signatureSettings) throws CryptoException {
         if (!keys.containsKey(keyId.getKeyId()))
             return false;
-        KeyPair keyPair = keys.get(keyId.getKeyId());
+        KeyStore.AsymmetricKeyData keyData = keys.get(keyId.getKeyId());
         ICryptoInterface crypto = Crypto.get();
-        return crypto.verifySignature(data, signature, keyPair.getPublic());
+        return crypto.verifySignature(data, signature, keyData.keyPair.getPublic(), signatureSettings);
     }
 
     @Override

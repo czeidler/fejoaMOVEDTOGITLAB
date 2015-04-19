@@ -9,24 +9,30 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.Contact;
 import org.fejoa.library.KeyId;
+import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
+import org.fejoa.library.crypto.ICryptoInterface;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.security.PublicKey;
 
 
 public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
-    private Contact receiver;
-    private KeyId asymmetricKeyId;
-    private ParcelCrypto parcelCrypto;
-    private IParcelEnvelopeWriter childWriter;
+    final Contact receiver;
+    final KeyId asymmetricKeyId;
+    final ParcelCrypto parcelCrypto;
+    final IParcelEnvelopeWriter childWriter;
+    final CryptoSettings asymSettings;
 
     public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
-                                    IParcelEnvelopeWriter childWriter) {
+                                    CryptoSettings asymSettings, IParcelEnvelopeWriter childWriter) {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
         this.parcelCrypto = parcelCrypto;
+        this.asymSettings = asymSettings;
         this.childWriter = childWriter;
     }
 
@@ -34,20 +40,34 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
         return parcelCrypto;
     }
 
+    private byte[] encrypteAsym(byte[] data) throws CryptoException {
+        PublicKey publicKey = receiver.getPublicKey(asymmetricKeyId);
+        ICryptoInterface crypto = Crypto.get();
+        return crypto.encryptAsymmetric(data, publicKey, asymSettings);
+    }
+
     @Override
     public byte[] pack(byte[] parcel) throws CryptoException, IOException {
-        byte encryptedSymmetricKey[] = parcelCrypto.getEncryptedSymmetricKey(receiver, asymmetricKeyId);
-
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
         DataOutputStream stream = new DataOutputStream(packageData);
 
-        // asym key id
+        CryptoSettings settings = parcelCrypto.getCryptoSettings();
+        // asym algorithm and key id
+        stream.writeBytes(settings.asymmetricAlgorithm + "\n");
         stream.writeBytes(asymmetricKeyId.getKeyId() + "\n");
 
+        // encrypted sym key type
+        byte[] encryptedSymKeyType = encrypteAsym(settings.symmetricKeyType.getBytes());
+        stream.writeInt(encryptedSymKeyType.length);
+        stream.write(encryptedSymKeyType, 0, encryptedSymKeyType.length);
+        // encrypted sym algorithm
+        byte[] encryptedSymAlgorithm = encrypteAsym(settings.symmetricAlgorithm.getBytes());
+        stream.writeInt(encryptedSymAlgorithm.length);
+        stream.write(encryptedSymAlgorithm, 0, encryptedSymAlgorithm.length);
         // encrypted sym key
+        byte encryptedSymmetricKey[] = encrypteAsym(parcelCrypto.getSymmetricKey().getEncoded());
         stream.writeInt(encryptedSymmetricKey.length);
         stream.write(encryptedSymmetricKey, 0, encryptedSymmetricKey.length);
-
         // iv
         byte iv[] = parcelCrypto.getIV();
         stream.writeInt(iv.length);

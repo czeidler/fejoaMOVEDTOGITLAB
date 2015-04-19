@@ -12,6 +12,7 @@ import org.fejoa.library.IContactFinder;
 import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.crypto.CryptoSettings;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -20,13 +21,15 @@ import java.security.NoSuchAlgorithmException;
 
 
 public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
-    private String uid = "";
-    private IContactFinder contactFinder;
-    private IParcelEnvelopeReader childReader;
+    String uid = "";
+    final IContactFinder contactFinder;
+    final CryptoSettings signatureSettings;
+    final IParcelEnvelopeReader childReader;
 
-    public SignatureEnvelopeReader(IContactFinder contactFinder,
+    public SignatureEnvelopeReader(IContactFinder contactFinder, CryptoSettings signatureSettings,
                                    IParcelEnvelopeReader childReader) {
         this.contactFinder = contactFinder;
+        this.signatureSettings = signatureSettings;
         this.childReader = childReader;
     }
 
@@ -57,9 +60,11 @@ public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
 
         // verify signature
         String senderUid = stream.readLine();
+        signatureSettings.signatureAlgorithm = stream.readLine();
         KeyId signatureKey = new KeyId(stream.readLine());
 
         hashForSignature.update((senderUid + "\n").getBytes());
+        hashForSignature.update((signatureSettings.signatureAlgorithm + "\n").getBytes());
         hashForSignature.update((signatureKey.getKeyId() + "\n").getBytes());
         String signatureHash = CryptoHelper.toHex(hashForSignature.digest());
 
@@ -71,7 +76,7 @@ public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
         Contact sender = contactFinder.find(senderUid);
         if (sender == null)
             throw new IOException("contact not found");
-        if (!sender.verify(signatureKey, signatureHash.getBytes(), signature))
+        if (!sender.verify(signatureKey, signatureHash.getBytes(), signature, signatureSettings))
             throw new IOException("can't be verified");
 
         if (childReader != null)

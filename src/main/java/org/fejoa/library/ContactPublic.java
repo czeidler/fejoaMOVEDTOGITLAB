@@ -7,10 +7,7 @@
  */
 package org.fejoa.library;
 
-import org.fejoa.library.crypto.Crypto;
-import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.ICryptoInterface;
+import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.SecureStorageDir;
 
 import java.io.IOException;
@@ -73,9 +70,9 @@ public class ContactPublic extends Contact {
     }
 
     @Override
-    public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException {
+    public boolean verify(KeyId keyId, byte data[], byte signature[], CryptoSettings signatureSettings) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         PublicKey publicKey = getPublicKey(keyId);
-        return crypto.verifySignature(data, signature, publicKey);
+        return crypto.verifySignature(data, signature, publicKey, signatureSettings);
     }
 }

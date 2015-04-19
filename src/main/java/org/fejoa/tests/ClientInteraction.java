@@ -11,8 +11,13 @@ import junit.framework.TestCase;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.INotifications;
 import org.fejoa.library.Profile;
+import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.FejoaEnvironment;
+import org.fejoa.library.mailbox.Mailbox;
 import org.fejoa.library.mailbox.MailboxSyncManager;
+import org.fejoa.library.mailbox.MessageChannel;
+import org.fejoa.library.mailbox.Messenger;
 import org.fejoa.library.remote.*;
 import org.fejoa.library.support.IFejoaSchedulers;
 import org.fejoa.library.support.StorageLib;
@@ -61,10 +66,9 @@ class Client {
         } catch (Exception e) {
             System.out.println("failed to open account");
         }
-        if (!opened)
-            return;
         if (!opened) {
-            profile.createNew(password);
+            System.out.println("Creating new profile (" + userName + ")...");
+            profile.createNew(password, CryptoSettings.getFast());
 
             ContactPrivate myself = profile.getMainUserIdentity().getMyself();
             myself.setServerUser(userName);
@@ -77,10 +81,22 @@ class Client {
 
         // copy signature to server
         File signatureFile = new File(userName, Profile.SIGNATURE_FILE);
-        File targetDir = new File("../php_server/" + userName);
+        File targetDir = getServerDir(userName);
         targetDir.mkdirs();
         if (!StorageLib.copyFile(signatureFile, new File(targetDir, Profile.SIGNATURE_FILE)))
             throw new Exception("Can't copy signature to server.");
+    }
+
+    private File getServerDir(String userName) {
+        return new File("../php_server/" + userName);
+    }
+
+    public void deleteLocal(String userName) {
+        StorageLib.recursiveDeleteFile(new File(userName));
+    }
+
+    public void deleteServer(String userName) {
+        StorageLib.recursiveDeleteFile(getServerDir(userName));
     }
 
     public void start() {
@@ -135,6 +151,25 @@ class Client {
             }
         });
     }
+
+    public void sendNewMessage(String receiver, String subject, String body) throws CryptoException, IOException {
+        List<String> receivers = new ArrayList<>();
+        receivers.add(receiver);
+
+        Mailbox mailbox = profile.getMainMailbox();
+        Messenger messenger = new Messenger(mailbox);
+        messenger.createNewThreadMessage(subject, receivers, body);
+    }
+
+    public void reply(MessageChannel messageChannel, String body) throws IOException, CryptoException {
+        Mailbox mailbox = profile.getMainMailbox();
+        Messenger messenger = new Messenger(mailbox);
+        messenger.addMessageToThread(messageChannel, body);
+    }
+
+    public Mailbox getMailbox() {
+        return profile.getMainMailbox();
+    }
 }
 
 public class ClientInteraction extends TestCase {
@@ -157,20 +192,21 @@ public class ClientInteraction extends TestCase {
     ErrorNotifications client1Error = new ErrorNotifications();
     ErrorNotifications client2Error = new ErrorNotifications();
 
-    final int WAIT_TIME = 500;
+    final int WAIT_TIME = 2000;
+
+    private void waitAndCheck(String tag, int time, ErrorNotifications notifications) throws Exception {
+        Thread.sleep(time);
+
+        if (notifications.hasError)
+            throw new Exception(tag + ": " + notifications.error);
+    }
 
     private void client1CheckResults() throws Exception {
-        Thread.sleep(WAIT_TIME);
-
-        if (client1Error.hasError)
-            throw new Exception("Client 1: " + client1Error.error);
+        waitAndCheck("Client1", WAIT_TIME, client1Error);
     }
 
     private void client2CheckResults() throws Exception {
-        Thread.sleep(WAIT_TIME);
-
-        if (client2Error.hasError)
-            throw new Exception("Client 2: " + client2Error.error);
+        waitAndCheck("Client2", WAIT_TIME, client1Error);
     }
 
     @Override
@@ -184,11 +220,17 @@ public class ClientInteraction extends TestCase {
     }
 
     public void testTwoClients() throws Exception {
+        String client1UserName = "client1";
         Client client1 = new Client(client1Error);
-        client1.openOrCreate("client1", "localhost", "client1Password");
+        client1.deleteLocal(client1UserName);
+        client1.deleteServer(client1UserName);
+        client1.openOrCreate(client1UserName, "localhost", "client1Password");
 
+        String client2UserName = "client2";
         Client client2 = new Client(client2Error);
-        client2.openOrCreate("client2", "localhost", "client2Password");
+        client2.deleteLocal(client2UserName);
+        client2.deleteServer(client2UserName);
+        client2.openOrCreate(client2UserName, "localhost", "client2Password");
 
         client1.start();
         client1CheckResults();
@@ -196,6 +238,11 @@ public class ClientInteraction extends TestCase {
         client2.start();
         client2CheckResults();
 
+        client1.sendNewMessage("client2@localhost", "test", "test body");
+        client1CheckResults();
+
+        client2CheckResults();
+        assertEquals(1, client2.getMailbox().getNumberOfMessageChannels());
 
         client1.stop();
         client2.stop();

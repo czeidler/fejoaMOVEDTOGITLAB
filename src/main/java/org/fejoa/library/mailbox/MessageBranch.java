@@ -9,6 +9,7 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.database.SecureStorageDir;
@@ -22,8 +23,8 @@ import java.util.List;
 
 public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
     public interface IListener {
-        public void onMessageAdded(Message message);
-        public void onCommit();
+        void onMessageAdded(Message message);
+        void onCommit();
     }
 
     private ParcelCrypto parcelCrypto;
@@ -104,9 +105,10 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         loadMessages();
     }
 
-    public void setMessageBranchInfo(MessageBranchInfo info) throws CryptoException, IOException {
+    public void setMessageBranchInfo(MessageBranchInfo info, CryptoSettings signatureSettings) throws CryptoException,
+            IOException {
         ContactPrivate myself = identity.getMyself();
-        byte[] pack = info.write(parcelCrypto, myself, myself.getMainKeyId());
+        byte[] pack = info.write(parcelCrypto, myself, myself.getMainKeyId(), signatureSettings);
         messageStorage.writeBytes("i", pack);
 
         messageBranchInfo = info;
@@ -137,9 +139,9 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         return messages.get(index);
     }
 
-    public void addMessage(Message message) throws IOException, CryptoException {
+    public void addMessage(Message message, CryptoSettings signatureSettings) throws IOException, CryptoException {
         ContactPrivate myself = identity.getMyself();
-        byte[] pack = message.write(parcelCrypto, myself, myself.getMainKeyId());
+        byte[] pack = message.write(parcelCrypto, myself, myself.getMainKeyId(), signatureSettings);
 
         // write message
         String uid = message.getUid();

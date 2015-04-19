@@ -55,11 +55,12 @@ class JSONInitPublishBranchHandler extends JSONHandler {
 		$transaction = new PublishBranchTransaction($signToken);
 		$transaction->serverUser = $serverUser;
 		Session::get()->addTransaction($transaction);
-		
+
+		$signatureAlgorithm = "SHA1withRSA";
 		// reply
 		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'message' => "sign this token",
-			'transactionId' => $transaction->getUid(), 'signToken' => $signToken,
-			'messageChannelNeeded' => $messageChannelNeeded));
+			'transactionId' => $transaction->getUid(), 'signatureAlgorithm' => $signatureAlgorithm,
+			'signToken' => $signToken, 'messageChannelNeeded' => $messageChannelNeeded));
 	}
 }
 

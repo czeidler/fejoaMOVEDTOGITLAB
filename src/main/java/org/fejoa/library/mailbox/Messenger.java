@@ -9,6 +9,7 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.Contact;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,10 +34,11 @@ public class Messenger {
         Message message = new Message();
         message.setBody(body);
 
+        CryptoSettings signatureSettings = CryptoSettings.signatureSettings();
         MessageChannel messageChannel = mailbox.createNewMessageChannel();
         MessageBranch messageBranch = messageChannel.getBranch();
-        messageBranch.setMessageBranchInfo(branchInfo);
-        messageBranch.addMessage(message);
+        messageBranch.setMessageBranchInfo(branchInfo, signatureSettings);
+        messageBranch.addMessage(message, signatureSettings);
         messageBranch.commit();
 
         mailbox.addMessageChannel(messageChannel);
@@ -49,8 +51,9 @@ public class Messenger {
         Message message = new Message();
         message.setBody(body);
 
+        CryptoSettings signatureSettings = CryptoSettings.signatureSettings();
         MessageBranch messageBranch = channel.getBranch();
-        messageBranch.addMessage(message);
+        messageBranch.addMessage(message, signatureSettings);
         messageBranch.commit();
 
         mailbox.commit();

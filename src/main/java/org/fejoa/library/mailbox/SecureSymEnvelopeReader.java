@@ -15,8 +15,8 @@ import java.io.IOException;
 
 
 public class SecureSymEnvelopeReader implements IParcelEnvelopeReader {
-    private ParcelCrypto parcelCrypto;
-    private IParcelEnvelopeReader childReader;
+    final ParcelCrypto parcelCrypto;
+    final IParcelEnvelopeReader childReader;
 
     public SecureSymEnvelopeReader(ParcelCrypto parcelCrypto, IParcelEnvelopeReader childReader) {
         this.parcelCrypto = parcelCrypto;

@@ -11,6 +11,7 @@ import org.fejoa.library.KeyId;
 import org.fejoa.library.KeyStore;
 import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.crypto.ICryptoInterface;
 
 import java.io.IOException;
@@ -19,14 +20,15 @@ import java.io.IOException;
 public class SecureStorageDir extends StorageDir {
     private KeyStore keyStore;
     private KeyId keyId;
-    private KeyStore.SecreteKeyIVPair secreteKeyIVPair;
+    private KeyStore.SymmetricKeyData symmetricKeyData;
     private ICryptoInterface crypto = Crypto.get();
+    private CryptoSettings cryptoSettings;
 
-    static public SecureStorageDir createStorage(String path, String branch, KeyStore keyStore, KeyId keyId)
-            throws IOException, CryptoException {
+    static public SecureStorageDir createStorage(String path, String branch, KeyStore keyStore, KeyId keyId,
+                                                 String symAlgorithm) throws IOException, CryptoException {
         IDatabaseInterface databaseInterface = DatabaseFactory.getDatabaseFor(path, branch);
         SecureStorageDir dir = new SecureStorageDir(databaseInterface, "");
-        dir.setTo(keyStore, keyId);
+        dir.setTo(keyStore, keyId, symAlgorithm);
         return dir;
     }
 
@@ -35,7 +37,8 @@ public class SecureStorageDir extends StorageDir {
 
         keyStore = storageDir.keyStore;
         keyId = storageDir.keyId;
-        secreteKeyIVPair = storageDir.secreteKeyIVPair;
+        this.symmetricKeyData = storageDir.symmetricKeyData;
+        this.cryptoSettings = storageDir.cryptoSettings;
     }
 
     public SecureStorageDir(SecureStorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
@@ -43,17 +46,19 @@ public class SecureStorageDir extends StorageDir {
 
         keyStore = storageDir.keyStore;
         keyId = storageDir.keyId;
-        secreteKeyIVPair = storageDir.secreteKeyIVPair;
+        this.symmetricKeyData = storageDir.symmetricKeyData;
+        this.cryptoSettings = storageDir.cryptoSettings;
     }
 
     public SecureStorageDir(IDatabaseInterface database, String baseDir) {
         super(database, baseDir);
     }
 
-    public void setTo(KeyStore keyStore, KeyId keyId) throws IOException, CryptoException {
+    public void setTo(KeyStore keyStore, KeyId keyId, String algorithm) throws IOException, CryptoException {
         this.keyStore = keyStore;
         this.keyId = keyId;
-        secreteKeyIVPair = keyStore.readSymmetricKey(keyId);
+        this.symmetricKeyData = keyStore.readSymmetricKey(keyId);
+        cryptoSettings = CryptoSettings.symmetricSettings(symmetricKeyData.keyType, algorithm);
     }
 
     public KeyStore getKeyStore() {
@@ -64,16 +69,20 @@ public class SecureStorageDir extends StorageDir {
         return keyId;
     }
 
+    public String getSymmetricAlgorithm() {
+        return cryptoSettings.symmetricAlgorithm;
+    }
+
     public byte[] readSecureBytes(String path) throws IOException, CryptoException {
         byte encrypted[] = readBytes(path);
-        return crypto.decryptSymmetric(encrypted, secreteKeyIVPair.key, secreteKeyIVPair.iv);
+        return crypto.decryptSymmetric(encrypted, symmetricKeyData.key, symmetricKeyData.iv, cryptoSettings);
     }
     public String readSecureString(String path) throws IOException, CryptoException {
         return new String(readSecureBytes(path));
     }
 
     public void writeSecureBytes(String path, byte[] data) throws IOException, CryptoException {
-        byte encrypted[] = crypto.encryptSymmetric(data, secreteKeyIVPair.key, secreteKeyIVPair.iv);
+        byte encrypted[] = crypto.encryptSymmetric(data, symmetricKeyData.key, symmetricKeyData.iv, cryptoSettings);
         writeBytes(path, encrypted);
     }
 

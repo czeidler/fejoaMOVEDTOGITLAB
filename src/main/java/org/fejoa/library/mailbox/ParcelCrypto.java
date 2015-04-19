@@ -1,45 +1,48 @@
+/*
+ * Copyright 2014-2015.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.library.mailbox;
 
-import org.fejoa.library.Contact;
-import org.fejoa.library.ContactPrivate;
-import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.*;
 
 import javax.crypto.SecretKey;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 
 
 public class ParcelCrypto {
-    private ICryptoInterface crypto = Crypto.get();
-    final private byte iv[];
-    final private SecretKey key;
+    ICryptoInterface crypto = Crypto.get();
+    final byte iv[];
+    final SecretKey key;
+    final CryptoSettings cryptoSettings;
 
-    public ParcelCrypto() throws CryptoException {
-        iv = crypto.generateInitializationVector(CryptoSettings.SYMMETRIC_KEY_IV_SIZE);
-        key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
+    public ParcelCrypto(CryptoSettings settings) throws CryptoException {
+        this.cryptoSettings = settings;
+        iv = crypto.generateInitializationVector(settings.symmetricKeyIVSize);
+        key = crypto.generateSymmetricKey(settings.symmetricKeySize, settings);
     }
 
-    public ParcelCrypto(ContactPrivate owner, KeyId keyId, byte iv[], byte encryptedSymmetricKey[]) throws CryptoException {
+    public ParcelCrypto(byte iv[], byte[] symmetricKey, CryptoSettings settings) throws CryptoException {
+        this.cryptoSettings = settings;
         this.iv = iv;
 
-        PrivateKey privateKey = owner.getKeyPair(keyId.getKeyId()).getPrivate();
-        byte decryptedSymmetricKey[] = crypto.decryptAsymmetric(encryptedSymmetricKey, privateKey);
-        key = CryptoHelper.symmetricKeyFromRaw(decryptedSymmetricKey);
+        key = CryptoHelper.symmetricKeyFromRaw(symmetricKey, settings);
     }
 
-    public ParcelCrypto(ParcelCrypto parcelCrypto)
-    {
+    public ParcelCrypto(ParcelCrypto parcelCrypto) {
+        this.cryptoSettings = parcelCrypto.cryptoSettings;
         this.iv = parcelCrypto.iv;
         this.key = parcelCrypto.key;
     }
 
     public byte[] cloakData(byte data[]) throws CryptoException {
-        return crypto.encryptSymmetric(data, key, iv);
+        return crypto.encryptSymmetric(data, key, iv, cryptoSettings);
     }
 
     public byte[] uncloakData(byte cloakedData[]) throws CryptoException {
-        return crypto.decryptSymmetric(cloakedData, key, iv);
+        return crypto.decryptSymmetric(cloakedData, key, iv, cryptoSettings);
     }
 
     public byte[] getIV() {
@@ -50,8 +53,7 @@ public class ParcelCrypto {
         return key;
     }
 
-    public byte[] getEncryptedSymmetricKey(Contact receiver, KeyId keyId) throws CryptoException {
-        PublicKey publicKey = receiver.getPublicKey(keyId);
-        return crypto.encryptAsymmetric(key.getEncoded(), publicKey);
+    public CryptoSettings getCryptoSettings() {
+        return cryptoSettings;
     }
 }

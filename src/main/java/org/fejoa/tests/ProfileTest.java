@@ -10,6 +10,7 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.Profile;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.mailbox.*;
@@ -48,7 +49,9 @@ public class ProfileTest extends TestCase {
         // creation
         Profile profile = new Profile(environment, "profile", "");
         cleanUpDirs.add(profile.getStorageDir().getDatabasePath());
-        profile.createNew(password);
+        CryptoSettings settings = CryptoSettings.getFast();
+
+        profile.createNew(password, settings);
 
         ContactPrivate myself = profile.getMainUserIdentity().getMyself();
         myself.setServerUser(userName);
@@ -84,11 +87,11 @@ public class ProfileTest extends TestCase {
         branchInfo.addParticipant("otto@non.de", "fakeUI2");
         branchInfo.setSubject(subject);
         MessageBranch messageBranch = messageChannel.getBranch();
-        messageBranch.setMessageBranchInfo(branchInfo);
+        messageBranch.setMessageBranchInfo(branchInfo, settings);
         // add messages
         Message message = new Message();
         message.setBody(messageBody);
-        messageBranch.addMessage(message);
+        messageBranch.addMessage(message, settings);
         // and add it to the mailbox
         mailbox.addMessageChannel(messageChannel);
         messageBranch.commit();

@@ -17,6 +17,7 @@ public class UserData implements IStorageUid {
     private String PATH_UID = "uid";
     private String PATH_KEY_STORE_ID = "keyStoreId";
     private String PATH_KEY_ID = "keyId";
+    private String PATH_SYMMETRIC_ALGORITHM = "symmetricAlgorithm";
 
     protected String uid;
     protected SecureStorageDir storageDir;
@@ -37,21 +38,13 @@ public class UserData implements IStorageUid {
         storageDir.writeString(PATH_UID, uid);
         storageDir.writeString(PATH_KEY_ID, getKeyId().getKeyId());
         storageDir.writeString(PATH_KEY_STORE_ID, getKeyStore().getUid());
+        storageDir.writeString(PATH_SYMMETRIC_ALGORITHM, storageDir.getSymmetricAlgorithm());
     }
 
     protected void readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder)
             throws IOException,
             CryptoException {
-        setStorageDir(storageDir);
-
-        uid = storageDir.readString(PATH_UID);
-
-        String keyStoreId = storageDir.readString(PATH_KEY_STORE_ID);
-        KeyStore keyStore = keyStoreFinder.find(keyStoreId);
-        if (keyStore == null)
-            throw new IOException("can't find key store");
-        String keyId = storageDir.readString(PATH_KEY_ID);
-        storageDir.setTo(keyStore, new KeyId(keyId));
+        readUserData(storageDir, keyStoreFinder, null);
     }
 
     protected boolean readUserData(SecureStorageDir storageDir, IKeyStoreFinder keyStoreFinder, String password)
@@ -65,10 +58,11 @@ public class UserData implements IStorageUid {
         KeyStore keyStore = keyStoreFinder.find(keyStoreId);
         if (keyStore == null)
             throw new IOException("can't find key store");
-        if (!keyStore.open(password))
+        if (password != null && !keyStore.open(password))
             return false;
         String keyId = storageDir.readString(PATH_KEY_ID);
-        storageDir.setTo(keyStore, new KeyId(keyId));
+        String symmetricAlgorithm = storageDir.readString(PATH_SYMMETRIC_ALGORITHM);
+        storageDir.setTo(keyStore, new KeyId(keyId), symmetricAlgorithm);
 
         return true;
     }

@@ -74,8 +74,8 @@ public class CryptoHelper {
         }
     }
 
-    static public SecretKey symmetricKeyFromRaw(byte[] key) {
-        return new SecretKeySpec(key, 0, key.length, CryptoSettings.SYMMETRIC_KEY_TYPE);
+    static public SecretKey symmetricKeyFromRaw(byte[] key, CryptoSettings settings) {
+        return new SecretKeySpec(key, 0, key.length, settings.symmetricKeyType);
     }
 
     private static List<String> splitIntoEqualParts(String string, int partitionSize) {

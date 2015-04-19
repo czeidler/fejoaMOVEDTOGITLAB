@@ -14,6 +14,7 @@ import org.fejoa.library.ContactPublic;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageBranchInfo;
@@ -119,7 +120,8 @@ public class PublishMessageBranch extends RemoteTask {
                 return new Result(Result.ERROR, "internal error; no receiver");
 
             int transactionId = result.getInt("transactionId");
-            byte[] signedToken = messageChannel.sign(result.getString("signToken"));
+            String signatureAlgorithm = result.getString("signatureAlgorithm");
+            byte[] signedToken = messageChannel.sign(result.getString("signToken"), signatureAlgorithm);
             boolean messageChannelNeeded = result.getBoolean("messageChannelNeeded");
             byte[] channelPack = null;
             String channelPEMKey = null;

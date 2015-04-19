@@ -9,6 +9,7 @@ package org.fejoa.library;
 
 
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.SecureStorageDir;
 
 import java.io.IOException;
@@ -49,7 +50,7 @@ abstract public class Contact {
         mainKeyId = new KeyId(storageDir.readString("mainKeyId"));
     }
 
-    abstract public boolean verify(KeyId keyId, byte data[], byte signature[]) throws CryptoException;
+    abstract public boolean verify(KeyId keyId, byte data[], byte signature[], CryptoSettings signatureSettings) throws CryptoException;
     abstract public PublicKey getPublicKey(KeyId keyId);
 
     public String getAddress() {

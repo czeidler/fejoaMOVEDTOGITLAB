@@ -40,7 +40,7 @@ public class MailboxBookkeeping extends WeakListenable<MailboxBookkeeping.IListe
     public MailboxBookkeeping(String path, Mailbox mailbox) throws IOException, CryptoException {
         SecureStorageDir security = mailbox.getStorageDir();
         SecureStorageDir root = SecureStorageDir.createStorage(path, "mailboxes", security.getKeyStore(),
-                security.getKeyId());
+                security.getKeyId(), security.getSymmetricAlgorithm());
         baseDir = new SecureStorageDir(root, mailbox.getUid());
         dirtyDir = new SecureStorageDir(baseDir, "dirty");
 

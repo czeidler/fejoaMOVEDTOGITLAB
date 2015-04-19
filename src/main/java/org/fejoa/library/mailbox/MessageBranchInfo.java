@@ -9,6 +9,7 @@ package org.fejoa.library.mailbox;
 
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.PositionInputStream;
 
 import java.io.*;
@@ -33,16 +34,20 @@ public class MessageBranchInfo {
 
         ParcelReader branchInfoReader =  new ParcelReader();
         SecureSymEnvelopeReader secureSymEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto, branchInfoReader);
-        SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(contactFinder, secureSymEnvelopeReader);
+
+        CryptoSettings signatureSettings = CryptoSettings.empty();
+        SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(contactFinder, signatureSettings,
+                secureSymEnvelopeReader);
 
         signatureReader.unpack(pack);
     }
 
-    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey)
+    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey,
+                        CryptoSettings signatureSettings)
             throws CryptoException, IOException {
 
         SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKey, null);
+                = new SignatureEnvelopeWriter(sender, senderKey, signatureSettings, null);
         SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
                 signatureEnvelopeWriter);
 

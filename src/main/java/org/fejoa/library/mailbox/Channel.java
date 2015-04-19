@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2014-2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -13,27 +13,20 @@ import org.fejoa.library.KeyId;
 import org.fejoa.library.UserIdentity;
 import org.fejoa.library.crypto.*;
 
-import javax.crypto.SecretKey;
 import java.io.*;
 import java.security.KeyPair;
 import java.security.PrivateKey;
-/*
- * Copyright 2014.
- * Distributed under the terms of the GPLv3 License.
- *
- * Authors:
- *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
- */
 import java.security.PublicKey;
 
 
 public abstract class Channel {
-    private String branchName;
+    String branchName;
     // used to encrypt/decrypt data in the channel
-    private ParcelCrypto parcelCrypto;
+    ParcelCrypto parcelCrypto;
     // used to verify that user is allowed to get access to the channel data
-    private PrivateKey signatureKey;
+    PrivateKey signatureKey;
     protected PublicKey signatureKeyPublic;
+    CryptoSettings channelSettings;
 
     protected Channel() {
 
@@ -41,29 +34,31 @@ public abstract class Channel {
 
     public void load(UserIdentity identity, PublicKey signatureKey, byte[] pack)
             throws IOException, CryptoException {
+        channelSettings = CryptoSettings.empty();
         signatureKeyPublic = signatureKey;
 
         ChannelBranchReader channelBranchReader =  new ChannelBranchReader();
         SecureAsymEnvelopeReader secureEnvelopeReader = new SecureAsymEnvelopeReader(identity.getMyself(),
-                channelBranchReader);
+                channelSettings, channelBranchReader);
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
-                secureEnvelopeReader);
+                channelSettings, secureEnvelopeReader);
 
         signatureReader.unpack(pack);
 
         parcelCrypto = secureEnvelopeReader.getParcelCrypto();
     }
 
-    public byte[] sign(String token) throws CryptoException {
+    public byte[] sign(String token, String algorithm) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
-        return crypto.sign(token.getBytes(), signatureKey);
+        return crypto.sign(token.getBytes(), signatureKey, CryptoSettings.signatureSettings(algorithm));
     }
 
-    protected void create() throws CryptoException {
-        parcelCrypto = new ParcelCrypto();
+    protected void create(CryptoSettings settings) throws CryptoException {
+        this.channelSettings = settings;
+        parcelCrypto = new ParcelCrypto(settings);
 
         ICryptoInterface crypto = Crypto.get();
-        KeyPair keyPair = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE_CHANNEL_SIGN);
+        KeyPair keyPair = crypto.generateKeyPair(settings.asymmetricKeySizeChannelSign);
         signatureKey = keyPair.getPrivate();
         signatureKeyPublic = keyPair.getPublic();
 
@@ -84,13 +79,18 @@ public abstract class Channel {
     protected byte[] pack(ContactPrivate sender, KeyId senderKey, Contact receiver, KeyId receiverKey)
             throws CryptoException, IOException {
 
-        SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKey, null);
+        SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKey,
+                parcelCrypto.getCryptoSettings(), null);
+
         SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey, parcelCrypto,
-                signatureEnvelopeWriter);
+                channelSettings, signatureEnvelopeWriter);
 
         ChannelBranchWriter channelBranchWriter = new ChannelBranchWriter(asymEnvelopeWriter);
         return channelBranchWriter.pack(null);
+    }
+
+    public CryptoSettings getCryptoSettings() {
+        return channelSettings;
     }
 
     class ChannelBranchWriter implements IParcelEnvelopeWriter{

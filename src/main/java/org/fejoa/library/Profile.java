@@ -81,29 +81,30 @@ public class Profile extends UserData {
         return mainMailbox;
     }
 
-    public void createNew(String password) throws IOException, CryptoException {
+    public void createNew(String password, CryptoSettings cryptoSettings) throws IOException, CryptoException {
         ICryptoInterface crypto = Crypto.get();
         uid = CryptoHelper.toHex(crypto.generateInitializationVector(20));
 
         // init key store and master key
-        KeyStore keyStore = new KeyStore(password);
+        KeyStore keyStore = new KeyStore(password, cryptoSettings);
         SecureStorageDir keyStoreBranch = environment.get(storageDir.getDatabasePath(),
                 KEY_STORES_BRANCH);
         keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
 
-        SecretKey key = crypto.generateSymmetricKey(CryptoSettings.SYMMETRIC_KEY_SIZE);
+        SecretKey key = crypto.generateSymmetricKey(cryptoSettings.symmetricKeySize, cryptoSettings);
         KeyId keyId = keyStore.writeSymmetricKey(key, crypto.generateInitializationVector(
-                CryptoSettings.SYMMETRIC_KEY_IV_SIZE));
-        storageDir.setTo(keyStore, keyId);
+                cryptoSettings.symmetricKeyIVSize), cryptoSettings.symmetricKeyType);
+        storageDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
 
         UserIdentity userIdentity = new UserIdentity();
         SecureStorageDir userIdBranch = environment.get(storageDir.getDatabasePath(),
                 USER_IDENTITIES_BRANCH);
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
-        userIdDir.setTo(keyStore, keyId);
-        userIdentity.write(userIdDir);
-        UserIdentity.writePublicSignature(new File(environment.getHomeDir(), SIGNATURE_FILE), userIdentity);
+        userIdDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
+        userIdentity.create(userIdDir, cryptoSettings);
+        String signatureFilePath = StorageDir.appendDir(environment.getHomeDir(), SIGNATURE_FILE);
+        UserIdentity.writePublicSignature(new File(signatureFilePath), userIdentity);
 
         addAndWriteUseIdentity(userIdentity);
         mainUserIdentity = userIdentity;
@@ -112,7 +113,7 @@ public class Profile extends UserData {
         Mailbox mailbox = new Mailbox(environment, mainUserIdentity);
         SecureStorageDir mailboxesBranch = environment.get(storageDir.getDatabasePath(), MAILBOXES_BRANCH);
         SecureStorageDir mailboxDir = new SecureStorageDir(mailboxesBranch, mailbox.getUid());
-        mailboxDir.setTo(keyStore, keyId);
+        mailboxDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
         mailbox.write(mailboxDir);
         addAndWriteMailbox(mailbox);
         mainMailbox = mailbox;

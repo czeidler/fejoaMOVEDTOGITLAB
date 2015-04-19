@@ -11,6 +11,7 @@ import org.fejoa.gui.CreateProfileDialog;
 import org.fejoa.gui.MainWindow;
 import org.fejoa.gui.PasswordDialog;
 import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.FejoaEnvironment;
 import org.fejoa.library.Profile;
 import org.fejoa.library.crypto.CryptoException;
@@ -120,7 +121,7 @@ public class Main {
                     GeneratingProfileDialog generatingProfileDialog = new GeneratingProfileDialog();
                     generatingProfileDialog.setVisible(true);
 
-                    profile.createNew(password);
+                    profile.createNew(password, CryptoSettings.getDefault());
 
                     generatingProfileDialog.dispose();
 

@@ -40,8 +40,7 @@ public class FejoaEnvironment {
     }
 
     public SecureStorageDir get(String path, String branch) throws IOException {
-        File pathFile = new File(homeDir);
-        path = new File(pathFile, path).getPath();
+        path = StorageDir.appendDir(homeDir, path);
         for (SecureStorageDir dir : secureStorageDirs) {
             if (dir.getDatabasePath().equals(path) && dir.getBranch().equals(branch))
                 return dir;

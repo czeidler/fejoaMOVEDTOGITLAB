@@ -9,6 +9,7 @@ package org.fejoa.library.remote;
 
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.ContactPrivate;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.InStanzaHandler;
 import org.fejoa.library.support.IqInStanzaHandler;
 import org.fejoa.library.support.ProtocolInStream;
@@ -75,8 +76,9 @@ public class SignatureAuthentication implements IAuthenticationRequest {
     }
 
     class JSONLoginRequest extends JsonRemoteConnectionJob {
-        public String signToken = "";
         public int transactionId;
+        public String signatureAlgorithm = "";
+        public String signToken = "";
 
         @Override
         public byte[] getRequest() throws Exception {
@@ -95,6 +97,7 @@ public class SignatureAuthentication implements IAuthenticationRequest {
                 return new Result(Result.ERROR, getMessage(result));
 
             transactionId = result.getInt("transactionId");
+            signatureAlgorithm = result.getString("signatureAlgorithm");
             signToken = result.getString("signToken");
 
             return new Result(Result.DONE, getMessage(result));
@@ -111,7 +114,8 @@ public class SignatureAuthentication implements IAuthenticationRequest {
         @Override
         public byte[] getRequest() throws Exception {
             ContactPrivate myself = connectionInfo.myself;
-            byte signature[] = myself.sign(myself.getMainKeyId(), loginRequest.signToken.getBytes());
+            byte signature[] = myself.sign(myself.getMainKeyId(), loginRequest.signToken.getBytes(),
+                    CryptoSettings.signatureSettings(loginRequest.signatureAlgorithm));
 
             return jsonRPC.call(AUTH_SIGNED_STANZA,
                     new JsonRPC.Argument("transactionId", loginRequest.transactionId),

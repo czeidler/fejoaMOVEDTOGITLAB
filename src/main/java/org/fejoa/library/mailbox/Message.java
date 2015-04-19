@@ -33,21 +33,21 @@ public class Message {
     public void load(ParcelCrypto parcelCrypto, UserIdentity identity, byte[] pack) throws IOException,
             CryptoException {
         MessageEnvelopeReader messageEnvelopeReader =  new MessageEnvelopeReader();
-
         SecureSymEnvelopeReader secureEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto,
                 messageEnvelopeReader);
+        CryptoSettings signatureSettings = CryptoSettings.empty();
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
-                secureEnvelopeReader);
+                signatureSettings, secureEnvelopeReader);
 
         byte[] result = signatureReader.unpack(pack);
         uid = signatureReader.getUid();
     }
 
-    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKeyId) throws IOException,
+    public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKeyId,
+                        CryptoSettings signatureSettings) throws IOException,
             CryptoException {
-
-        SignatureEnvelopeWriter signatureEnvelopeWriter
-                = new SignatureEnvelopeWriter(sender, senderKeyId, null);
+        SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKeyId,
+                signatureSettings, null);
         SecureSymEnvelopeWriter secureSymEnvelopeWriter = new SecureSymEnvelopeWriter(parcelCrypto,
                 signatureEnvelopeWriter);
         MessageEnvelopeWriter messageEnvelopeWriter = new MessageEnvelopeWriter(this, secureSymEnvelopeWriter);

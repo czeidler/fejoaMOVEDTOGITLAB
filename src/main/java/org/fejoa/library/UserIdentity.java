@@ -48,8 +48,8 @@ public class UserIdentity extends UserData {
         }
     };
 
-    public void write(SecureStorageDir storageDir) throws IOException, CryptoException {
-        KeyPair personalKey = crypto.generateKeyPair(CryptoSettings.ASYMMETRIC_KEY_SIZE);
+    public void create(SecureStorageDir storageDir, CryptoSettings settings) throws IOException, CryptoException {
+        KeyPair personalKey = crypto.generateKeyPair(settings.asymmetricKeySize);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         uid = CryptoHelper.toHex(hashResult);
 
@@ -57,10 +57,10 @@ public class UserIdentity extends UserData {
 
         writeUserData(uid, storageDir);
 
-
-        KeyId personalKeyId = storageDir.getKeyStore().writeAsymmetricKey(personalKey);
+        KeyStore.AsymmetricKeyData keyData = new KeyStore.AsymmetricKeyData(personalKey);
+        KeyId personalKeyId = storageDir.getKeyStore().writeAsymmetricKey(keyData);
         myself = new ContactPrivate(new SecureStorageDir(storageDir, "myself"), storageDir.getKeyStore(), personalKeyId,
-                personalKey);
+                keyData);
         myself.write();
     }
 

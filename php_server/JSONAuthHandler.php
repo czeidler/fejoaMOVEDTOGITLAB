@@ -51,9 +51,10 @@ class JSONAuthHandler extends JSONHandler {
 			}
 		}
 
+		$signatureAlgorithm = "SHA1withRSA";
 		// produce output
 		return $this->makeJSONRPCReturn($jsonId, array('status' => 0, 'transactionId' => $transaction->getUid(),
-			'signToken' => $signToken));
+			'signatureAlgorithm' => $signatureAlgorithm, 'signToken' => $signToken));
 	}
 }
 

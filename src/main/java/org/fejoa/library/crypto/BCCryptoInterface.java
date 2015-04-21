@@ -84,13 +84,14 @@ public class BCCryptoInterface implements ICryptoInterface {
     @Override
     public byte[] generateInitializationVector(int size) {
         SecureRandom random = new SecureRandom();
-        return random.generateSeed(size);
+        byte[] bytes = new byte[size];
+        random.nextBytes(bytes);
+        return bytes;
     }
 
     @Override
     public byte[] generateSalt() {
-        SecureRandom random = new SecureRandom();
-        return random.generateSeed(32);
+        return generateInitializationVector(32);
     }
 
     @Override

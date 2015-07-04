@@ -40,14 +40,15 @@ class Session {
 
 	public function getDatabase($user) {
 		$accountUser = Session::get()->getAccountUser();
+		$gitDir = $user."/.git";
 		if ($user == $accountUser) {
 			if (!file_exists($user))
 				mkdir($user);
 		} else {
-			if (!file_exists($user))
+			if (!file_exists($gitDir))
 				return null;
 		}
-		return new GitDatabase($user."/.git");
+		return new GitDatabase($gitDir);
 	}
 
 	public function getDatabaseForBranch($user, $branchUid) {

@@ -178,15 +178,13 @@ public class KeyStore implements IStorageUid {
     }
 
     public KeyId writeAsymmetricKey(AsymmetricKeyData keyData) throws IOException, CryptoException {
-       String publicKeyPem = CryptoHelper.convertToPEM(keyData.keyPair.getPublic());
-        byte encryptedPublic[] = crypto.encryptSymmetric(publicKeyPem.getBytes(), masterKey, masterKeyIV,
-                settings);
-        String keyId = CryptoHelper.toHex(CryptoHelper.sha1Hash(encryptedPublic));
+        String publicKeyPem = CryptoHelper.convertToPEM(keyData.keyPair.getPublic());
+        String keyId = CryptoHelper.toHex(CryptoHelper.sha1Hash(publicKeyPem.getBytes()));
 
         try {
             String privateKeyPem = CryptoHelper.convertToPEM(keyData.keyPair.getPrivate());
             writeSecure(keyId + "/" + PATH_PRIVATE_KEY, privateKeyPem.getBytes());
-            storageDir.writeBytes(keyId + "/" + PATH_PUBLIC_KEY, encryptedPublic);
+            storageDir.writeString(keyId + "/" + PATH_PUBLIC_KEY, publicKeyPem);
         } catch (Exception e) {
             storageDir.remove(keyId);
             throw e;
@@ -197,7 +195,7 @@ public class KeyStore implements IStorageUid {
 
     AsymmetricKeyData readAsymmetricKey(String keyId) throws IOException, CryptoException {
         String privateKeyPem = new String(readSecure(keyId + "/" + PATH_PRIVATE_KEY));
-        String publicKeyPem = new String(readSecure(keyId + "/" + PATH_PUBLIC_KEY));
+        String publicKeyPem = storageDir.readString(keyId + "/" + PATH_PUBLIC_KEY);
 
         PrivateKey privateKey = CryptoHelper.privateKeyFromPem((privateKeyPem));
         PublicKey publicKey = CryptoHelper.publicKeyFromPem(publicKeyPem);

@@ -10,7 +10,12 @@ class JSONHandler {
 
 	protected function makeJSONRPCReturn($id, $result) {
 		$array = array('jsonrpc' => "2.0", 'id' => $id, 'result' => $result);
-		return json_encode($array);
+		$result = json_encode($array);
+		if ($result === false) {
+			var_dump($array);
+			return "makeJSONRPCReturn: Can't encode array...";
+		}
+		return $result;
 	}
 
 	protected function makeError($jsonId, $message) {

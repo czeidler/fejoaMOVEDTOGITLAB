@@ -418,9 +418,9 @@ class PackManager {
 		$currentTip = "";
 		if ($currentTipHex != "")
 			$currentTip = sha1_bin($currentTipHex);
-		if ($currentTip != $startCommit) {
-			return "currentTip != startCommit";
-		}
+		if ($currentTip != $startCommit)
+			return true;
+		//	return "currentTip (".$currentTipHex.") != startCommit (".sha1_hex($startCommit).")";
 
 		// check if all commit objects are in place
 		if ($currentTipHex != "" && !$this->isAncestorCommit($endCommit, $currentTip))

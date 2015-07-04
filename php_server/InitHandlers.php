@@ -41,7 +41,7 @@ function initContactRequestStanzaHandler($XMLHandler) {
 	$XMLHandler->addHandler($iqHandler);
 }
 
-function initContactRequestStanzaHandlerJson($JSONDispatcher) {
+function initContactRequestHandler($JSONDispatcher) {
 	$JSONDispatcher->addHandler(new JSONContactRequestHandler());
 }
 
@@ -88,8 +88,8 @@ class InitHandlers {
 		initJSONSyncHandlers($JSONDispatcher);
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
-		initContactRequestStanzaHandlerJson($JSONDispatcher);
-			// in case we need to contact a user on the same server
+		// in case we need to contact a user on the same server
+		initContactRequestHandler($JSONDispatcher);
 		initJSONWatchHandlers($JSONDispatcher);
 	}
 
@@ -103,7 +103,7 @@ class InitHandlers {
 		initJSONSyncHandlers($JSONDispatcher);
 		initAuthHandlers($JSONDispatcher);
 		initPublishBranchHandlers($JSONDispatcher);
-		initContactRequestStanzaHandlerJson($JSONDispatcher);
+		initContactRequestHandler($JSONDispatcher);
 	}
 }
 

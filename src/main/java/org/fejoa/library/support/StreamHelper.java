@@ -7,9 +7,7 @@
  */
 package org.fejoa.library.support;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 
 
 public class StreamHelper {
@@ -32,5 +30,13 @@ public class StreamHelper {
         int length;
         while ((length = inputStream.read(buffer)) > 0)
             outputStream.write(buffer, 0, length);
+    }
+
+    static public void copy(InputStream inputStream, Writer writer) throws IOException {
+        char[] buffer = new char[BUFFER_SIZE];
+        int length;
+        InputStreamReader reader = new InputStreamReader(inputStream);
+        while ((length = reader.read(buffer)) > 0)
+            writer.write(buffer, 0, length);
     }
 }

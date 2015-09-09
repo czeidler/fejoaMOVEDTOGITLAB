@@ -30,6 +30,11 @@ abstract public class JsonRemoteJob extends RemoteJob {
         return jsonRPC;
     }
 
+    @Override
+    public RemoteMessage getMessage() {
+        return getJsonMessage(startJsonRPC());
+    }
+
     protected JSONObject getReturnValue(String message) throws IOException, JSONException {
         return jsonRPC.getReturnValue(message);
     }
@@ -42,6 +47,7 @@ abstract public class JsonRemoteJob extends RemoteJob {
         return followUpJob;
     }
 
+    abstract protected RemoteMessage getJsonMessage(JsonRPC jsonRPC);
     abstract protected Result handleJson(JSONObject returnValue, InputStream binaryData);
 
     static public Result run(JsonRemoteJob job, IRemoteRequest remoteRequest, IErrorCallback errorHandler)

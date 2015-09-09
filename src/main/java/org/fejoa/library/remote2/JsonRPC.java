@@ -93,6 +93,10 @@ public class JsonRPC {
         setNewJsonId();
     }
 
+    public String call(String method) {
+        return call(getJsonId(), method, null);
+    }
+
     public String call(String method, Argument ... argumentList) {
         return call(getJsonId(), method, argumentList);
     }
@@ -119,7 +123,7 @@ public class JsonRPC {
     protected String call(int jsonId, String method, Argument ... argumentList) {
         String request = "{\"jsonrpc\":\"2.0\"";
         request += ",\"id\":" + jsonId + ",\"method\":\"" + method + "\"";
-        if (argumentList.length > 0) {
+        if (argumentList != null && argumentList.length > 0) {
             request += ",";
             Argument paramsArgument = new Argument("params", new ArgumentSet(argumentList));
             request += paramsArgument.toString();

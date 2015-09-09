@@ -18,6 +18,7 @@ public class JsonRPCHandler {
     private int id;
     private String method;
     private JSONObject jsonObject;
+    private JSONArray params;
 
     public JsonRPCHandler(String jsonString) throws JSONException, IOException {
         jsonObject = new JSONObject(jsonString);
@@ -25,6 +26,11 @@ public class JsonRPCHandler {
             throw new IOException("json rpc 2.0 expected");
         id = jsonObject.getInt("id");
         method = jsonObject.getString("method");
+
+        try {
+            params = jsonObject.getJSONArray("params");
+        } catch (JSONException e) {
+        }
     }
 
     public int getId() {
@@ -35,15 +41,15 @@ public class JsonRPCHandler {
         return method;
     }
 
-    public JSONArray getParams() throws JSONException {
-        return jsonObject.getJSONArray("params");
+    public JSONArray getParams() {
+        return params;
     }
 
     static public String makeResult(int id, JsonRPC.ArgumentSet resultSet) {
         JsonRPC.Argument result = new JsonRPC.Argument("result", resultSet);
 
         String value = "{\"jsonrpc\":\"2.0\"";
-        value += ",\"id\":" + id + "," + result + "\"}";
+        value += ",\"id\":" + id + "," + result + "}";
         return value;
     }
 

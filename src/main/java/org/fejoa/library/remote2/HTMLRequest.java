@@ -96,7 +96,8 @@ public class HTMLRequest implements IRemoteRequest {
                 String message = receivedData.toString();
                 System.out.println("RECEIVED: " + message);
 
-                return new RemoteMessage(message, dataPart.getInputStream());
+                InputStream dataStream = dataPart == null ? null : dataPart.getInputStream();
+                return new RemoteMessage(message, dataStream);
             } catch (ServletException e) {
                 e.printStackTrace();
                 throw new IOException("Unexpected server response.");

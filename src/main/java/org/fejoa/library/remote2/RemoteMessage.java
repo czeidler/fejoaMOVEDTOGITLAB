@@ -7,7 +7,6 @@
  */
 package org.fejoa.library.remote2;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 
@@ -23,10 +22,5 @@ public class RemoteMessage {
     public RemoteMessage(String message, InputStream binaryData) {
         this.message = message;
         this.binaryData = binaryData;
-    }
-
-    public RemoteMessage(String message, byte[] binaryData) {
-        this.message = message;
-        this.binaryData = new ByteArrayInputStream(binaryData);
     }
 }

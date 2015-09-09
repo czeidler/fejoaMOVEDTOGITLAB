@@ -89,13 +89,17 @@ public class ConnectionManager {
         }
     }
 
-    final CookieStore cookieStore = new BasicCookieStore();
+    final private CookieStore cookieStore = new BasicCookieStore();
     final private ContactPrivate myself;
-    private Scheduler observerScheduler = Schedulers.currentThread();
+    private Scheduler observerScheduler = Schedulers.immediate();
     final private TokenManager tokenManager = new TokenManager();
 
     public ConnectionManager(ContactPrivate myself) {
         this.myself = myself;
+    }
+
+    public void setObserverScheduler(Scheduler observerScheduler) {
+        this.observerScheduler = observerScheduler;
     }
 
     public void submit(final JsonRemoteJob job, ConnectionInfo connectionInfo, final AuthInfo authInfo,

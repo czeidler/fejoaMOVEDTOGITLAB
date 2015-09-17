@@ -8,6 +8,9 @@
 package org.fejoa.library.remote2;
 
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 abstract public class RemoteJob {
     static public class Result {
         final static public int ERROR = -1;
@@ -23,5 +26,17 @@ abstract public class RemoteJob {
         }
     }
 
-    abstract public RemoteMessage getMessage();
+    private boolean hasData = false;
+
+    public RemoteJob(boolean hasData) {
+        this.hasData = hasData;
+    }
+
+    public boolean hasData() {
+        return hasData;
+    }
+
+    abstract public String getHeader();
+    abstract public void writeData(OutputStream outputStream);
+    abstract public Result handleResponse(String header, InputStream inputStream);
 }

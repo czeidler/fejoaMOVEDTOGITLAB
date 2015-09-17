@@ -7,76 +7,79 @@
  */
 package org.fejoa.library.remote2;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.eclipse.jetty.util.MultiPartInputStreamParser;
 import org.fejoa.library.support.StreamHelper;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.Part;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 
 public class HTMLRequest implements IRemoteRequest {
-    final private CookieStore cookieStore;
-    private String url;
-    private HttpPost httpPost;
-    private boolean canceled = false;
+    final private String url;
+    private HttpURLConnection connection;
+    private InputStream inputStream;
 
-    static final public String MESSAGE_KEY = "message";
+    static final public String MESSAGE_KEY = "header";
     static final public String DATA_KEY = "data";
     static final public String DATA_FILE = "binary.data";
 
-    public HTMLRequest(String url, CookieStore cookieStore) {
+    public HTMLRequest(String url) {
         this.url = url;
-        this.cookieStore = cookieStore;
     }
 
     @Override
-    public RemoteMessage send(RemoteMessage message) throws IOException {
-        return getHTML(message);
-    }
+    public RemoteJob.Result send(RemoteJob job) throws IOException {
+        System.out.println("SEND:     " + new String(job.getHeader()));
 
-    @Override
-    public void cancel() {
-        canceled = true;
-        HttpPost httpPostStrongRef = httpPost;
-        if (httpPostStrongRef != null)
-            httpPostStrongRef.abort();
-    }
-
-    private RemoteMessage getHTML(RemoteMessage data) throws IOException {
-        System.out.println("SEND:     " + new String(data.message));
-        HttpClient httpClient = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
-        httpPost = new HttpPost(url);
-
-        if (canceled)
-            return null;
-
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        builder.addTextBody(MESSAGE_KEY, data.message);
-        if (data.binaryData != null)
-            builder.addBinaryBody(DATA_KEY, data.binaryData, ContentType.DEFAULT_BINARY, DATA_FILE);
-
-        httpPost.setEntity(builder.build());
+        OutputStream outputStream = null;
         try {
-            HttpResponse response = httpClient.execute(httpPost);
+            URL server = new URL(url);
 
-            if (response.getStatusLine().getStatusCode() != 200)
-                throw new IOException("Unexpected status code: " + response.getStatusLine().getStatusCode());
+            final String boundary = "===" + System.currentTimeMillis() + "===";
+            final String LINE_FEED = "\r\n";
 
+            connection = (HttpURLConnection)server.openConnection();
+            connection.setUseCaches(false);
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            connection.setRequestProperty("Accept-Charset", "utf-8");
 
-            InputStream inputStream = response.getEntity().getContent();
+            connection.connect();
+            outputStream = connection.getOutputStream();
+
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true);
+            // header
+            writer.append("--" + boundary).append(LINE_FEED);
+            writer.append("Content-Type: text/plain; charset=UTF-8").append(LINE_FEED);
+            writer.append("Content-Disposition: form-data; name=\"" + HTMLRequest.MESSAGE_KEY + "\"").append(LINE_FEED);
+            writer.append(LINE_FEED);
+            writer.append(job.getHeader()).append(LINE_FEED);
+
+            // body
+            if (job.hasData()) {
+                writer.append("--" + boundary).append(LINE_FEED);
+                writer.append("Content-Type: \"application/octet-stream\"").append(LINE_FEED);
+                writer.append("Content-Transfer-Encoding: binary").append(LINE_FEED);
+                writer.append("Content-Disposition: form-data; name=\"" + HTMLRequest.DATA_KEY
+                        + "\"; filename=\"" + HTMLRequest.DATA_FILE + "\"").append(LINE_FEED);
+                writer.append(LINE_FEED);
+                writer.flush();
+                job.writeData(outputStream);
+                writer.append(LINE_FEED);
+            }
+
+            // finish
+            writer.append("--" + boundary + "--").append(LINE_FEED);
+            writer.append(LINE_FEED).flush();
+            writer.close();
+
+            inputStream = connection.getInputStream();
+
             String line = "";
             for (int character = inputStream.read(); character >= 0 && character != '\n';
                  character = inputStream.read()) {
@@ -85,9 +88,10 @@ public class HTMLRequest implements IRemoteRequest {
             line = line.replace("Content-Type: ", "");
             MultiPartInputStreamParser parser = new MultiPartInputStreamParser(inputStream,
                     line, null, null);
+            InputStream responseStream = null;
             try {
-                Part messagePart = parser.getPart(MESSAGE_KEY);
-                Part dataPart = parser.getPart(DATA_KEY);
+                Part messagePart = parser.getPart(HTMLRequest.MESSAGE_KEY);
+                Part dataPart = parser.getPart(HTMLRequest.DATA_KEY);
 
                 BufferedInputStream bufferedInputStream = new BufferedInputStream(messagePart.getInputStream());
                 ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
@@ -96,16 +100,40 @@ public class HTMLRequest implements IRemoteRequest {
                 String message = receivedData.toString();
                 System.out.println("RECEIVED: " + message);
 
-                InputStream dataStream = dataPart == null ? null : dataPart.getInputStream();
-                return new RemoteMessage(message, dataStream);
+                responseStream = (dataPart == null) ? null : dataPart.getInputStream();
+                return job.handleResponse(message, responseStream);
             } catch (ServletException e) {
                 e.printStackTrace();
                 throw new IOException("Unexpected server response.");
+            } finally {
+                if (responseStream != null)
+                    responseStream.close();
             }
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            throw new IOException(e.getMessage());
         } finally {
-            httpPost.releaseConnection();
-            httpPost = null;
+            //close the connection, set all objects to null
+            if (outputStream != null)
+                outputStream.close();
+            if (inputStream != null)
+                inputStream.close();
+            if (connection != null)
+                connection.disconnect();
         }
     }
 
+    @Override
+    public void cancel() {
+        if (inputStream != null) {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        if (connection != null)
+            connection.disconnect();
+    }
 }

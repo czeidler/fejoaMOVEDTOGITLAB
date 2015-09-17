@@ -11,6 +11,6 @@ import java.io.IOException;
 
 
 public interface IRemoteRequest {
-    RemoteMessage send(RemoteMessage message) throws IOException;
+    RemoteJob.Result send(RemoteJob job) throws IOException;
     void cancel();
 }

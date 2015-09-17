@@ -8,8 +8,6 @@
 package org.fejoa.library.remote2;
 
 
-import org.apache.http.client.CookieStore;
-import org.apache.http.impl.client.BasicCookieStore;
 import org.fejoa.library.ContactPrivate;
 import org.json.JSONObject;
 import rx.Observable;
@@ -20,7 +18,10 @@ import rx.concurrency.Schedulers;
 import rx.util.functions.Func1;
 
 import java.io.InputStream;
+import java.net.CookieHandler;
+import java.net.CookieManager;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -63,48 +64,49 @@ public class ConnectionManager {
      * The target user is identified by a string such as user@server.
      */
     class TokenManager {
-        final private Map<String, Map<String, Boolean>> authMap = new HashMap<>();
+        final private Map<String, HashSet<String>> authMap = new HashMap<>();
 
         public void addToken(String targetUser, String token) {
-            Map<String, Boolean> tokenMap = authMap.get(targetUser);
+            HashSet<String> tokenMap = authMap.get(targetUser);
             if (tokenMap == null) {
-                tokenMap = new HashMap<>();
+                tokenMap = new HashSet<>();
                 authMap.put(targetUser, tokenMap);
             }
-            tokenMap.put(token, true);
+            tokenMap.add(token);
         }
 
         public boolean removeToken(String targetUser, String token) {
-            Map<String, Boolean> tokenMap = authMap.get(targetUser);
+            HashSet<String> tokenMap = authMap.get(targetUser);
             if (tokenMap == null)
                 return false;
             return tokenMap.remove(token);
         }
 
         public boolean hasToken(String targetUser, String token) {
-            Map<String, Boolean> tokenMap = authMap.get(targetUser);
+            HashSet<String> tokenMap = authMap.get(targetUser);
             if (tokenMap == null)
                 return false;
-            return tokenMap.containsKey(token);
+            return tokenMap.contains(token);
         }
     }
 
-    final private CookieStore cookieStore = new BasicCookieStore();
+    //final private CookieStore cookieStore = new BasicCookieStore();
     final private ContactPrivate myself;
     private Scheduler observerScheduler = Schedulers.immediate();
     final private TokenManager tokenManager = new TokenManager();
 
     public ConnectionManager(ContactPrivate myself) {
         this.myself = myself;
+        CookieHandler.setDefault(new CookieManager());
     }
 
     public void setObserverScheduler(Scheduler observerScheduler) {
         this.observerScheduler = observerScheduler;
     }
 
-    public void submit(final JsonRemoteJob job, ConnectionInfo connectionInfo, final AuthInfo authInfo,
+    public Subscription submit(final JsonRemoteJob job, ConnectionInfo connectionInfo, final AuthInfo authInfo,
                        Observer<RemoteJob.Result> observer) {
-        getRemoteRequest(connectionInfo).mapMany(new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
+        return getRemoteRequest(connectionInfo).mapMany(new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
             @Override
             public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
                 return getAuthRequest(remoteRequest, authInfo);
@@ -120,15 +122,21 @@ public class ConnectionManager {
     private Observable<RemoteJob.Result> runJob(final IRemoteRequest remoteRequest, final JsonRemoteJob job) {
         return Observable.create(new Observable.OnSubscribeFunc<RemoteJob.Result>() {
             @Override
-            public Subscription onSubscribe(Observer<? super RemoteJob.Result> observer) {
-                try {
-                    RemoteJob.Result result = JsonRemoteJob.run(job, remoteRequest, generalErrorHandler);
-                    observer.onNext(result);
-                    observer.onCompleted();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    observer.onError(e);
-                }
+            public Subscription onSubscribe(final Observer<? super RemoteJob.Result> observer) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            RemoteJob.Result result = JsonRemoteJob.run(job, remoteRequest, generalErrorHandler);
+                            observer.onNext(result);
+                            observer.onCompleted();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            observer.onError(e);
+                        }
+                    }
+                }).start();
+
                 return new Subscription() {
                     @Override
                     public void unsubscribe() {
@@ -154,7 +162,7 @@ public class ConnectionManager {
         return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
             @Override
             public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
-                observer.onNext(new HTMLRequest(connectionInfo.url, cookieStore));
+                observer.onNext(new HTMLRequest(connectionInfo.url));
                 observer.onCompleted();
                 return null;
             }

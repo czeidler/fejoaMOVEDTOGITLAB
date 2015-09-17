@@ -15,6 +15,10 @@ import java.io.InputStream;
 
 
 abstract public class JsonRemoteJob extends RemoteJob {
+    public JsonRemoteJob(boolean hasData) {
+        super(hasData);
+    }
+
     /**
      * Can be used for errors unrelated to the current job. For example, token expired or auth became invalid.
      */
@@ -24,15 +28,11 @@ abstract public class JsonRemoteJob extends RemoteJob {
 
     protected JsonRPC jsonRPC;
     private JsonRemoteJob followUpJob;
+    private IErrorCallback errorCallback;
 
     protected JsonRPC startJsonRPC() {
         this.jsonRPC = new JsonRPC();
         return jsonRPC;
-    }
-
-    @Override
-    public RemoteMessage getMessage() {
-        return getJsonMessage(startJsonRPC());
     }
 
     protected JSONObject getReturnValue(String message) throws IOException, JSONException {
@@ -47,18 +47,39 @@ abstract public class JsonRemoteJob extends RemoteJob {
         return followUpJob;
     }
 
-    abstract protected RemoteMessage getJsonMessage(JsonRPC jsonRPC);
+    public void setErrorCallback(IErrorCallback errorCallback) {
+        this.errorCallback = errorCallback;
+    }
+
+    @Override
+    public String getHeader() {
+        return getJsonHeader(startJsonRPC());
+    }
+
+    abstract public String getJsonHeader(JsonRPC jsonRPC);
+
+    @Override
+    public Result handleResponse(String header, InputStream inputStream) {
+        JSONObject returnValue;
+        try {
+            returnValue = getReturnValue(header);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Result(Result.ERROR, e.getMessage());
+        }
+        Result result = handleJson(returnValue, inputStream);
+        if (result.status == Result.ERROR && errorCallback != null)
+            errorCallback.onError(returnValue, inputStream);
+        return result;
+    }
+
     abstract protected Result handleJson(JSONObject returnValue, InputStream binaryData);
 
     static public Result run(JsonRemoteJob job, IRemoteRequest remoteRequest, IErrorCallback errorHandler)
             throws IOException, JSONException {
-        RemoteMessage response = remoteRequest.send(job.getMessage());
-        JSONObject returnValue = job.getReturnValue(response.message);
-        Result result = job.handleJson(returnValue, response.binaryData);
-        if (result.status == Result.ERROR) {
-            if (errorHandler != null)
-                errorHandler.onError(returnValue, response.binaryData);
-        } else if (result.status == Result.FOLLOW_UP_JOB)
+        job.setErrorCallback(errorHandler);
+        Result result = remoteRequest.send(job);
+        if (result.status == Result.FOLLOW_UP_JOB)
             return run(job.getFollowUpJob(), remoteRequest, errorHandler);
         return result;
     }

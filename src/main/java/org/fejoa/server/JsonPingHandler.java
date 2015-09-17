@@ -11,10 +11,10 @@ package org.fejoa.server;
 import org.fejoa.library.remote2.JsonPingJob;
 import org.fejoa.library.remote2.JsonRPC;
 import org.fejoa.library.remote2.JsonRPCHandler;
-import org.fejoa.library.remote2.RemoteMessage;
 import org.json.JSONArray;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 
 public class JsonPingHandler extends JsonRequestHandler {
     public JsonPingHandler() {
@@ -22,8 +22,8 @@ public class JsonPingHandler extends JsonRequestHandler {
     }
 
     @Override
-    RemoteMessage handle(JsonRPCHandler jsonRPCHandler, JSONArray params, InputStream data) {
-        return new RemoteMessage(jsonRPCHandler.makeResult(new JsonRPC.ArgumentSet(new JsonRPC.Argument("status", 0),
-                new JsonRPC.Argument("message", "pong"))), null);
+    public String handle(JsonRPCHandler jsonRPCHandler, JSONArray params, InputStream data, OutputStream response) {
+        return jsonRPCHandler.makeResult(new JsonRPC.ArgumentSet(new JsonRPC.Argument("status", 0),
+                new JsonRPC.Argument("message", "pong")));
     }
 }

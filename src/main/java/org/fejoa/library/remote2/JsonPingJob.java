@@ -11,14 +11,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 
 
 public class JsonPingJob extends JsonRemoteJob {
     static final public String PING_METHOD = "ping";
 
-    @Override
-    protected RemoteMessage getJsonMessage(JsonRPC jsonRPC) {
-        return new RemoteMessage(jsonRPC.call(PING_METHOD), null);
+    public JsonPingJob() {
+        super(false);
     }
 
     @Override
@@ -33,5 +33,15 @@ public class JsonPingJob extends JsonRemoteJob {
             message = e.getMessage();
         }
         return new Result(status, message);
+    }
+
+    @Override
+    public String getJsonHeader(JsonRPC jsonRPC) {
+        return jsonRPC.call(PING_METHOD);
+    }
+
+    @Override
+    public void writeData(OutputStream outputStream) {
+
     }
 }

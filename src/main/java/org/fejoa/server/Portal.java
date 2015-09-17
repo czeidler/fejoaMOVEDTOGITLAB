@@ -15,10 +15,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.fejoa.library.remote2.HTMLRequest;
 import org.fejoa.library.remote2.JsonRPCHandler;
-import org.fejoa.library.remote2.RemoteMessage;
 import org.fejoa.library.support.StreamHelper;
-import org.json.JSONArray;
-import org.json.JSONException;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
@@ -57,15 +54,25 @@ public class Portal extends AbstractHandler {
         Part messagePart = request.getPart(HTMLRequest.MESSAGE_KEY);
         Part data = request.getPart(HTMLRequest.DATA_KEY);
 
+        if (messagePart == null) {
+            makeResponse(response, "empty request!", null);
+            return;
+        }
+
         StringWriter stringWriter = new StringWriter();
         StreamHelper.copy(messagePart.getInputStream(), stringWriter);
-        RemoteMessage returnMessage = handleJson(stringWriter.toString(), data != null ? data.getInputStream() : null);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String returnHeader = handleJson(stringWriter.toString(), (data != null) ? data.getInputStream() : null,
+                outputStream);
+        makeResponse(response, returnHeader, new ByteArrayInputStream(outputStream.toByteArray()));
+    }
 
+    private void makeResponse(HttpServletResponse response, String header, InputStream data) throws IOException {
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        builder.addTextBody(HTMLRequest.MESSAGE_KEY, returnMessage.message, ContentType.DEFAULT_TEXT);
-        if (returnMessage.binaryData != null) {
-            builder.addBinaryBody(HTMLRequest.DATA_KEY, returnMessage.binaryData, ContentType.DEFAULT_BINARY,
+        builder.addTextBody(HTMLRequest.MESSAGE_KEY, header, ContentType.DEFAULT_TEXT);
+        if (data != null) {
+            builder.addBinaryBody(HTMLRequest.DATA_KEY, data, ContentType.DEFAULT_BINARY,
                     HTMLRequest.DATA_FILE);
         }
         HttpEntity entity = builder.build();
@@ -74,14 +81,14 @@ public class Portal extends AbstractHandler {
         entity.writeTo(response.getOutputStream());
     }
 
-    private RemoteMessage handleJson(String message, InputStream data) {
+    private String handleJson(String message, InputStream data, OutputStream outputStream) {
         JsonRPCHandler jsonRPCHandler;
         try {
             jsonRPCHandler = new JsonRPCHandler(message);
         } catch (Exception e) {
             e.printStackTrace();
-            return new RemoteMessage(JsonRPCHandler.makeError(-1, JsonRequestHandler.Errors.INVALID_JSON_REQUEST,
-                    "can't parse json"));
+            return JsonRPCHandler.makeError(-1, JsonRequestHandler.Errors.INVALID_JSON_REQUEST,
+                    "can't parse json");
         }
 
         String method = jsonRPCHandler.getMethod();
@@ -89,12 +96,11 @@ public class Portal extends AbstractHandler {
             if (!handler.getMethod().equals(method))
                 continue;
 
-            RemoteMessage returnMessage = handler.handle(jsonRPCHandler, jsonRPCHandler.getParams(), data);
+            String returnMessage = handler.handle(jsonRPCHandler, jsonRPCHandler.getParams(), data, outputStream);
             if (returnMessage != null)
                 return returnMessage;
         }
 
-        return new RemoteMessage(jsonRPCHandler.makeError(JsonRequestHandler.Errors.NO_HANDLER_FOR_REQUEST,
-                "can't handle request"));
+        return jsonRPCHandler.makeError(JsonRequestHandler.Errors.NO_HANDLER_FOR_REQUEST, "can't handle request");
     }
 }

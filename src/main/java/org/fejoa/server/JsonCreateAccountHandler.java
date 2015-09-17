@@ -7,12 +7,11 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library.remote2.JsonRPC;
 import org.fejoa.library.remote2.JsonRPCHandler;
-import org.fejoa.library.remote2.RemoteMessage;
 import org.json.JSONArray;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 
 
 public class JsonCreateAccountHandler extends JsonRequestHandler {
@@ -23,8 +22,7 @@ public class JsonCreateAccountHandler extends JsonRequestHandler {
     }
 
     @Override
-    RemoteMessage handle(JsonRPCHandler jsonRPCHandler, JSONArray params, InputStream data) {
+    public String handle(JsonRPCHandler jsonRPCHandler, JSONArray params, InputStream data, OutputStream response) {
         return null;
-        //return jsonRPCHandler.makeResult(new JsonRPC.ArgumentSet());
     }
 }

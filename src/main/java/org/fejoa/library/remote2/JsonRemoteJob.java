@@ -14,11 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 
-abstract public class JsonRemoteJob extends RemoteJob {
-    public JsonRemoteJob(boolean hasData) {
-        super(hasData);
-    }
-
+public class JsonRemoteJob extends RemoteJob {
     /**
      * Can be used for errors unrelated to the current job. For example, token expired or auth became invalid.
      */
@@ -28,7 +24,7 @@ abstract public class JsonRemoteJob extends RemoteJob {
 
     protected JsonRPC jsonRPC;
     private JsonRemoteJob followUpJob;
-    private IErrorCallback errorCallback;
+    protected IErrorCallback errorCallback;
 
     protected JsonRPC startJsonRPC() {
         this.jsonRPC = new JsonRPC();
@@ -52,33 +48,16 @@ abstract public class JsonRemoteJob extends RemoteJob {
     }
 
     @Override
-    public String getHeader() {
-        return getJsonHeader(startJsonRPC());
+    public Result run(IRemoteRequest remoteRequest) throws IOException {
+        super.run(remoteRequest);
+        startJsonRPC();
+        return null;
     }
-
-    abstract public String getJsonHeader(JsonRPC jsonRPC);
-
-    @Override
-    public Result handleResponse(String header, InputStream inputStream) {
-        JSONObject returnValue;
-        try {
-            returnValue = getReturnValue(header);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new Result(Result.ERROR, e.getMessage());
-        }
-        Result result = handleJson(returnValue, inputStream);
-        if (result.status == Result.ERROR && errorCallback != null)
-            errorCallback.onError(returnValue, inputStream);
-        return result;
-    }
-
-    abstract protected Result handleJson(JSONObject returnValue, InputStream binaryData);
 
     static public Result run(JsonRemoteJob job, IRemoteRequest remoteRequest, IErrorCallback errorHandler)
             throws IOException, JSONException {
         job.setErrorCallback(errorHandler);
-        Result result = remoteRequest.send(job);
+        Result result = job.run(remoteRequest);
         if (result.status == Result.FOLLOW_UP_JOB)
             return run(job.getFollowUpJob(), remoteRequest, errorHandler);
         return result;

@@ -7,7 +7,6 @@
  */
 package org.fejoa.library.remote2;
 
-
 import org.fejoa.library.ContactPrivate;
 import org.json.JSONObject;
 import rx.Observable;
@@ -133,6 +132,8 @@ public class ConnectionManager {
                         } catch (Exception e) {
                             e.printStackTrace();
                             observer.onError(e);
+                        } finally {
+                            remoteRequest.close();
                         }
                     }
                 }).start();

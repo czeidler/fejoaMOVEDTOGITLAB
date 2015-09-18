@@ -7,28 +7,28 @@
  */
 package org.fejoa.library.remote2;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 
 
-public class JsonPingJob extends JsonRemoteJob {
-    static final public String PING_METHOD = "ping";
+public class JsonPingJob extends SimpleJsonRemoteJob {
+    static final public String METHOD = "ping";
 
     public JsonPingJob() {
-        super(false);
+        super(true);
     }
 
     @Override
     protected Result handleJson(JSONObject returnValue, InputStream binaryData) {
-        int status = RemoteJob.Result.ERROR;
+        int status = Result.ERROR;
         String message;
         try {
             status = returnValue.getInt("status");
-            message = returnValue.getString("message");
-        } catch (JSONException e) {
+            message = "Header: " + returnValue.getString("message");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(binaryData));
+            message += " Data: " + reader.readLine();
+        } catch (Exception e) {
             e.printStackTrace();
             message = e.getMessage();
         }
@@ -37,11 +37,11 @@ public class JsonPingJob extends JsonRemoteJob {
 
     @Override
     public String getJsonHeader(JsonRPC jsonRPC) {
-        return jsonRPC.call(PING_METHOD);
+        return jsonRPC.call(METHOD, new JsonRPC.Argument("text", "ping"));
     }
 
     @Override
-    public void writeData(OutputStream outputStream) {
-
+    public void writeData(OutputStream outputStream) throws IOException {
+        outputStream.write("PING".getBytes());
     }
 }

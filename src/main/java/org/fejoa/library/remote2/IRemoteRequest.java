@@ -8,9 +8,16 @@
 package org.fejoa.library.remote2;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 
 public interface IRemoteRequest {
-    RemoteJob.Result send(RemoteJob job) throws IOException;
+    OutputStream open(String header, boolean outgoingData) throws IOException;
+
+    String receiveHeader() throws IOException;
+    InputStream receiveData() throws IOException;
+
+    void close();
     void cancel();
 }

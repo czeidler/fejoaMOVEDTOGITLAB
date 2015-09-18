@@ -7,23 +7,45 @@
  */
 package org.fejoa.server;
 
-
 import org.fejoa.library.remote2.JsonPingJob;
 import org.fejoa.library.remote2.JsonRPC;
 import org.fejoa.library.remote2.JsonRPCHandler;
-import org.json.JSONArray;
+import org.json.JSONException;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+
 
 public class JsonPingHandler extends JsonRequestHandler {
     public JsonPingHandler() {
-        super(JsonPingJob.PING_METHOD);
+        super(JsonPingJob.METHOD);
     }
 
     @Override
-    public String handle(JsonRPCHandler jsonRPCHandler, JSONArray params, InputStream data, OutputStream response) {
-        return jsonRPCHandler.makeResult(new JsonRPC.ArgumentSet(new JsonRPC.Argument("status", 0),
-                new JsonRPC.Argument("message", "pong")));
+    public String handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data) {
+        if (data == null)
+            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "data expected!");
+
+        String text;
+        try {
+            text = jsonRPCHandler.getParams().getString("text");
+        } catch (JSONException e) {
+            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "missing argument");
+        }
+        String response = jsonRPCHandler.makeResult(Portal.Errors.OK, text + " pong");
+        responseHandler.setResponseHeader(response);
+
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(data));
+        try {
+            String dataLine = bufferedReader.readLine();
+            OutputStream outputStream = responseHandler.addData();
+            OutputStreamWriter writer = new OutputStreamWriter(outputStream);
+            writer.write(dataLine + " PONG");
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "IO error: " + e.getMessage());
+        }
+
+        return null;
     }
 }

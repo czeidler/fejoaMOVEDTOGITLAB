@@ -7,18 +7,18 @@
  */
 package org.fejoa.library.remote2;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 
 public class JsonRPCHandler {
     private int id;
     private String method;
     private JSONObject jsonObject;
-    private JSONArray params;
+    private JSONObject params;
 
     public JsonRPCHandler(String jsonString) throws JSONException, IOException {
         jsonObject = new JSONObject(jsonString);
@@ -28,7 +28,7 @@ public class JsonRPCHandler {
         method = jsonObject.getString("method");
 
         try {
-            params = jsonObject.getJSONArray("params");
+            params = jsonObject.getJSONObject("params");
         } catch (JSONException e) {
         }
     }
@@ -41,29 +41,39 @@ public class JsonRPCHandler {
         return method;
     }
 
-    public JSONArray getParams() {
+    public JSONObject getParams() {
         return params;
     }
 
-    static public String makeResult(int id, JsonRPC.ArgumentSet resultSet) {
-        JsonRPC.Argument result = new JsonRPC.Argument("result", resultSet);
+    static public String makeResult(int id, JsonRPC.Argument... arguments) {
+        JsonRPC.Argument result = new JsonRPC.Argument("result", new JsonRPC.ArgumentSet(arguments));
 
         String value = "{\"jsonrpc\":\"2.0\"";
         value += ",\"id\":" + id + "," + result + "}";
         return value;
     }
 
-    public String makeResult(JsonRPC.ArgumentSet resultSet) {
-        return makeResult(getId(), resultSet);
+    public String makeResult(JsonRPC.Argument... arguments) {
+        return makeResult(getId(), arguments);
     }
 
-    static public String makeError(int id, int error, String message) {
-        return makeResult(id, new JsonRPC.ArgumentSet(new JsonRPC.Argument("status", error),
-                new JsonRPC.Argument("message", message)));
+    static private <T> T[] concat(T[] array1, T[] array2) {
+        T[] result = Arrays.copyOf(array1, array1.length + array2.length);
+        System.arraycopy(array2, 0, result, array1.length, array2.length);
+        return result;
     }
 
-    public String makeError(int error, String message) {
-        return makeResult(getId(), new JsonRPC.ArgumentSet(new JsonRPC.Argument("status", error),
-                new JsonRPC.Argument("message", message)));
+    public String makeResult(int status, String message, JsonRPC.Argument... arguments) {
+        return makeResult(getId(), concat(new JsonRPC.Argument[]{new JsonRPC.Argument("status", status),
+            new JsonRPC.Argument("message", message)}, arguments));
+    }
+
+    static public String makeResult(int id, int error, String message) {
+        return makeResult(id, new JsonRPC.Argument("status", error),
+                new JsonRPC.Argument("message", message));
+    }
+
+    public String makeResult(int error, String message) {
+        return makeResult(getId(), error, message);
     }
 }

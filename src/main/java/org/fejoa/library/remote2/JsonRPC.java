@@ -23,16 +23,14 @@ public class JsonRPC {
 
         public ArgumentSet(Argument... arguments) {
             if (arguments.length > 0) {
-                if (arguments.length > 1)
-                    value = "{";
+                value = "{";
                 for (int i = 0; i < arguments.length; i++) {
                     Argument argument = arguments[i];
                     value += argument.toString();
                     if (i < arguments.length - 1)
                         value += ",";
                 }
-                if (arguments.length > 1)
-                    value += "}";
+                value += "}";
             }
         }
     }

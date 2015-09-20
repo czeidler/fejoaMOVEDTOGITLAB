@@ -147,6 +147,10 @@ public class JGitInterface implements IDatabaseInterface {
         return branch;
     }
 
+    public Repository getRepository() {
+        return repository;
+    }
+
     @Override
     public byte[] readBytes(String path) throws IOException{
         TreeWalk treeWalk = cdFile(path);

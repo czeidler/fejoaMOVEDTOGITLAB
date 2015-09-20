@@ -135,11 +135,14 @@ public class Portal extends AbstractHandler {
             if (!handler.getMethod().equals(method))
                 continue;
 
-            String error = handler.handle(responseHandler, jsonRPCHandler, data);
+            try {
+                handler.handle(responseHandler, jsonRPCHandler, data);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return jsonRPCHandler.makeResult(JsonRequestHandler.Errors.EXCEPTION, e.getMessage());
+            }
             if (responseHandler.isHandled())
                 return null;
-            if (error != null)
-                return error;
         }
 
         return jsonRPCHandler.makeResult(JsonRequestHandler.Errors.NO_HANDLER_FOR_REQUEST, "can't handle request");

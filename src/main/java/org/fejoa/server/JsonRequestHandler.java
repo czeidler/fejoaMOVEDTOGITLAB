@@ -17,6 +17,7 @@ abstract public class JsonRequestHandler {
     static public class Errors {
         final static public int INVALID_JSON_REQUEST = -1;
         final static public int NO_HANDLER_FOR_REQUEST = -2;
+        final static public int EXCEPTION = -3;
     }
 
     private String method;
@@ -29,6 +30,6 @@ abstract public class JsonRequestHandler {
         return method;
     }
 
-    abstract public String handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler,
-                                InputStream data);
+    abstract public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler,
+                                InputStream data) throws Exception;
 }

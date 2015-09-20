@@ -8,7 +8,6 @@
 package org.fejoa.server;
 
 import org.fejoa.library.remote2.JsonPingJob;
-import org.fejoa.library.remote2.JsonRPC;
 import org.fejoa.library.remote2.JsonRPCHandler;
 import org.json.JSONException;
 
@@ -21,15 +20,16 @@ public class JsonPingHandler extends JsonRequestHandler {
     }
 
     @Override
-    public String handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data) {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
+            throws IOException {
         if (data == null)
-            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "data expected!");
+            throw new IOException("data expected!");
 
         String text;
         try {
             text = jsonRPCHandler.getParams().getString("text");
         } catch (JSONException e) {
-            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "missing argument");
+            throw new IOException("missing argument");
         }
         String response = jsonRPCHandler.makeResult(Portal.Errors.OK, text + " pong");
         responseHandler.setResponseHeader(response);
@@ -43,9 +43,7 @@ public class JsonPingHandler extends JsonRequestHandler {
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();
-            return jsonRPCHandler.makeResult(Portal.Errors.ERROR, "IO error: " + e.getMessage());
+            throw new IOException("IO error: " + e.getMessage());
         }
-
-        return null;
     }
 }

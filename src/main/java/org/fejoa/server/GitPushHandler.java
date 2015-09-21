@@ -16,7 +16,7 @@ import org.fejoa.library.remote2.GitPushJob;
 import org.fejoa.library.remote2.JsonRPCHandler;
 import org.json.JSONObject;
 
-import java.io.InputStream;;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 

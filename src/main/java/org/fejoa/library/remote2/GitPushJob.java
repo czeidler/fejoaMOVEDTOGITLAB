@@ -27,7 +27,7 @@ public class GitPushJob extends JsonRemoteJob {
     final private Repository repository;
     final private String branch;
 
-    private org.eclipse.jgit.lib.ProgressMonitor progressMonitor = new ProgressMonitor() {
+    static public org.eclipse.jgit.lib.ProgressMonitor progressMonitor = new ProgressMonitor() {
         @Override
         public void start(int i) {
             System.out.println("start " + i);

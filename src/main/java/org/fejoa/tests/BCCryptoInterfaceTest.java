@@ -6,6 +6,7 @@ import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.CryptoSettings;
 
 import javax.crypto.SecretKey;
+import java.io.*;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -56,6 +57,18 @@ public class BCCryptoInterfaceTest extends TestCase {
         byte decryptedAsymmetricAfterPem[] = cryptoInterface.decryptAsymmetric(encryptedAsymmetric, privateKey,
                 settings.publicKey);
         assertTrue(Arrays.equals(clearTextAsym.getBytes(), decryptedAsymmetricAfterPem));
+
+        // symmetric stream test
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        OutputStream outputStream = cryptoInterface.encryptSymmetric(byteArrayOutputStream, secretKey, iv,
+                settings.symmetric);
+        outputStream.write(clearTextSym.getBytes());
+        outputStream.flush();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+        InputStream inputStream = cryptoInterface.decryptSymmetric(byteArrayInputStream, secretKey, iv,
+                settings.symmetric);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        assertEquals(clearTextSym, reader.readLine());
 
         // test if kdf gives the same value twice
         String password = "testPassword348#";

@@ -22,7 +22,7 @@ public class SecureStorageDir extends StorageDir {
     private KeyId keyId;
     private KeyStore.SymmetricKeyData symmetricKeyData;
     private ICryptoInterface crypto = Crypto.get();
-    private CryptoSettings.SymmetricSettings cryptoSettings;
+    private CryptoSettings.Symmetric cryptoSettings;
 
     static public SecureStorageDir createStorage(String path, String branch, KeyStore keyStore, KeyId keyId,
                                                  String symAlgorithm) throws IOException, CryptoException {

@@ -28,7 +28,7 @@ public class MailboxTest extends TestCase {
     public void setUp() throws Exception {
         super.setUp();
 
-        KeyPair personalKey = crypto.generateKeyPair(settings.publicKeySettings);
+        KeyPair personalKey = crypto.generateKeyPair(settings.publicKey);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         personalKeyId = new KeyId(CryptoHelper.toHex(hashResult));
 
@@ -65,7 +65,7 @@ public class MailboxTest extends TestCase {
         SignatureEnvelopeWriter writer = new SignatureEnvelopeWriter(contactPrivate, personalKeyId, settings.signature,
                 null);
         byte[] packed = writer.pack(testData);
-        CryptoSettings.SignatureSettings returnSettings = CryptoSettings.empty().signature;
+        CryptoSettings.Signature returnSettings = CryptoSettings.empty().signature;
         SignatureEnvelopeReader reader = new SignatureEnvelopeReader(getContactFinder(), returnSettings, null);
         byte[] result = reader.unpack(packed);
 
@@ -88,9 +88,9 @@ public class MailboxTest extends TestCase {
         byte[] testData = "test data".getBytes();
 
         SecureAsymEnvelopeWriter writer = new SecureAsymEnvelopeWriter(contactPrivate, personalKeyId, parcelCrypto,
-                settings.publicKeySettings, null);
+                settings.publicKey, null);
         byte[] packed = writer.pack(testData);
-        CryptoSettings.AsymmetricSettings returnSettings = CryptoSettings.empty().publicKeySettings;
+        CryptoSettings.Asymmetric returnSettings = CryptoSettings.empty().publicKey;
         SecureAsymEnvelopeReader reader = new SecureAsymEnvelopeReader(contactPrivate, returnSettings, null);
         byte[] result = reader.unpack(packed);
 

@@ -35,7 +35,7 @@ public class MessageBranchInfo {
         ParcelReader branchInfoReader =  new ParcelReader();
         SecureSymEnvelopeReader secureSymEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto, branchInfoReader);
 
-        CryptoSettings.SignatureSettings signatureSettings = CryptoSettings.empty().signature;
+        CryptoSettings.Signature signatureSettings = CryptoSettings.empty().signature;
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(contactFinder, signatureSettings,
                 secureSymEnvelopeReader);
 
@@ -43,7 +43,7 @@ public class MessageBranchInfo {
     }
 
     public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKey,
-                        CryptoSettings.SignatureSettings signatureSettings)
+                        CryptoSettings.Signature signatureSettings)
             throws CryptoException, IOException {
 
         SignatureEnvelopeWriter signatureEnvelopeWriter

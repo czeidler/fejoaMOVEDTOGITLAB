@@ -18,12 +18,12 @@ public class BCCryptoInterfaceTest extends TestCase {
         CryptoSettings settings = CryptoSettings.getDefault();
 
         BCCryptoInterface cryptoInterface = new BCCryptoInterface();
-        KeyPair keyPair = cryptoInterface.generateKeyPair(settings.publicKeySettings);
+        KeyPair keyPair = cryptoInterface.generateKeyPair(settings.publicKey);
 
         // encrypt asymmetric + signature
         String clearTextAsym = "hello crypto asymmetric";
         byte encryptedAsymmetric[] = cryptoInterface.encryptAsymmetric(clearTextAsym.getBytes(), keyPair.getPublic(),
-                settings.publicKeySettings);
+                settings.publicKey);
         byte signature[] = cryptoInterface.sign(clearTextAsym.getBytes(), keyPair.getPrivate(), settings.signature);
 
         // encrypt symmetric
@@ -43,7 +43,7 @@ public class BCCryptoInterfaceTest extends TestCase {
 
         // test if we can decrypt / verify the signature
         byte decryptedAsymmetric[] = cryptoInterface.decryptAsymmetric(encryptedAsymmetric, privateKey,
-                settings.publicKeySettings);
+                settings.publicKey);
         assertTrue(Arrays.equals(clearTextAsym.getBytes(), decryptedAsymmetric));
         assertTrue(cryptoInterface.verifySignature(clearTextAsym.getBytes(), signature, publicKey, settings.signature));
         byte decryptedSymmetric[] = cryptoInterface.decryptSymmetric(encryptedSymmetric, secretKey, iv,
@@ -52,17 +52,17 @@ public class BCCryptoInterfaceTest extends TestCase {
 
         // check if encryption still works with the public key that we converted to pem and back
         byte encryptedAsymmetricAfterPem[] = cryptoInterface.encryptAsymmetric(clearTextAsym.getBytes(), publicKey,
-                settings.publicKeySettings);
+                settings.publicKey);
         byte decryptedAsymmetricAfterPem[] = cryptoInterface.decryptAsymmetric(encryptedAsymmetric, privateKey,
-                settings.publicKeySettings);
+                settings.publicKey);
         assertTrue(Arrays.equals(clearTextAsym.getBytes(), decryptedAsymmetricAfterPem));
 
         // test if kdf gives the same value twice
         String password = "testPassword348#";
         byte salt[] = cryptoInterface.generateSalt();
-        SecretKey kdfKey1 = cryptoInterface.deriveKey(password, salt, settings.masterPassword.algorithm, 20000, 256);
+        SecretKey kdfKey1 = cryptoInterface.deriveKey(password, salt, settings.masterPassword.kdfAlgorithm, 20000, 256);
         assertEquals(32, kdfKey1.getEncoded().length);
-        SecretKey kdfKey2 = cryptoInterface.deriveKey(password, salt, settings.masterPassword.algorithm, 20000, 256);
+        SecretKey kdfKey2 = cryptoInterface.deriveKey(password, salt, settings.masterPassword.kdfAlgorithm, 20000, 256);
         assertTrue(Arrays.equals(kdfKey1.getEncoded(), kdfKey2.getEncoded()));
     }
 

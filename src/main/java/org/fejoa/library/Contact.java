@@ -51,7 +51,7 @@ abstract public class Contact {
     }
 
     abstract public boolean verify(KeyId keyId, byte data[], byte signature[],
-                                   CryptoSettings.SignatureSettings signatureSettings) throws CryptoException;
+                                   CryptoSettings.Signature signatureSettings) throws CryptoException;
     abstract public PublicKey getPublicKey(KeyId keyId);
 
     public String getAddress() {

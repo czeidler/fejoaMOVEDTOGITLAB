@@ -71,7 +71,7 @@ public class ContactPublic extends Contact {
 
     @Override
     public boolean verify(KeyId keyId, byte data[], byte signature[],
-                          CryptoSettings.SignatureSettings signatureSettings) throws CryptoException {
+                          CryptoSettings.Signature signatureSettings) throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         PublicKey publicKey = getPublicKey(keyId);
         return crypto.verifySignature(data, signature, publicKey, signatureSettings);

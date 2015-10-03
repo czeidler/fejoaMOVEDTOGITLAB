@@ -23,10 +23,10 @@ import java.security.NoSuchAlgorithmException;
 public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
     String uid = "";
     final IContactFinder contactFinder;
-    final CryptoSettings.SignatureSettings signatureSettings;
+    final CryptoSettings.Signature signatureSettings;
     final IParcelEnvelopeReader childReader;
 
-    public SignatureEnvelopeReader(IContactFinder contactFinder, CryptoSettings.SignatureSettings signatureSettings,
+    public SignatureEnvelopeReader(IContactFinder contactFinder, CryptoSettings.Signature signatureSettings,
                                    IParcelEnvelopeReader childReader) {
         this.contactFinder = contactFinder;
         this.signatureSettings = signatureSettings;

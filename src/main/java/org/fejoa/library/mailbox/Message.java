@@ -35,7 +35,7 @@ public class Message {
         MessageEnvelopeReader messageEnvelopeReader =  new MessageEnvelopeReader();
         SecureSymEnvelopeReader secureEnvelopeReader = new SecureSymEnvelopeReader(parcelCrypto,
                 messageEnvelopeReader);
-        CryptoSettings.SignatureSettings signatureSettings = CryptoSettings.empty().signature;
+        CryptoSettings.Signature signatureSettings = CryptoSettings.empty().signature;
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
                 signatureSettings, secureEnvelopeReader);
 
@@ -44,7 +44,7 @@ public class Message {
     }
 
     public byte[] write(ParcelCrypto parcelCrypto, ContactPrivate sender, KeyId senderKeyId,
-                        CryptoSettings.SignatureSettings signatureSettings) throws IOException,
+                        CryptoSettings.Signature signatureSettings) throws IOException,
             CryptoException {
         SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKeyId,
                 signatureSettings, null);

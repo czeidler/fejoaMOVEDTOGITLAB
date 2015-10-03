@@ -16,31 +16,31 @@ public class CryptoSettings {
     /**
      * KDF + symmetric master key settings
      */
-    public class PasswordSettings extends KeyTypeSettings {
-        public String algorithm;
-        public int iterations = -1;
+    public class Password extends KeyTypeSettings {
+        // kdf
+        public String kdfAlgorithm;
+        public int kdfIterations = -1;
+        // symmetric key encryption iv
         public int ivSize = -1;
     }
 
-    public class SymmetricSettings extends KeyTypeSettings{
+    public class Symmetric extends KeyTypeSettings{
         public String algorithm;
         public int ivSize = -1;
     }
 
-    public class AsymmetricSettings extends KeyTypeSettings {
+    public class Asymmetric extends KeyTypeSettings {
         public String algorithm;
     }
 
-    public class SignatureSettings {
+    public class Signature extends KeyTypeSettings {
         public String algorithm;
     }
 
-    public PasswordSettings masterPassword = new PasswordSettings();
-    public AsymmetricSettings publicKeySettings = new AsymmetricSettings();
-    public AsymmetricSettings signatureSettings = new AsymmetricSettings();
-
-    public SymmetricSettings symmetric = new SymmetricSettings();
-    public SignatureSettings signature = new SignatureSettings();
+    public Password masterPassword = new Password();
+    public Asymmetric publicKey = new Asymmetric();
+    public Signature signature = new Signature();
+    public Symmetric symmetric = new Symmetric();
 
     private CryptoSettings() {
 
@@ -49,23 +49,21 @@ public class CryptoSettings {
     static public CryptoSettings getDefault() {
         CryptoSettings cryptoSettings = new CryptoSettings();
 
-        cryptoSettings.publicKeySettings.algorithm = "RSA/NONE/PKCS1PADDING";
-        cryptoSettings.publicKeySettings.keyType = "RSA";
-        cryptoSettings.publicKeySettings.keySize = 2048;
+        cryptoSettings.publicKey.algorithm = "RSA/NONE/PKCS1PADDING";
+        cryptoSettings.publicKey.keyType = "RSA";
+        cryptoSettings.publicKey.keySize = 2048;
 
-        cryptoSettings.signatureSettings.algorithm = "RSA/NONE/PKCS1PADDING";
-        cryptoSettings.signatureSettings.keyType = "RSA";
-        cryptoSettings.signatureSettings.keySize = 512;
+        cryptoSettings.signature.algorithm = "SHA1withRSA";
+        cryptoSettings.signature.keyType = "RSA";
+        cryptoSettings.signature.keySize = 512;
 
         cryptoSettings.symmetric.algorithm = "AES/CBC/PKCS7Padding";
         cryptoSettings.symmetric.keyType = "AES";
         cryptoSettings.symmetric.keySize = 256;
         cryptoSettings.symmetric.ivSize = 16;
 
-        cryptoSettings.signature.algorithm = "SHA1withRSA";
-
-        cryptoSettings.masterPassword.algorithm = "PBKDF2WithHmacSHA1";
-        cryptoSettings.masterPassword.iterations = 20000;
+        cryptoSettings.masterPassword.kdfAlgorithm = "PBKDF2WithHmacSHA1";
+        cryptoSettings.masterPassword.kdfIterations = 20000;
         cryptoSettings.masterPassword.keySize = 256;
         cryptoSettings.masterPassword.ivSize = 16;
 
@@ -74,12 +72,12 @@ public class CryptoSettings {
 
     static public CryptoSettings getFast() {
         CryptoSettings cryptoSettings = getDefault();
-        cryptoSettings.publicKeySettings.keySize = 512;
+        cryptoSettings.publicKey.keySize = 512;
 
         cryptoSettings.symmetric.keySize = 128;
         cryptoSettings.symmetric.ivSize = 16;
 
-        cryptoSettings.masterPassword.iterations = 1;
+        cryptoSettings.masterPassword.kdfIterations = 1;
 
         return cryptoSettings;
     }
@@ -88,17 +86,16 @@ public class CryptoSettings {
         CryptoSettings settings = empty();
         CryptoSettings defaultSettings = getDefault();
 
-        settings.publicKeySettings.algorithm = defaultSettings.publicKeySettings.algorithm;
-        settings.publicKeySettings.keyType = defaultSettings.publicKeySettings.keyType;
-        settings.publicKeySettings.keySize = defaultSettings.publicKeySettings.keySize;
-        settings.signatureSettings.algorithm = defaultSettings.signatureSettings.algorithm;
-        settings.signatureSettings.keyType = defaultSettings.signatureSettings.keyType;
-        settings.signatureSettings.keySize = defaultSettings.signatureSettings.keySize;
+        settings.publicKey.algorithm = defaultSettings.publicKey.algorithm;
+        settings.publicKey.keyType = defaultSettings.publicKey.keyType;
+        settings.publicKey.keySize = defaultSettings.publicKey.keySize;
+        settings.signature.algorithm = defaultSettings.signature.algorithm;
+        settings.signature.keyType = defaultSettings.signature.keyType;
+        settings.signature.keySize = defaultSettings.signature.keySize;
         settings.symmetric.algorithm = defaultSettings.symmetric.keyType;
         settings.symmetric.keyType = defaultSettings.symmetric.keyType;
         settings.symmetric.keySize = defaultSettings.symmetric.keySize;
         settings.symmetric.ivSize = defaultSettings.symmetric.ivSize;
-        settings.signature.algorithm = defaultSettings.signature.algorithm;
         return settings;
     }
 
@@ -106,21 +103,23 @@ public class CryptoSettings {
         return new CryptoSettings();
     }
 
-    static public CryptoSettings.SignatureSettings signatureSettings(String algorithm) {
-        CryptoSettings cryptoSettings = getDefault();
-        cryptoSettings.signature.algorithm = algorithm;
-        return cryptoSettings.signature;
+    static public Signature signatureSettings(String algorithm) {
+        Signature cryptoSettings = signatureSettings();
+        cryptoSettings.algorithm = algorithm;
+        return cryptoSettings;
     }
 
-    static public CryptoSettings.SignatureSettings signatureSettings() {
+    static public Signature signatureSettings() {
         CryptoSettings settings = empty();
         CryptoSettings defaultSettings = getDefault();
 
         settings.signature.algorithm = defaultSettings.signature.algorithm;
+        settings.signature.keyType = defaultSettings.signature.keyType;
+        settings.signature.keySize = defaultSettings.signature.keySize;
         return settings.signature;
     }
 
-    static public CryptoSettings.SymmetricSettings symmetricSettings(String keyType, String algorithm) {
+    static public Symmetric symmetricSettings(String keyType, String algorithm) {
         CryptoSettings cryptoSettings = empty();
         cryptoSettings.symmetric.keyType = keyType;
         cryptoSettings.symmetric.algorithm = algorithm;

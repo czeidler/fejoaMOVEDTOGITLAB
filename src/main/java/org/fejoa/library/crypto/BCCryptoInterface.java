@@ -34,7 +34,7 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public KeyPair generateKeyPair(CryptoSettings.AsymmetricSettings settings) throws CryptoException {
+    public KeyPair generateKeyPair(CryptoSettings.KeyTypeSettings settings) throws CryptoException {
         KeyPairGenerator keyGen;
         try {
             keyGen = KeyPairGenerator.getInstance(settings.keyType);
@@ -46,7 +46,7 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] encryptAsymmetric(byte[] input, PublicKey key, CryptoSettings.AsymmetricSettings settings)
+    public byte[] encryptAsymmetric(byte[] input, PublicKey key, CryptoSettings.Asymmetric settings)
             throws CryptoException {
         Cipher cipher;
         try {
@@ -59,7 +59,7 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] decryptAsymmetric(byte[] input, PrivateKey key, CryptoSettings.AsymmetricSettings settings)
+    public byte[] decryptAsymmetric(byte[] input, PrivateKey key, CryptoSettings.Asymmetric settings)
             throws CryptoException {
         Cipher cipher;
         try {
@@ -98,7 +98,7 @@ public class BCCryptoInterface implements ICryptoInterface {
 
     @Override
     public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
-                                   CryptoSettings.SymmetricSettings settings) throws CryptoException {
+                                   CryptoSettings.Symmetric settings) throws CryptoException {
         Cipher cipher;
         try {
             cipher = Cipher.getInstance(settings.algorithm);
@@ -112,7 +112,7 @@ public class BCCryptoInterface implements ICryptoInterface {
 
     @Override
     public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
-                                   CryptoSettings.SymmetricSettings settings) throws CryptoException {
+                                   CryptoSettings.Symmetric settings) throws CryptoException {
         Cipher cipher;
         try {
             cipher = Cipher.getInstance(settings.algorithm);
@@ -125,10 +125,10 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] sign(byte[] input, PrivateKey key, CryptoSettings.SignatureSettings settings) throws CryptoException {
+    public byte[] sign(byte[] input, PrivateKey key, CryptoSettings.Signature settings) throws CryptoException {
         Signature signature;
         try {
-            signature = Signature.getInstance(settings.algorithm);
+            signature = java.security.Signature.getInstance(settings.algorithm);
 
             signature.initSign(key);
             signature.update(input);
@@ -140,11 +140,11 @@ public class BCCryptoInterface implements ICryptoInterface {
 
     @Override
     public boolean verifySignature(byte[] message, byte[] signature, PublicKey key,
-                                   CryptoSettings.SignatureSettings settings)
+                                   CryptoSettings.Signature settings)
             throws CryptoException {
         Signature sig;
         try {
-            sig = Signature.getInstance(settings.algorithm);
+            sig = java.security.Signature.getInstance(settings.algorithm);
 
             sig.initVerify(key);
             sig.update(message);

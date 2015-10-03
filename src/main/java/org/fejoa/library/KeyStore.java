@@ -72,8 +72,8 @@ public class KeyStore implements IStorageUid {
 
         salt = crypto.generateSalt();
 
-        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.masterPassword.algorithm,
-                settings.masterPassword.iterations, settings.masterPassword.keySize);
+        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.masterPassword.kdfAlgorithm,
+                settings.masterPassword.kdfIterations, settings.masterPassword.keySize);
 
         masterKeyIV = crypto.generateInitializationVector(settings.masterPassword.ivSize);
         masterKey = crypto.generateSymmetricKey(settings.masterPassword);
@@ -132,10 +132,10 @@ public class KeyStore implements IStorageUid {
         // create master password (master password is encrypted
         storageDir.writeBytes(PATH_MASTER_KEY, encryptedMasterKey);
         storageDir.writeBytes(PATH_MASTER_KEY_IV, masterKeyIV);
-        storageDir.writeString(PATH_MASTER_PASSWORD_ALGORITHM, settings.masterPassword.algorithm);
+        storageDir.writeString(PATH_MASTER_PASSWORD_ALGORITHM, settings.masterPassword.kdfAlgorithm);
         storageDir.writeBytes(PATH_MASTER_PASSWORD_SALT, salt);
         storageDir.writeInt(PATH_MASTER_PASSWORD_SIZE, settings.masterPassword.keySize);
-        storageDir.writeInt(PATH_MASTER_PASSWORD_ITERATIONS, settings.masterPassword.iterations);
+        storageDir.writeInt(PATH_MASTER_PASSWORD_ITERATIONS, settings.masterPassword.kdfIterations);
         storageDir.writeString(PATH_SYMMETRIC_ALGORITHM, settings.symmetric.algorithm);
         storageDir.writeString(PATH_SYMMETRIC_KEY_TYPE, settings.symmetric.keyType);
 

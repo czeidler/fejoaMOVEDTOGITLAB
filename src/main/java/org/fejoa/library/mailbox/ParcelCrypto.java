@@ -16,16 +16,16 @@ public class ParcelCrypto {
     ICryptoInterface crypto = Crypto.get();
     final byte iv[];
     final SecretKey key;
-    final CryptoSettings.SymmetricSettings symmetricSettings;
+    final CryptoSettings.Symmetric symmetricSettings;
 
-    public ParcelCrypto(CryptoSettings.SymmetricSettings settings)
+    public ParcelCrypto(CryptoSettings.Symmetric settings)
             throws CryptoException {
         this.symmetricSettings = settings;
         iv = crypto.generateInitializationVector(settings.ivSize);
         key = crypto.generateSymmetricKey(settings);
     }
 
-    public ParcelCrypto(byte iv[], byte[] symmetricKey, CryptoSettings.SymmetricSettings settings)
+    public ParcelCrypto(byte iv[], byte[] symmetricKey, CryptoSettings.Symmetric settings)
             throws CryptoException {
         this.symmetricSettings = settings;
         this.iv = iv;
@@ -55,7 +55,7 @@ public class ParcelCrypto {
         return key;
     }
 
-    public CryptoSettings.SymmetricSettings getSymmetricSettings() {
+    public CryptoSettings.Symmetric getSymmetricSettings() {
         return symmetricSettings;
     }
 }

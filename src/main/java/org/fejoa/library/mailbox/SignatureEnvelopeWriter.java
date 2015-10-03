@@ -24,10 +24,10 @@ public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
     final KeyId signatureKey;
     byte signature[];
     IParcelEnvelopeWriter childWriter;
-    final CryptoSettings.SignatureSettings signatureSettings;
+    final CryptoSettings.Signature signatureSettings;
 
     public SignatureEnvelopeWriter(ContactPrivate sender, KeyId signatureKey,
-                                   CryptoSettings.SignatureSettings signatureSettings,
+                                   CryptoSettings.Signature signatureSettings,
                                    IParcelEnvelopeWriter childWriter) {
         this.signatureSettings = signatureSettings;
         this.sender = sender;

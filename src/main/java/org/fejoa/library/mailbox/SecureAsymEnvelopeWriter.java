@@ -25,10 +25,10 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
     final KeyId asymmetricKeyId;
     final ParcelCrypto parcelCrypto;
     final IParcelEnvelopeWriter childWriter;
-    final CryptoSettings.AsymmetricSettings asymSettings;
+    final CryptoSettings.Asymmetric asymSettings;
 
     public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
-                                    CryptoSettings.AsymmetricSettings asymSettings,
+                                    CryptoSettings.Asymmetric asymSettings,
                                     IParcelEnvelopeWriter childWriter) {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
@@ -52,8 +52,8 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
         DataOutputStream stream = new DataOutputStream(packageData);
 
-        CryptoSettings.SymmetricSettings settings = parcelCrypto.getSymmetricSettings();
-        // asym algorithm and key id
+        CryptoSettings.Symmetric settings = parcelCrypto.getSymmetricSettings();
+        // asym kdfAlgorithm and key id
         stream.writeBytes(settings.algorithm + "\n");
         stream.writeBytes(asymmetricKeyId.getKeyId() + "\n");
 
@@ -61,7 +61,7 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
         byte[] encryptedSymKeyType = encrypteAsym(settings.keyType.getBytes());
         stream.writeInt(encryptedSymKeyType.length);
         stream.write(encryptedSymKeyType, 0, encryptedSymKeyType.length);
-        // encrypted sym algorithm
+        // encrypted sym kdfAlgorithm
         byte[] encryptedSymAlgorithm = encrypteAsym(settings.algorithm.getBytes());
         stream.writeInt(encryptedSymAlgorithm.length);
         stream.write(encryptedSymAlgorithm, 0, encryptedSymAlgorithm.length);

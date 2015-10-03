@@ -34,7 +34,7 @@ public class Messenger {
         Message message = new Message();
         message.setBody(body);
 
-        CryptoSettings.SignatureSettings signatureSettings = CryptoSettings.signatureSettings();
+        CryptoSettings.Signature signatureSettings = CryptoSettings.signatureSettings();
         MessageChannel messageChannel = mailbox.createNewMessageChannel();
         MessageBranch messageBranch = messageChannel.getBranch();
         messageBranch.setMessageBranchInfo(branchInfo, signatureSettings);
@@ -51,7 +51,7 @@ public class Messenger {
         Message message = new Message();
         message.setBody(body);
 
-        CryptoSettings.SignatureSettings signatureSettings = CryptoSettings.signatureSettings();
+        CryptoSettings.Signature signatureSettings = CryptoSettings.signatureSettings();
         MessageBranch messageBranch = channel.getBranch();
         messageBranch.addMessage(message, signatureSettings);
         messageBranch.commit();

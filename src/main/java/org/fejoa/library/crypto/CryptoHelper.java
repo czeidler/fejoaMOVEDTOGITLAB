@@ -74,7 +74,7 @@ public class CryptoHelper {
         }
     }
 
-    static public SecretKey symmetricKeyFromRaw(byte[] key, CryptoSettings.SymmetricSettings settings) {
+    static public SecretKey symmetricKeyFromRaw(byte[] key, CryptoSettings.Symmetric settings) {
         return new SecretKeySpec(key, 0, key.length, settings.keyType);
     }
 

@@ -105,7 +105,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         loadMessages();
     }
 
-    public void setMessageBranchInfo(MessageBranchInfo info, CryptoSettings.SignatureSettings signatureSettings)
+    public void setMessageBranchInfo(MessageBranchInfo info, CryptoSettings.Signature signatureSettings)
             throws CryptoException, IOException {
         ContactPrivate myself = identity.getMyself();
         byte[] pack = info.write(parcelCrypto, myself, myself.getMainKeyId(), signatureSettings);
@@ -139,7 +139,7 @@ public class MessageBranch extends WeakListenable<MessageBranch.IListener> {
         return messages.get(index);
     }
 
-    public void addMessage(Message message, CryptoSettings.SignatureSettings signatureSettings) throws IOException,
+    public void addMessage(Message message, CryptoSettings.Signature signatureSettings) throws IOException,
             CryptoException {
         ContactPrivate myself = identity.getMyself();
         byte[] pack = message.write(parcelCrypto, myself, myself.getMainKeyId(), signatureSettings);

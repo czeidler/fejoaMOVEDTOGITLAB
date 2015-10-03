@@ -57,7 +57,7 @@ public class CryptoSettings {
         cryptoSettings.signature.keyType = "RSA";
         cryptoSettings.signature.keySize = 512;
 
-        cryptoSettings.symmetric.algorithm = "AES/CBC/PKCS7Padding";
+        cryptoSettings.symmetric.algorithm = "AES/CTR/PKCS5Padding";
         cryptoSettings.symmetric.keyType = "AES";
         cryptoSettings.symmetric.keySize = 256;
         cryptoSettings.symmetric.ivSize = 16;

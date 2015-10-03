@@ -9,6 +9,8 @@ package org.fejoa.library.crypto;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.*;
 import java.security.spec.KeySpec;
 import javax.crypto.*;
@@ -99,9 +101,8 @@ public class BCCryptoInterface implements ICryptoInterface {
     @Override
     public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
                                    CryptoSettings.Symmetric settings) throws CryptoException {
-        Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.algorithm);
+            Cipher cipher = Cipher.getInstance(settings.algorithm);
             IvParameterSpec ips = new IvParameterSpec(iv);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
             return cipher.doFinal(input);
@@ -113,12 +114,37 @@ public class BCCryptoInterface implements ICryptoInterface {
     @Override
     public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
                                    CryptoSettings.Symmetric settings) throws CryptoException {
-        Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.algorithm);
+            Cipher cipher = Cipher.getInstance(settings.algorithm);
             IvParameterSpec ips = new IvParameterSpec(iv);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, ips);
             return cipher.doFinal(input);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
+    }
+
+    @Override
+    public OutputStream encryptSymmetric(OutputStream out, SecretKey secretKey, byte[] iv,
+                                         CryptoSettings.Symmetric settings) throws CryptoException {
+        try {
+            Cipher cipher = Cipher.getInstance(settings.algorithm);
+            IvParameterSpec ips = new IvParameterSpec(iv);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
+            return new CipherOutputStream(out, cipher);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
+    }
+
+    @Override
+    public InputStream decryptSymmetric(InputStream input, SecretKey secretKey, byte[] iv,
+                                        CryptoSettings.Symmetric settings) throws CryptoException {
+        try {
+            Cipher cipher = Cipher.getInstance(settings.algorithm);
+            IvParameterSpec ips = new IvParameterSpec(iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ips);
+            return new CipherInputStream(input, cipher);
         } catch (Exception e) {
             throw new CryptoException(e.getMessage());
         }

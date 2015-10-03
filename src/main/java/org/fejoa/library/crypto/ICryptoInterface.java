@@ -8,6 +8,8 @@
 package org.fejoa.library.crypto;
 
 import javax.crypto.SecretKey;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.*;
 
 
@@ -28,6 +30,11 @@ public interface ICryptoInterface {
     byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
             throws CryptoException;
     byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
+            throws CryptoException;
+
+    OutputStream encryptSymmetric(OutputStream out, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
+            throws CryptoException;
+    InputStream decryptSymmetric(InputStream input, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
             throws CryptoException;
 
     byte[] sign(byte[] input, PrivateKey key, CryptoSettings.Signature settings) throws CryptoException;

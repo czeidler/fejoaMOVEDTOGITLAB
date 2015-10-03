@@ -23,10 +23,10 @@ import java.security.PrivateKey;
 public class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
     final ContactPrivate owner;
     ParcelCrypto parcelCrypto;
-    final CryptoSettings asymSettings;
+    final CryptoSettings.AsymmetricSettings asymSettings;
     final IParcelEnvelopeReader childReader;
 
-    public SecureAsymEnvelopeReader(ContactPrivate owner, CryptoSettings asymSettings,
+    public SecureAsymEnvelopeReader(ContactPrivate owner, CryptoSettings.AsymmetricSettings asymSettings,
                                     IParcelEnvelopeReader childReader) {
         this.owner = owner;
         this.asymSettings = asymSettings;
@@ -49,7 +49,7 @@ public class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
         DataInputStream stream = new DataInputStream(positionInputStream);
 
         // asym algorithm and key id
-        asymSettings.asymmetricAlgorithm = stream.readLine();
+        asymSettings.algorithm = stream.readLine();
         String asymmetricKeyId = stream.readLine();
 
         // sym key type
@@ -77,7 +77,7 @@ public class SecureAsymEnvelopeReader implements IParcelEnvelopeReader {
         byte encryptedData[] = new byte[parcel.length - position];
         stream.readFully(encryptedData, 0, encryptedData.length);
 
-        CryptoSettings symSettings = CryptoSettings.symmetricSettings(
+        CryptoSettings.SymmetricSettings symSettings = CryptoSettings.symmetricSettings(
                 new String(decryptAsym(keyTypeEncBuffer, asymmetricKeyId)),
                 new String(decryptAsym(symAlgoEncBuffer, asymmetricKeyId)));
         parcelCrypto = new ParcelCrypto(iv, decryptAsym(encryptedSymmetricKey, asymmetricKeyId), symSettings);

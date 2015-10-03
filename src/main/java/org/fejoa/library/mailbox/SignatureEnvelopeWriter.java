@@ -24,9 +24,10 @@ public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
     final KeyId signatureKey;
     byte signature[];
     IParcelEnvelopeWriter childWriter;
-    final CryptoSettings signatureSettings;
+    final CryptoSettings.SignatureSettings signatureSettings;
 
-    public SignatureEnvelopeWriter(ContactPrivate sender, KeyId signatureKey, CryptoSettings signatureSettings,
+    public SignatureEnvelopeWriter(ContactPrivate sender, KeyId signatureKey,
+                                   CryptoSettings.SignatureSettings signatureSettings,
                                    IParcelEnvelopeWriter childWriter) {
         this.signatureSettings = signatureSettings;
         this.sender = sender;
@@ -65,7 +66,7 @@ public class SignatureEnvelopeWriter implements IParcelEnvelopeWriter {
 
         // sender and key id
         stream.writeBytes(sender.getUid() + "\n");
-        stream.writeBytes(signatureSettings.signatureAlgorithm + "\n");
+        stream.writeBytes(signatureSettings.algorithm + "\n");
         stream.writeBytes(signatureKey.getKeyId() + "\n");
 
         // signature

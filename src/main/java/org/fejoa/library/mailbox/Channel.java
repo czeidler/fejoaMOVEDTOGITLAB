@@ -39,9 +39,9 @@ public abstract class Channel {
 
         ChannelBranchReader channelBranchReader =  new ChannelBranchReader();
         SecureAsymEnvelopeReader secureEnvelopeReader = new SecureAsymEnvelopeReader(identity.getMyself(),
-                channelSettings, channelBranchReader);
+                channelSettings.publicKeySettings, channelBranchReader);
         SignatureEnvelopeReader signatureReader = new SignatureEnvelopeReader(identity.getContactFinder(),
-                channelSettings, secureEnvelopeReader);
+                channelSettings.signature, secureEnvelopeReader);
 
         signatureReader.unpack(pack);
 
@@ -55,10 +55,10 @@ public abstract class Channel {
 
     protected void create(CryptoSettings settings) throws CryptoException {
         this.channelSettings = settings;
-        parcelCrypto = new ParcelCrypto(settings);
+        parcelCrypto = new ParcelCrypto(settings.symmetric);
 
         ICryptoInterface crypto = Crypto.get();
-        KeyPair keyPair = crypto.generateKeyPair(settings.asymmetricKeySizeChannelSign);
+        KeyPair keyPair = crypto.generateKeyPair(settings.signatureSettings);
         signatureKey = keyPair.getPrivate();
         signatureKeyPublic = keyPair.getPublic();
 
@@ -80,10 +80,10 @@ public abstract class Channel {
             throws CryptoException, IOException {
 
         SignatureEnvelopeWriter signatureEnvelopeWriter = new SignatureEnvelopeWriter(sender, senderKey,
-                parcelCrypto.getCryptoSettings(), null);
+                channelSettings.signature, null);
 
         SecureAsymEnvelopeWriter asymEnvelopeWriter = new SecureAsymEnvelopeWriter(receiver, receiverKey, parcelCrypto,
-                channelSettings, signatureEnvelopeWriter);
+                channelSettings.publicKeySettings, signatureEnvelopeWriter);
 
         ChannelBranchWriter channelBranchWriter = new ChannelBranchWriter(asymEnvelopeWriter);
         return channelBranchWriter.pack(null);

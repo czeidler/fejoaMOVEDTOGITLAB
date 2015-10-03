@@ -22,7 +22,7 @@ public class SecureStorageDir extends StorageDir {
     private KeyId keyId;
     private KeyStore.SymmetricKeyData symmetricKeyData;
     private ICryptoInterface crypto = Crypto.get();
-    private CryptoSettings cryptoSettings;
+    private CryptoSettings.SymmetricSettings cryptoSettings;
 
     static public SecureStorageDir createStorage(String path, String branch, KeyStore keyStore, KeyId keyId,
                                                  String symAlgorithm) throws IOException, CryptoException {
@@ -70,7 +70,7 @@ public class SecureStorageDir extends StorageDir {
     }
 
     public String getSymmetricAlgorithm() {
-        return cryptoSettings.symmetricAlgorithm;
+        return cryptoSettings.algorithm;
     }
 
     public byte[] readSecureBytes(String path) throws IOException, CryptoException {
@@ -82,7 +82,8 @@ public class SecureStorageDir extends StorageDir {
     }
 
     public void writeSecureBytes(String path, byte[] data) throws IOException, CryptoException {
-        byte encrypted[] = crypto.encryptSymmetric(data, symmetricKeyData.key, symmetricKeyData.iv, cryptoSettings);
+        byte encrypted[] = crypto.encryptSymmetric(data, symmetricKeyData.key, symmetricKeyData.iv,
+                cryptoSettings);
         writeBytes(path, encrypted);
     }
 

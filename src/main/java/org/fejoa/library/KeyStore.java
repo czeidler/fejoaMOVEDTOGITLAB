@@ -72,12 +72,13 @@ public class KeyStore implements IStorageUid {
 
         salt = crypto.generateSalt();
 
-        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.kdfAlgorithm,
-                settings.masterPasswordIterations, settings.masterPasswordLength);
+        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.masterPassword.algorithm,
+                settings.masterPassword.iterations, settings.masterPassword.keySize);
 
-        masterKeyIV = crypto.generateInitializationVector(settings.masterPasswordIVLength);
-        masterKey = crypto.generateSymmetricKey(settings.masterPasswordLength, settings);
-        encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV, settings);
+        masterKeyIV = crypto.generateInitializationVector(settings.masterPassword.ivSize);
+        masterKey = crypto.generateSymmetricKey(settings.masterPassword);
+        encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV,
+                settings.symmetric);
 
         makeUidFromEncryptedMasterKey(encryptedMasterKey);
     }
@@ -107,12 +108,13 @@ public class KeyStore implements IStorageUid {
             int masterPasswordIterations = storageDir.readInt(PATH_MASTER_PASSWORD_ITERATIONS);
             String symmetricAlgorithm = storageDir.readString(PATH_SYMMETRIC_ALGORITHM);
             String symmetricKeyType = storageDir.readString(PATH_SYMMETRIC_KEY_TYPE);
-            settings = CryptoSettings.symmetricSettings(symmetricKeyType, symmetricAlgorithm);
+            settings.symmetric = CryptoSettings.symmetricSettings(symmetricKeyType, symmetricAlgorithm);
 
             SecretKey secretKey = crypto.deriveKey(password, salt, algorithmName, masterPasswordIterations,
                     masterPasswordSize);
-            byte masterKeyBytes[] = crypto.decryptSymmetric(encryptedMasterKey, secretKey, masterKeyIV, settings);
-            masterKey = CryptoHelper.symmetricKeyFromRaw(masterKeyBytes, settings);
+            byte masterKeyBytes[] = crypto.decryptSymmetric(encryptedMasterKey, secretKey, masterKeyIV,
+                    settings.symmetric);
+            masterKey = CryptoHelper.symmetricKeyFromRaw(masterKeyBytes, settings.symmetric);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return false;
@@ -130,12 +132,12 @@ public class KeyStore implements IStorageUid {
         // create master password (master password is encrypted
         storageDir.writeBytes(PATH_MASTER_KEY, encryptedMasterKey);
         storageDir.writeBytes(PATH_MASTER_KEY_IV, masterKeyIV);
-        storageDir.writeString(PATH_MASTER_PASSWORD_ALGORITHM, settings.kdfAlgorithm);
+        storageDir.writeString(PATH_MASTER_PASSWORD_ALGORITHM, settings.masterPassword.algorithm);
         storageDir.writeBytes(PATH_MASTER_PASSWORD_SALT, salt);
-        storageDir.writeInt(PATH_MASTER_PASSWORD_SIZE, settings.masterPasswordLength);
-        storageDir.writeInt(PATH_MASTER_PASSWORD_ITERATIONS, settings.masterPasswordIterations);
-        storageDir.writeString(PATH_SYMMETRIC_ALGORITHM, settings.symmetricAlgorithm);
-        storageDir.writeString(PATH_SYMMETRIC_KEY_TYPE, settings.symmetricKeyType);
+        storageDir.writeInt(PATH_MASTER_PASSWORD_SIZE, settings.masterPassword.keySize);
+        storageDir.writeInt(PATH_MASTER_PASSWORD_ITERATIONS, settings.masterPassword.iterations);
+        storageDir.writeString(PATH_SYMMETRIC_ALGORITHM, settings.symmetric.algorithm);
+        storageDir.writeString(PATH_SYMMETRIC_KEY_TYPE, settings.symmetric.keyType);
 
         encryptedMasterKey = null;
         salt = null;
@@ -150,7 +152,7 @@ public class KeyStore implements IStorageUid {
      */
     public KeyId writeSymmetricKey(SecretKey key, byte iv[], String keyType) throws CryptoException,
             IOException {
-        byte encryptedKey[] = crypto.encryptSymmetric(key.getEncoded(), masterKey, masterKeyIV, settings);
+        byte encryptedKey[] = crypto.encryptSymmetric(key.getEncoded(), masterKey, masterKeyIV, settings.symmetric);
         String keyId = CryptoHelper.toHex(CryptoHelper.sha1Hash(encryptedKey));
 
         try {
@@ -171,7 +173,7 @@ public class KeyStore implements IStorageUid {
         keyData.keyType = new String(readSecure(keyId.getKeyId() + "/" + PATH_SYMMETRIC_KEY_TYPE));
         CryptoSettings settings = CryptoSettings.symmetricKeyTypeSettings(keyData.keyType);
         keyData.key = CryptoHelper.symmetricKeyFromRaw(readSecure(keyId.getKeyId() + "/" + PATH_SYMMETRIC_KEY),
-                settings);
+                settings.symmetric);
         keyData.iv = readSecure(keyId.getKeyId() + "/" + PATH_SYMMETRIC_IV);
 
         return  keyData;
@@ -205,11 +207,11 @@ public class KeyStore implements IStorageUid {
 
     private byte[] readSecure(String path) throws IOException, CryptoException {
         byte encrypted[] = storageDir.readBytes(path);
-        return crypto.decryptSymmetric(encrypted, masterKey, masterKeyIV, settings);
+        return crypto.decryptSymmetric(encrypted, masterKey, masterKeyIV, settings.symmetric);
     }
 
     private void writeSecure(String path, byte[] data) throws IOException, CryptoException {
-        byte encrypted[] = crypto.encryptSymmetric(data, masterKey, masterKeyIV, settings);
+        byte encrypted[] = crypto.encryptSymmetric(data, masterKey, masterKeyIV, settings.symmetric);
         storageDir.writeBytes(path, encrypted);
     }
 }

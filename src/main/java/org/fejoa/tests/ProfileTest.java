@@ -87,11 +87,11 @@ public class ProfileTest extends TestCase {
         branchInfo.addParticipant("otto@non.de", "fakeUI2");
         branchInfo.setSubject(subject);
         MessageBranch messageBranch = messageChannel.getBranch();
-        messageBranch.setMessageBranchInfo(branchInfo, settings);
+        messageBranch.setMessageBranchInfo(branchInfo, settings.signature);
         // add messages
         Message message = new Message();
         message.setBody(messageBody);
-        messageBranch.addMessage(message, settings);
+        messageBranch.addMessage(message, settings.signature);
         // and add it to the mailbox
         mailbox.addMessageChannel(messageChannel);
         messageBranch.commit();

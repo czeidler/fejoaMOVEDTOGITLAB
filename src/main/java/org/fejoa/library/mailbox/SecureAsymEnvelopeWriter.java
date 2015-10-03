@@ -25,10 +25,11 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
     final KeyId asymmetricKeyId;
     final ParcelCrypto parcelCrypto;
     final IParcelEnvelopeWriter childWriter;
-    final CryptoSettings asymSettings;
+    final CryptoSettings.AsymmetricSettings asymSettings;
 
     public SecureAsymEnvelopeWriter(Contact receiver, KeyId asymmetricKeyId, ParcelCrypto parcelCrypto,
-                                    CryptoSettings asymSettings, IParcelEnvelopeWriter childWriter) {
+                                    CryptoSettings.AsymmetricSettings asymSettings,
+                                    IParcelEnvelopeWriter childWriter) {
         this.receiver = receiver;
         this.asymmetricKeyId = asymmetricKeyId;
         this.parcelCrypto = parcelCrypto;
@@ -51,17 +52,17 @@ public class SecureAsymEnvelopeWriter implements IParcelEnvelopeWriter{
         ByteArrayOutputStream packageData = new ByteArrayOutputStream();
         DataOutputStream stream = new DataOutputStream(packageData);
 
-        CryptoSettings settings = parcelCrypto.getCryptoSettings();
+        CryptoSettings.SymmetricSettings settings = parcelCrypto.getSymmetricSettings();
         // asym algorithm and key id
-        stream.writeBytes(settings.asymmetricAlgorithm + "\n");
+        stream.writeBytes(settings.algorithm + "\n");
         stream.writeBytes(asymmetricKeyId.getKeyId() + "\n");
 
         // encrypted sym key type
-        byte[] encryptedSymKeyType = encrypteAsym(settings.symmetricKeyType.getBytes());
+        byte[] encryptedSymKeyType = encrypteAsym(settings.keyType.getBytes());
         stream.writeInt(encryptedSymKeyType.length);
         stream.write(encryptedSymKeyType, 0, encryptedSymKeyType.length);
         // encrypted sym algorithm
-        byte[] encryptedSymAlgorithm = encrypteAsym(settings.symmetricAlgorithm.getBytes());
+        byte[] encryptedSymAlgorithm = encrypteAsym(settings.algorithm.getBytes());
         stream.writeInt(encryptedSymAlgorithm.length);
         stream.write(encryptedSymAlgorithm, 0, encryptedSymAlgorithm.length);
         // encrypted sym key

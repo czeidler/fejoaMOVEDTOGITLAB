@@ -34,11 +34,11 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public KeyPair generateKeyPair(int size) throws CryptoException {
+    public KeyPair generateKeyPair(CryptoSettings.AsymmetricSettings settings) throws CryptoException {
         KeyPairGenerator keyGen;
         try {
-            keyGen = KeyPairGenerator.getInstance("RSA");
-            keyGen.initialize(size);
+            keyGen = KeyPairGenerator.getInstance(settings.keyType);
+            keyGen.initialize(settings.keySize);
         } catch (Exception e) {
             throw new CryptoException(e.getMessage());
         }
@@ -46,10 +46,11 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] encryptAsymmetric(byte[] input, PublicKey key, CryptoSettings settings) throws CryptoException {
+    public byte[] encryptAsymmetric(byte[] input, PublicKey key, CryptoSettings.AsymmetricSettings settings)
+            throws CryptoException {
         Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.asymmetricAlgorithm);
+            cipher = Cipher.getInstance(settings.algorithm);
             cipher.init(Cipher.ENCRYPT_MODE, key);
             return cipher.doFinal(input);
         } catch (Exception e) {
@@ -58,10 +59,11 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] decryptAsymmetric(byte[] input, PrivateKey key, CryptoSettings settings) throws CryptoException {
+    public byte[] decryptAsymmetric(byte[] input, PrivateKey key, CryptoSettings.AsymmetricSettings settings)
+            throws CryptoException {
         Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.asymmetricAlgorithm);
+            cipher = Cipher.getInstance(settings.algorithm);
             cipher.init(Cipher.DECRYPT_MODE, key);
             return cipher.doFinal(input);
         } catch (Exception e) {
@@ -70,14 +72,14 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public SecretKey generateSymmetricKey(int size, CryptoSettings settings) throws CryptoException {
+    public SecretKey generateSymmetricKey(CryptoSettings.KeyTypeSettings settings) throws CryptoException {
         KeyGenerator keyGenerator;
         try {
-            keyGenerator = KeyGenerator.getInstance(settings.symmetricKeyType);
+            keyGenerator = KeyGenerator.getInstance(settings.keyType);
         } catch (Exception e) {
             throw new CryptoException(e.getMessage());
         }
-        keyGenerator.init(size);
+        keyGenerator.init(settings.keySize);
         return keyGenerator.generateKey();
     }
 
@@ -95,11 +97,11 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv, CryptoSettings settings)
-            throws CryptoException {
+    public byte[] encryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
+                                   CryptoSettings.SymmetricSettings settings) throws CryptoException {
         Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.symmetricAlgorithm);
+            cipher = Cipher.getInstance(settings.algorithm);
             IvParameterSpec ips = new IvParameterSpec(iv);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
             return cipher.doFinal(input);
@@ -109,11 +111,11 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv, CryptoSettings settings)
-            throws CryptoException {
+    public byte[] decryptSymmetric(byte[] input, SecretKey secretKey, byte[] iv,
+                                   CryptoSettings.SymmetricSettings settings) throws CryptoException {
         Cipher cipher;
         try {
-            cipher = Cipher.getInstance(settings.symmetricAlgorithm);
+            cipher = Cipher.getInstance(settings.algorithm);
             IvParameterSpec ips = new IvParameterSpec(iv);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, ips);
             return cipher.doFinal(input);
@@ -123,10 +125,10 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public byte[] sign(byte[] input, PrivateKey key, CryptoSettings settings) throws CryptoException {
+    public byte[] sign(byte[] input, PrivateKey key, CryptoSettings.SignatureSettings settings) throws CryptoException {
         Signature signature;
         try {
-            signature = Signature.getInstance(settings.signatureAlgorithm);
+            signature = Signature.getInstance(settings.algorithm);
 
             signature.initSign(key);
             signature.update(input);
@@ -137,11 +139,12 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
-    public boolean verifySignature(byte[] message, byte[] signature, PublicKey key, CryptoSettings settings)
+    public boolean verifySignature(byte[] message, byte[] signature, PublicKey key,
+                                   CryptoSettings.SignatureSettings settings)
             throws CryptoException {
         Signature sig;
         try {
-            sig = Signature.getInstance(settings.signatureAlgorithm);
+            sig = Signature.getInstance(settings.algorithm);
 
             sig.initVerify(key);
             sig.update(message);

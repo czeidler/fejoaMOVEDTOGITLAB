@@ -50,7 +50,8 @@ abstract public class Contact {
         mainKeyId = new KeyId(storageDir.readString("mainKeyId"));
     }
 
-    abstract public boolean verify(KeyId keyId, byte data[], byte signature[], CryptoSettings signatureSettings) throws CryptoException;
+    abstract public boolean verify(KeyId keyId, byte data[], byte signature[],
+                                   CryptoSettings.SignatureSettings signatureSettings) throws CryptoException;
     abstract public PublicKey getPublicKey(KeyId keyId);
 
     public String getAddress() {

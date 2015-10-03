@@ -16,33 +16,35 @@ public class ParcelCrypto {
     ICryptoInterface crypto = Crypto.get();
     final byte iv[];
     final SecretKey key;
-    final CryptoSettings cryptoSettings;
+    final CryptoSettings.SymmetricSettings symmetricSettings;
 
-    public ParcelCrypto(CryptoSettings settings) throws CryptoException {
-        this.cryptoSettings = settings;
-        iv = crypto.generateInitializationVector(settings.symmetricKeyIVSize);
-        key = crypto.generateSymmetricKey(settings.symmetricKeySize, settings);
+    public ParcelCrypto(CryptoSettings.SymmetricSettings settings)
+            throws CryptoException {
+        this.symmetricSettings = settings;
+        iv = crypto.generateInitializationVector(settings.ivSize);
+        key = crypto.generateSymmetricKey(settings);
     }
 
-    public ParcelCrypto(byte iv[], byte[] symmetricKey, CryptoSettings settings) throws CryptoException {
-        this.cryptoSettings = settings;
+    public ParcelCrypto(byte iv[], byte[] symmetricKey, CryptoSettings.SymmetricSettings settings)
+            throws CryptoException {
+        this.symmetricSettings = settings;
         this.iv = iv;
 
         key = CryptoHelper.symmetricKeyFromRaw(symmetricKey, settings);
     }
 
     public ParcelCrypto(ParcelCrypto parcelCrypto) {
-        this.cryptoSettings = parcelCrypto.cryptoSettings;
+        this.symmetricSettings = parcelCrypto.symmetricSettings;
         this.iv = parcelCrypto.iv;
         this.key = parcelCrypto.key;
     }
 
     public byte[] cloakData(byte data[]) throws CryptoException {
-        return crypto.encryptSymmetric(data, key, iv, cryptoSettings);
+        return crypto.encryptSymmetric(data, key, iv, symmetricSettings);
     }
 
     public byte[] uncloakData(byte cloakedData[]) throws CryptoException {
-        return crypto.decryptSymmetric(cloakedData, key, iv, cryptoSettings);
+        return crypto.decryptSymmetric(cloakedData, key, iv, symmetricSettings);
     }
 
     public byte[] getIV() {
@@ -53,7 +55,7 @@ public class ParcelCrypto {
         return key;
     }
 
-    public CryptoSettings getCryptoSettings() {
-        return cryptoSettings;
+    public CryptoSettings.SymmetricSettings getSymmetricSettings() {
+        return symmetricSettings;
     }
 }

@@ -28,7 +28,7 @@ public class MailboxTest extends TestCase {
     public void setUp() throws Exception {
         super.setUp();
 
-        KeyPair personalKey = crypto.generateKeyPair(settings.asymmetricKeySize);
+        KeyPair personalKey = crypto.generateKeyPair(settings.publicKeySettings);
         byte hashResult[] = CryptoHelper.sha1Hash(personalKey.getPublic().getEncoded());
         personalKeyId = new KeyId(CryptoHelper.toHex(hashResult));
 
@@ -36,7 +36,7 @@ public class MailboxTest extends TestCase {
         contactPrivate = new ContactPrivate(null, null, personalKeyId,
                 asymmetricKeyData);
 
-        parcelCrypto = new ParcelCrypto(settings);
+        parcelCrypto = new ParcelCrypto(settings.symmetric);
     }
 
     @Override
@@ -62,9 +62,10 @@ public class MailboxTest extends TestCase {
     public void testSignatureEnvelope() throws IOException, CryptoException {
         byte[] testData = "test data".getBytes();
 
-        SignatureEnvelopeWriter writer = new SignatureEnvelopeWriter(contactPrivate, personalKeyId, settings, null);
+        SignatureEnvelopeWriter writer = new SignatureEnvelopeWriter(contactPrivate, personalKeyId, settings.signature,
+                null);
         byte[] packed = writer.pack(testData);
-        CryptoSettings returnSettings = CryptoSettings.empty();
+        CryptoSettings.SignatureSettings returnSettings = CryptoSettings.empty().signature;
         SignatureEnvelopeReader reader = new SignatureEnvelopeReader(getContactFinder(), returnSettings, null);
         byte[] result = reader.unpack(packed);
 
@@ -87,9 +88,9 @@ public class MailboxTest extends TestCase {
         byte[] testData = "test data".getBytes();
 
         SecureAsymEnvelopeWriter writer = new SecureAsymEnvelopeWriter(contactPrivate, personalKeyId, parcelCrypto,
-                settings, null);
+                settings.publicKeySettings, null);
         byte[] packed = writer.pack(testData);
-        CryptoSettings returnSettings = CryptoSettings.empty();
+        CryptoSettings.AsymmetricSettings returnSettings = CryptoSettings.empty().publicKeySettings;
         SecureAsymEnvelopeReader reader = new SecureAsymEnvelopeReader(contactPrivate, returnSettings, null);
         byte[] result = reader.unpack(packed);
 
@@ -124,7 +125,7 @@ public class MailboxTest extends TestCase {
         branchInfo.addParticipant(participant1.address, participant1.uid);
         branchInfo.addParticipant(participant2.address, participant2.uid);
 
-        byte[] pack = branchInfo.write(parcelCrypto, contactPrivate, personalKeyId, settings);
+        byte[] pack = branchInfo.write(parcelCrypto, contactPrivate, personalKeyId, settings.signature);
         // load
         branchInfo = new MessageBranchInfo();
         branchInfo.load(parcelCrypto, getContactFinder(), pack);

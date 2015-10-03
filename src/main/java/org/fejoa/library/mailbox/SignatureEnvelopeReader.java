@@ -23,10 +23,10 @@ import java.security.NoSuchAlgorithmException;
 public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
     String uid = "";
     final IContactFinder contactFinder;
-    final CryptoSettings signatureSettings;
+    final CryptoSettings.SignatureSettings signatureSettings;
     final IParcelEnvelopeReader childReader;
 
-    public SignatureEnvelopeReader(IContactFinder contactFinder, CryptoSettings signatureSettings,
+    public SignatureEnvelopeReader(IContactFinder contactFinder, CryptoSettings.SignatureSettings signatureSettings,
                                    IParcelEnvelopeReader childReader) {
         this.contactFinder = contactFinder;
         this.signatureSettings = signatureSettings;
@@ -60,11 +60,11 @@ public class SignatureEnvelopeReader implements IParcelEnvelopeReader {
 
         // verify signature
         String senderUid = stream.readLine();
-        signatureSettings.signatureAlgorithm = stream.readLine();
+        signatureSettings.algorithm = stream.readLine();
         KeyId signatureKey = new KeyId(stream.readLine());
 
         hashForSignature.update((senderUid + "\n").getBytes());
-        hashForSignature.update((signatureSettings.signatureAlgorithm + "\n").getBytes());
+        hashForSignature.update((signatureSettings.algorithm + "\n").getBytes());
         hashForSignature.update((signatureKey.getKeyId() + "\n").getBytes());
         String signatureHash = CryptoHelper.toHex(hashForSignature.digest());
 

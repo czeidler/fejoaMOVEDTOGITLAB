@@ -88,7 +88,8 @@ public class ContactPrivate extends Contact {
         keys.put(keyId.getKeyId(), keyData);
     }
 
-    public byte[] sign(KeyId keyId, byte data[], CryptoSettings signatureSettings) throws CryptoException {
+    public byte[] sign(KeyId keyId, byte data[], CryptoSettings.SignatureSettings signatureSettings)
+            throws CryptoException {
         ICryptoInterface crypto = Crypto.get();
         KeyPair keyPair = getKeyPair(keyId.getKeyId());
         if (keyPair == null)
@@ -97,7 +98,8 @@ public class ContactPrivate extends Contact {
     }
 
     @Override
-    public boolean verify(KeyId keyId, byte data[], byte signature[], CryptoSettings signatureSettings) throws CryptoException {
+    public boolean verify(KeyId keyId, byte data[], byte signature[],
+                          CryptoSettings.SignatureSettings signatureSettings) throws CryptoException {
         if (!keys.containsKey(keyId.getKeyId()))
             return false;
         KeyStore.AsymmetricKeyData keyData = keys.get(keyId.getKeyId());

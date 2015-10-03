@@ -92,16 +92,16 @@ public class Profile extends UserData {
         keyStore.create(new StorageDir(keyStoreBranch, keyStore.getUid(), true));
         addAndWriteKeyStore(keyStore);
 
-        SecretKey key = crypto.generateSymmetricKey(cryptoSettings.symmetricKeySize, cryptoSettings);
+        SecretKey key = crypto.generateSymmetricKey(cryptoSettings.symmetric);
         KeyId keyId = keyStore.writeSymmetricKey(key, crypto.generateInitializationVector(
-                cryptoSettings.symmetricKeyIVSize), cryptoSettings.symmetricKeyType);
-        storageDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
+                cryptoSettings.symmetric.ivSize), cryptoSettings.symmetric.keyType);
+        storageDir.setTo(keyStore, keyId, cryptoSettings.symmetric.algorithm);
 
         UserIdentity userIdentity = new UserIdentity();
         SecureStorageDir userIdBranch = environment.get(storageDir.getDatabasePath(),
                 USER_IDENTITIES_BRANCH);
         SecureStorageDir userIdDir = new SecureStorageDir(userIdBranch, keyId.getKeyId(), true);
-        userIdDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
+        userIdDir.setTo(keyStore, keyId, cryptoSettings.symmetric.algorithm);
         userIdentity.create(userIdDir, cryptoSettings);
         String signatureFilePath = StorageDir.appendDir(environment.getHomeDir(), SIGNATURE_FILE);
         UserIdentity.writePublicSignature(new File(signatureFilePath), userIdentity);
@@ -113,7 +113,7 @@ public class Profile extends UserData {
         Mailbox mailbox = new Mailbox(environment, mainUserIdentity);
         SecureStorageDir mailboxesBranch = environment.get(storageDir.getDatabasePath(), MAILBOXES_BRANCH);
         SecureStorageDir mailboxDir = new SecureStorageDir(mailboxesBranch, mailbox.getUid());
-        mailboxDir.setTo(keyStore, keyId, cryptoSettings.symmetricAlgorithm);
+        mailboxDir.setTo(keyStore, keyId, cryptoSettings.symmetric.algorithm);
         mailbox.write(mailboxDir);
         addAndWriteMailbox(mailbox);
         mainMailbox = mailbox;

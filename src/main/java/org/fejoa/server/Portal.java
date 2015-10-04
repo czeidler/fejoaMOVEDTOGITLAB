@@ -84,6 +84,7 @@ public class Portal extends AbstractHandler {
         addJsonHandler(new JsonPingHandler());
         addJsonHandler(new GitPushHandler());
         addJsonHandler(new GitPullHandler());
+        addJsonHandler(new CreateAccountHandler());
     }
 
     public void handle(String s, Request request, HttpServletRequest httpServletRequest,

@@ -25,7 +25,7 @@ abstract public class SimpleJsonRemoteJob extends JsonRemoteJob {
         return hasData;
     }
 
-    public String getHeader() {
+    public String getHeader() throws IOException {
         return getJsonHeader(jsonRPC);
     }
 
@@ -43,7 +43,7 @@ abstract public class SimpleJsonRemoteJob extends JsonRemoteJob {
         return result;
     }
 
-    abstract public String getJsonHeader(JsonRPC jsonRPC);
+    abstract public String getJsonHeader(JsonRPC jsonRPC) throws IOException;
     abstract protected RemoteJob.Result handleJson(JSONObject returnValue, InputStream binaryData);
 
     public void writeData(OutputStream outputStream) throws IOException {

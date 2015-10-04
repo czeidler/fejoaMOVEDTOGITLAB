@@ -7,16 +7,12 @@
  */
 package org.fejoa.library.remote;
 
-import org.apache.http.client.CookieStore;
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.database.StorageDir;
-import org.fejoa.library.support.*;
+import org.fejoa.library.remote2.JsonRPC;
 import org.json.JSONObject;
-import org.w3c.dom.Element;
-import org.xml.sax.Attributes;
 import rx.Observable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -139,7 +135,7 @@ class JsonPush extends JsonRemoteConnectionJob {
 }
 
 
-public class ServerSync extends RemoteTask{
+public class ServerSync extends RemoteTask {
     final private RemoteStorageLink remoteStorageLink;
 
     public ServerSync(ConnectionManager connectionManager, RemoteStorageLink remoteStorageLink) {

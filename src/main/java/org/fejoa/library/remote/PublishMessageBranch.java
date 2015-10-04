@@ -12,17 +12,14 @@ import org.fejoa.library.Contact;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.ContactPublic;
 import org.fejoa.library.UserIdentity;
-import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
+import org.fejoa.library.remote2.JsonRPC;
 import org.json.JSONObject;
 import rx.Observable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 

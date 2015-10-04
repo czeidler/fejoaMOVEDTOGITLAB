@@ -10,20 +10,9 @@ package org.fejoa.library.remote;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.support.InStanzaHandler;
-import org.fejoa.library.support.IqInStanzaHandler;
-import org.fejoa.library.support.ProtocolInStream;
-import org.fejoa.library.support.ProtocolOutStream;
+import org.fejoa.library.remote2.JsonRPC;
 import org.json.JSONObject;
-import org.w3c.dom.Element;
-import org.xml.sax.Attributes;
-import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-import rx.subscriptions.Subscriptions;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
 import java.io.IOException;
 import java.security.KeyPair;
 

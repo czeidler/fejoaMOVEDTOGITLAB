@@ -7,6 +7,7 @@
  */
 package org.fejoa.library.remote;
 
+import org.fejoa.library.remote2.JsonRPC;
 import org.json.JSONException;
 import org.json.JSONObject;
 

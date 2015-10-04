@@ -19,9 +19,9 @@ import java.io.PrintWriter;
 
 
 public interface IRemoteRequest {
-    public String getUrl();
-    public byte[] send(byte data[]) throws IOException;
-    public void cancel();
+    String getUrl();
+    byte[] send(byte data[]) throws IOException;
+    void cancel();
 }
 
 class RemoteRequestHelper {

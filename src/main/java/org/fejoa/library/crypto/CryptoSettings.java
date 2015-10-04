@@ -8,7 +8,7 @@
 package org.fejoa.library.crypto;
 
 public class CryptoSettings {
-    public class KeyTypeSettings {
+    static public class KeyTypeSettings {
         public int keySize = -1;
         public String keyType;
     }
@@ -16,7 +16,7 @@ public class CryptoSettings {
     /**
      * KDF + symmetric master key settings
      */
-    public class Password extends KeyTypeSettings {
+    static public class Password extends KeyTypeSettings {
         // kdf
         public String kdfAlgorithm;
         public int kdfIterations = -1;
@@ -24,16 +24,16 @@ public class CryptoSettings {
         public int ivSize = -1;
     }
 
-    public class Symmetric extends KeyTypeSettings{
+    static public class Symmetric extends KeyTypeSettings{
         public String algorithm;
         public int ivSize = -1;
     }
 
-    public class Asymmetric extends KeyTypeSettings {
+    static public class Asymmetric extends KeyTypeSettings {
         public String algorithm;
     }
 
-    public class Signature extends KeyTypeSettings {
+    static public class Signature extends KeyTypeSettings {
         public String algorithm;
     }
 

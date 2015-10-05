@@ -38,6 +38,13 @@ public class CreateAccountJob extends SimpleJsonRemoteJob {
         this.settings = settings;
     }
 
+    static public String makeServerPassword(String password, byte[] salt, String kdfAlgorithm, int keySize,
+                                            int kdfIterations) throws CryptoException {
+        ICryptoInterface crypto = Crypto.get();
+        SecretKey secretKey = crypto.deriveKey(password, salt, kdfAlgorithm, keySize, kdfIterations);
+        return CryptoHelper.sha256HashHex(secretKey.getEncoded());
+    }
+
     @Override
     public String getJsonHeader(JsonRPC jsonRPC) throws IOException {
         ICryptoInterface crypto = Crypto.get();
@@ -46,9 +53,8 @@ public class CreateAccountJob extends SimpleJsonRemoteJob {
         String derivedPassword;
 
         try {
-            SecretKey secretKey = crypto.deriveKey(password, salt, settings.kdfAlgorithm, settings.keySize,
+            derivedPassword = makeServerPassword(password, salt, settings.kdfAlgorithm, settings.keySize,
                     settings.kdfIterations);
-            derivedPassword = CryptoHelper.sha256HashHex(secretKey.getEncoded());
         } catch (CryptoException e) {
             e.printStackTrace();
             throw new IOException(e.getMessage());

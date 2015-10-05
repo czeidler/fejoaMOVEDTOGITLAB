@@ -19,6 +19,7 @@ import rx.util.functions.Func1;
 import java.io.InputStream;
 import java.net.CookieHandler;
 import java.net.CookieManager;
+import java.net.CookiePolicy;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -96,7 +97,7 @@ public class ConnectionManager {
 
     public ConnectionManager(ContactPrivate myself) {
         this.myself = myself;
-        CookieHandler.setDefault(new CookieManager());
+        CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
     }
 
     public void setObserverScheduler(Scheduler observerScheduler) {

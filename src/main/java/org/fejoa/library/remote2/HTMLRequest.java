@@ -39,7 +39,7 @@ public class HTMLRequest implements IRemoteRequest {
     @Override
     public OutputStream open(String header, boolean outgoingData) throws IOException {
         if (connection != null)
-            throw new IOException("HTMLRequest already open!");
+            close();
 
         System.out.println("SEND:     " + new String(header));
 

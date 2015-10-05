@@ -1,12 +1,9 @@
 <component name="libraryTable">
-  <library name="com.netflix.rxjava:rxjava-core:0.14.7" type="repository">
-    <properties maven-id="com.netflix.rxjava:rxjava-core:0.14.7" />
+  <library name="com.netflix.rxjava:rxjava-core:0.14.7">
     <CLASSES>
       <root url="jar://$MAVEN_REPOSITORY$/com/netflix/rxjava/rxjava-core/0.14.7/rxjava-core-0.14.7.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="jar://$USER_HOME$/.ideaLibSources/rxjava-core-0.14.7-sources.jar!/" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>

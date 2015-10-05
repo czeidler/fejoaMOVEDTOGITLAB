@@ -25,11 +25,6 @@
             <version>0.14.2</version>
         </dependency>
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>com.springsource.org.json</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
             <groupId>bouncycastle</groupId>
             <artifactId>bcprov-jdk16</artifactId>
             <version>140</version>

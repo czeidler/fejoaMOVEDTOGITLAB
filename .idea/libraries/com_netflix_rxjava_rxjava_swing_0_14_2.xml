@@ -1,9 +1,7 @@
 <component name="libraryTable">
-  <library name="com.netflix.rxjava:rxjava-swing:0.14.2" type="repository">
-    <properties maven-id="com.netflix.rxjava:rxjava-swing:0.14.2" />
+  <library name="com.netflix.rxjava:rxjava-swing:0.14.2">
     <CLASSES>
       <root url="jar://$MAVEN_REPOSITORY$/com/netflix/rxjava/rxjava-swing/0.14.2/rxjava-swing-0.14.2.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/com/netflix/rxjava/rxjava-core/0.14.2/rxjava-core-0.14.2.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

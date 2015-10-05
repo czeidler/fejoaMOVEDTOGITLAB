@@ -1,6 +1,5 @@
 <component name="libraryTable">
-  <library name="bouncycastle:bcprov-jdk16:140" type="repository">
-    <properties maven-id="bouncycastle:bcprov-jdk16:140" />
+  <library name="bouncycastle:bcprov-jdk16:140">
     <CLASSES>
       <root url="jar://$MAVEN_REPOSITORY$/bouncycastle/bcprov-jdk16/140/bcprov-jdk16-140.jar!/" />
     </CLASSES>

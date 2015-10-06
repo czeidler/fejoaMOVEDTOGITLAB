@@ -23,8 +23,8 @@ public class RootLoginRequestHandler extends JsonRequestHandler {
     }
 
     @Override
-    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
-            throws Exception {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
+                       Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String userName = params.getString(CreateAccountJob.USER_NAME_KEY);
         String receivedPassword = params.getString(CreateAccountJob.PASSWORD_KEY);
@@ -34,9 +34,10 @@ public class RootLoginRequestHandler extends JsonRequestHandler {
         JSONObject userConfig = new JSONObject(content);
 
         String password = userConfig.getString(CreateAccountJob.PASSWORD_KEY);
-        if (receivedPassword.equals(password))
+        if (receivedPassword.equals(password)) {
+            session.addRole(userName, "root");
             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "login successful"));
-        else
+        } else
             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR, "login failed"));
     }
 }

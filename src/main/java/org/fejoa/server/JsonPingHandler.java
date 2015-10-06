@@ -20,8 +20,8 @@ public class JsonPingHandler extends JsonRequestHandler {
     }
 
     @Override
-    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
-            throws IOException {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
+                       Session session) throws Exception {
         if (data == null)
             throw new IOException("data expected!");
 

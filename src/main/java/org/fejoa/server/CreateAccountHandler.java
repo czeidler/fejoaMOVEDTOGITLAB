@@ -24,8 +24,8 @@ public class CreateAccountHandler extends JsonRequestHandler {
     }
 
     @Override
-    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
-            throws Exception {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
+                       Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String error = createAccount(params);
         if (error != null) {

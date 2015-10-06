@@ -31,5 +31,5 @@ abstract public class JsonRequestHandler {
     }
 
     abstract public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler,
-                                InputStream data) throws Exception;
+                                InputStream data, Session session) throws Exception;
 }

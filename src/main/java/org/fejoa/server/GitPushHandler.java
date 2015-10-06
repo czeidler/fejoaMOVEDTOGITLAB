@@ -26,8 +26,8 @@ public class GitPushHandler extends JsonRequestHandler {
     }
 
     @Override
-    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
-            throws Exception {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
+                       Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String request = params.getString("request");
         if (request.equals(GitPushJob.METHOD_REQUEST_ADVERTISEMENT)) {

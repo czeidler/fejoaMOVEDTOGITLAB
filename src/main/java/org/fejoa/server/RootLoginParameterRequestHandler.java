@@ -25,8 +25,8 @@ public class RootLoginParameterRequestHandler extends JsonRequestHandler {
     }
 
     @Override
-    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data)
-            throws Exception {
+    public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
+                       Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String userName = params.getString(CreateAccountJob.USER_NAME_KEY);
 

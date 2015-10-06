@@ -101,6 +101,7 @@ public class Portal extends AbstractHandler {
             request.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
         }
 
+        Session session = new Session(httpServletRequest.getSession());
         ResponseHandler responseHandler = new ResponseHandler(response);
 
         Part messagePart = request.getPart(HTMLRequest.MESSAGE_KEY);
@@ -116,7 +117,7 @@ public class Portal extends AbstractHandler {
         StreamHelper.copy(messagePart.getInputStream(), stringWriter);
 
         String error = handleJson(responseHandler, stringWriter.toString(),
-                (data != null) ? data.getInputStream() : null);
+                (data != null) ? data.getInputStream() : null, session);
 
         if (!responseHandler.isHandled() || error != null)
             responseHandler.setResponseHeader(error);
@@ -124,7 +125,7 @@ public class Portal extends AbstractHandler {
         responseHandler.finish();
     }
 
-    private String handleJson(ResponseHandler responseHandler, String message, InputStream data) {
+    private String handleJson(ResponseHandler responseHandler, String message, InputStream data, Session session) {
         JsonRPCHandler jsonRPCHandler;
         try {
             jsonRPCHandler = new JsonRPCHandler(message);
@@ -140,7 +141,7 @@ public class Portal extends AbstractHandler {
                 continue;
 
             try {
-                handler.handle(responseHandler, jsonRPCHandler, data);
+                handler.handle(responseHandler, jsonRPCHandler, data, session);
             } catch (Exception e) {
                 e.printStackTrace();
                 return jsonRPCHandler.makeResult(JsonRequestHandler.Errors.EXCEPTION, e.getMessage());

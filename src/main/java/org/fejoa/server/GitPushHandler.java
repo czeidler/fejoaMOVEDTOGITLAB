@@ -11,13 +11,11 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.PacketLineOut;
 import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.RefAdvertiser;
-import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library.remote2.GitPushJob;
 import org.fejoa.library.remote2.JsonRPCHandler;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 

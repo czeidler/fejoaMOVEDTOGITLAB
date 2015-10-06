@@ -8,6 +8,7 @@
 package org.fejoa.server;
 
 import org.fejoa.library.remote2.CreateAccountJob;
+import org.fejoa.library.remote2.JsonRPC;
 import org.fejoa.library.remote2.JsonRPCHandler;
 import org.fejoa.library.remote2.RootLoginJob;
 import org.json.JSONObject;
@@ -19,25 +20,41 @@ import java.util.Scanner;
 
 public class RootLoginRequestHandler extends JsonRequestHandler {
     public RootLoginRequestHandler() {
-        super(RootLoginJob.SendPasswordJob.METHOD);
+        super(RootLoginJob.METHOD);
     }
 
     @Override
     public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
+        String request = params.getString("request");
         String userName = params.getString(CreateAccountJob.USER_NAME_KEY);
-        String receivedPassword = params.getString(CreateAccountJob.PASSWORD_KEY);
 
-        String content = new Scanner(new File(userName, CreateAccountHandler.ACCOUNT_INFO_FILE)).useDelimiter("\\Z")
-                .next();
+        String content = new Scanner(new File(session.serverUserDir(userName),
+                CreateAccountHandler.ACCOUNT_INFO_FILE)).useDelimiter("\\Z").next();
         JSONObject userConfig = new JSONObject(content);
 
-        String password = userConfig.getString(CreateAccountJob.PASSWORD_KEY);
-        if (receivedPassword.equals(password)) {
-            session.addRole(userName, "root");
-            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "login successful"));
+        if (request.equals(RootLoginJob.PARAMETER_REQUEST)) {
+            String saltBase64 = userConfig.getString(CreateAccountJob.SALT_BASE64_KEY);
+            String algorithm = userConfig.getString(CreateAccountJob.KDF_ALGORITHM_KEY);
+            int keySize = userConfig.getInt(CreateAccountJob.KEY_SIZE_KEY);
+            int iterations = userConfig.getInt(CreateAccountJob.KDF_ITERATIONS_KEY);
+
+            String response = jsonRPCHandler.makeResult(Portal.Errors.OK, "root login parameter",
+                    new JsonRPC.Argument(CreateAccountJob.SALT_BASE64_KEY, saltBase64),
+                    new JsonRPC.Argument(CreateAccountJob.KDF_ALGORITHM_KEY, algorithm),
+                    new JsonRPC.Argument(CreateAccountJob.KEY_SIZE_KEY, keySize),
+                    new JsonRPC.Argument(CreateAccountJob.KDF_ITERATIONS_KEY, iterations));
+            responseHandler.setResponseHeader(response);
+        } else if (request.equals(RootLoginJob.LOGIN_REQUEST)) {
+            String receivedPassword = params.getString(CreateAccountJob.PASSWORD_KEY);
+            String password = userConfig.getString(CreateAccountJob.PASSWORD_KEY);
+            if (receivedPassword.equals(password)) {
+                session.addRole(userName, "root");
+                responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "login successful"));
+            } else
+                responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR, "login failed"));
         } else
-            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR, "login failed"));
+            throw new Exception("Invalid root login request: " + request);
     }
 }

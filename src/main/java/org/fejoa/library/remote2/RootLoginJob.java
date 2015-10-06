@@ -18,9 +18,12 @@ import java.io.InputStream;
 
 
 public class RootLoginJob extends SimpleJsonRemoteJob {
-    static public class SendPasswordJob extends SimpleJsonRemoteJob {
-        static final public String METHOD = "rootLogin";
+    static final public String METHOD = "rootLogin";
+    static final public String REQUEST_KEY = "request";
+    static final public String PARAMETER_REQUEST = "getParameters";
+    static final public String LOGIN_REQUEST = "login";
 
+    static public class SendPasswordJob extends SimpleJsonRemoteJob {
         final private String userName;
         final private String serverPassword;
 
@@ -33,7 +36,8 @@ public class RootLoginJob extends SimpleJsonRemoteJob {
 
         @Override
         public String getJsonHeader(JsonRPC jsonRPC) throws IOException {
-            return jsonRPC.call(METHOD, new JsonRPC.Argument(CreateAccountJob.USER_NAME_KEY, userName),
+            return jsonRPC.call(METHOD, new JsonRPC.Argument(REQUEST_KEY, LOGIN_REQUEST),
+                    new JsonRPC.Argument(CreateAccountJob.USER_NAME_KEY, userName),
                     new JsonRPC.Argument(CreateAccountJob.PASSWORD_KEY, serverPassword));
         }
 
@@ -42,8 +46,6 @@ public class RootLoginJob extends SimpleJsonRemoteJob {
             return getResult(returnValue);
         }
     }
-
-    static final public String METHOD = "getRootLoginParameters";
 
     final private String userName;
     final private String password;
@@ -57,7 +59,8 @@ public class RootLoginJob extends SimpleJsonRemoteJob {
 
     @Override
     public String getJsonHeader(JsonRPC jsonRPC) throws IOException {
-        return jsonRPC.call(METHOD, new JsonRPC.Argument(CreateAccountJob.USER_NAME_KEY, userName));
+        return jsonRPC.call(METHOD, new JsonRPC.Argument(REQUEST_KEY, PARAMETER_REQUEST),
+                new JsonRPC.Argument(CreateAccountJob.USER_NAME_KEY, userName));
     }
 
     @Override

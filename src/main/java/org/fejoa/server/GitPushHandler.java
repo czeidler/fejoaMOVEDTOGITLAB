@@ -11,11 +11,13 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.PacketLineOut;
 import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.RefAdvertiser;
+import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library.remote2.GitPushJob;
 import org.fejoa.library.remote2.JsonRPCHandler;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -30,12 +32,13 @@ public class GitPushHandler extends JsonRequestHandler {
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String request = params.getString("request");
-        if (request.equals(GitPushJob.METHOD_REQUEST_ADVERTISEMENT)) {
-            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "send advertisement"));
+        String user = params.getString("serverUser");
+        String branch = params.getString("branch");
+        JGitInterface gitInterface = AccessControl.getDatabase(session, user, branch);
+        Repository repository = gitInterface.getRepository();
 
-            JGitInterface gitInterface = new JGitInterface();
-            gitInterface.init(".gitTest", "testBranch", true);
-            Repository repository = gitInterface.getRepository();
+        if (request.equals(GitPushJob.METHOD_REQUEST_ADVERTISEMENT)) {
+            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "advertisement attached"));
 
             ReceivePack receivePack = new ReceivePack(repository);
             OutputStream rawOut = responseHandler.addData();
@@ -46,18 +49,13 @@ public class GitPushHandler extends JsonRequestHandler {
             ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive push data"),
                     responseHandler, data);
 
-            JGitInterface gitInterface = new JGitInterface();
-            gitInterface.init(".gitTest", "testBranch", true);
-            Repository repository = gitInterface.getRepository();
-
             ReceivePack receivePack = new ReceivePack(repository);
             receivePack.setBiDirectionalPipe(false);
             OutputStream rawOut = responseHandler.addData();
             PacketLineOut pckOut = new PacketLineOut(rawOut);
             pckOut.setFlushOnEnd(false);
             receivePack.receive(pipe.getInputStream(), pipe.getOutputStream(), null);
-        } else {
+        } else
             throw new Exception("Invalid push request: " + request);
-        }
     }
 }

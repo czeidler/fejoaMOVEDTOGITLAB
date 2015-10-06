@@ -23,8 +23,12 @@ public class GitPushJob extends JsonRemoteJob {
     static final public String METHOD = "gitPush";
     static final public String METHOD_REQUEST_ADVERTISEMENT = "getAdvertisement";
     static final public String METHOD_REQUEST_PUSH_DATA = "pushData";
+    static final public String SERVER_USER_KEY = "serverUser";
+    static final public String BRANCH_KEY = "branch";
+
 
     final private Repository repository;
+    final private String serverUser;
     final private String branch;
 
     static public org.eclipse.jgit.lib.ProgressMonitor progressMonitor = new ProgressMonitor() {
@@ -54,8 +58,9 @@ public class GitPushJob extends JsonRemoteJob {
         }
     };
 
-    public GitPushJob(Repository repository, String branch) {
+    public GitPushJob(Repository repository, String serverUser, String branch) {
         this.repository = repository;
+        this.serverUser = serverUser;
         this.branch = branch;
     }
 
@@ -64,9 +69,13 @@ public class GitPushJob extends JsonRemoteJob {
         super.run(remoteRequest);
 
         JsonRPC jsonRPC = new JsonRPC();
+        JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
+        JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
+
         String advertisementHeader = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request",
-                METHOD_REQUEST_ADVERTISEMENT));
-        String header = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request", METHOD_REQUEST_PUSH_DATA));
+                METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
+        String header = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request", METHOD_REQUEST_PUSH_DATA),
+                serverUserArg, branchArg);
 
         GitTransportFejoa transport = new GitTransportFejoa(repository, remoteRequest, header);
         GitTransportFejoa.SmartFejoaPushConnection connection

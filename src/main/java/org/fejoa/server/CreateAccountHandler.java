@@ -27,7 +27,7 @@ public class CreateAccountHandler extends JsonRequestHandler {
     public void handle(Portal.ResponseHandler responseHandler, JsonRPCHandler jsonRPCHandler, InputStream data,
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
-        String error = createAccount(params);
+        String error = createAccount(session, params);
         if (error != null) {
             String response = jsonRPCHandler.makeResult(Portal.Errors.ERROR, error);
             responseHandler.setResponseHeader(response);
@@ -43,7 +43,7 @@ public class CreateAccountHandler extends JsonRequestHandler {
      * @param params method arguments
      * @return error string or null
      */
-    private String createAccount(JSONObject params) throws JSONException {
+    private String createAccount(Session session, JSONObject params) throws JSONException {
         if (!params.has(CreateAccountJob.PASSWORD_KEY) || !params.has(CreateAccountJob.SALT_BASE64_KEY)
                 || !params.has(CreateAccountJob.KDF_ALGORITHM_KEY) || !params.has(CreateAccountJob.KEY_SIZE_KEY)
                 || !params.has(CreateAccountJob.KDF_ITERATIONS_KEY) || !params.has(CreateAccountJob.USER_NAME_KEY))
@@ -53,10 +53,10 @@ public class CreateAccountHandler extends JsonRequestHandler {
         if (userName.contains(".") || userName.contains("/"))
             return "invalid user name";
 
-        File dir = new File(userName);
+        File dir = new File(session.serverUserDir(userName));
         if (dir.exists())
             return "user already exist";
-        if (!dir.mkdir())
+        if (!dir.mkdirs())
             return "can't create user dir";
         File accountInfoFile = new File(dir, ACCOUNT_INFO_FILE);
         try {

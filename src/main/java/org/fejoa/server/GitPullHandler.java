@@ -31,12 +31,13 @@ public class GitPullHandler extends JsonRequestHandler {
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String request = params.getString("request");
-        if (request.equals(GitPullJob.METHOD_REQUEST_ADVERTISEMENT)) {
-            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "send advertisement"));
+        String user = params.getString("serverUser");
+        String branch = params.getString("branch");
+        JGitInterface gitInterface = AccessControl.getDatabase(session, user, branch);
+        Repository repository = gitInterface.getRepository();
 
-            JGitInterface gitInterface = new JGitInterface();
-            gitInterface.init(".gitTest", "testBranch", true);
-            Repository repository = gitInterface.getRepository();
+        if (request.equals(GitPullJob.METHOD_REQUEST_ADVERTISEMENT)) {
+            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "advertisement attached"));
 
             ReceivePack receivePack = new ReceivePack(repository);
             OutputStream rawOut = responseHandler.addData();
@@ -48,10 +49,6 @@ public class GitPullHandler extends JsonRequestHandler {
         } else if (request.equals(GitPullJob.METHOD_REQUEST_PULL_DATA)) {
             ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive push data"),
                     responseHandler, data);
-
-            JGitInterface gitInterface = new JGitInterface();
-            gitInterface.init(".gitTest", "testBranch", true);
-            Repository repository = gitInterface.getRepository();
 
             UploadPack uploadPack = new UploadPack(repository);
             uploadPack.setBiDirectionalPipe(false);

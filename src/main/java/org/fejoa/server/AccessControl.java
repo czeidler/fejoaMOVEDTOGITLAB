@@ -24,7 +24,7 @@ public class AccessControl {
         if (!hasAccess(session, user, branch))
             throw new IOException("access denied");
         JGitInterface gitInterface = new JGitInterface();
-        gitInterface.init(session.getBaseDir() + "/" + user + "/.gitDatabase", branch, true);
+        gitInterface.init(session.getBaseDir() + "/" + user + "/.git", branch, true);
         return gitInterface;
     }
 

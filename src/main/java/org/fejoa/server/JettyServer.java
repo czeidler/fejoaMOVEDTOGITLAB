@@ -18,7 +18,7 @@ import org.eclipse.jetty.server.session.SessionHandler;
 public class JettyServer {
     final Server server;
 
-    public JettyServer() {
+    public JettyServer(String baseDir) {
         server = new Server(8080);
 
         server.setSessionIdManager(new HashSessionIdManager());
@@ -32,7 +32,7 @@ public class JettyServer {
         SessionHandler sessions = new SessionHandler(manager);
         context.setHandler(sessions);
 
-        sessions.setHandler(new Portal());
+        sessions.setHandler(new Portal(baseDir));
     }
 
     public void start() throws Exception {

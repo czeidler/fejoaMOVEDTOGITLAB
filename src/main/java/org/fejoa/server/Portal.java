@@ -74,18 +74,20 @@ public class Portal extends AbstractHandler {
         }
     }
 
+    final private String baseDir;
     final private List<JsonRequestHandler> jsonHandlers = new ArrayList<>();
 
     private void addJsonHandler(JsonRequestHandler handler) {
         jsonHandlers.add(handler);
     }
 
-    public Portal() {
+    public Portal(String baseDir) {
+        this.baseDir = baseDir;
+
         addJsonHandler(new JsonPingHandler());
         addJsonHandler(new GitPushHandler());
         addJsonHandler(new GitPullHandler());
         addJsonHandler(new CreateAccountHandler());
-        addJsonHandler(new RootLoginParameterRequestHandler());
         addJsonHandler(new RootLoginRequestHandler());
     }
 
@@ -101,7 +103,7 @@ public class Portal extends AbstractHandler {
             request.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
         }
 
-        Session session = new Session(httpServletRequest.getSession());
+        Session session = new Session(baseDir, httpServletRequest.getSession());
         ResponseHandler responseHandler = new ResponseHandler(response);
 
         Part messagePart = request.getPart(HTMLRequest.MESSAGE_KEY);

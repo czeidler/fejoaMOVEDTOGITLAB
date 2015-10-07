@@ -10,10 +10,8 @@ package org.fejoa.library.remote2;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 
 
 public class JsonRemoteJob extends RemoteJob {
@@ -28,7 +26,7 @@ public class JsonRemoteJob extends RemoteJob {
     private JsonRemoteJob followUpJob;
     protected IErrorCallback errorCallback;
 
-    protected JsonRPC startJsonRPC() {
+    protected JsonRPC startNewJsonRPC() {
         this.jsonRPC = new JsonRPC();
         return jsonRPC;
     }
@@ -65,7 +63,7 @@ public class JsonRemoteJob extends RemoteJob {
     @Override
     public Result run(IRemoteRequest remoteRequest) throws IOException {
         super.run(remoteRequest);
-        startJsonRPC();
+        startNewJsonRPC();
         return null;
     }
 
@@ -73,8 +71,10 @@ public class JsonRemoteJob extends RemoteJob {
             throws IOException, JSONException {
         job.setErrorCallback(errorHandler);
         Result result = job.run(remoteRequest);
-        if (result.status == Result.FOLLOW_UP_JOB)
+        if (result.status == Result.FOLLOW_UP_JOB) {
+            System.out.println("Follow up: " + result.message);
             return run(job.getFollowUpJob(), remoteRequest, errorHandler);
+        }
         return result;
     }
 }

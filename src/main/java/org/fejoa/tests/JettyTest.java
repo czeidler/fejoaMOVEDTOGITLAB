@@ -70,15 +70,15 @@ public class JettyTest extends TestCase {
 
     public void testSync() throws Exception {
         String serverUser = "user1";
-        String localDir = TEST_DIR + "/.git";
+        String localGitDir = TEST_DIR + "/.git";
         String BRANCH = "testBranch";
 
         // push
         JGitInterface gitInterface = new JGitInterface();
-        gitInterface.init(localDir, BRANCH, true);
+        gitInterface.init(localGitDir, BRANCH, true);
         gitInterface.writeBytes("testFile", "testData".getBytes());
         gitInterface.commit();
-        connectionManager.submit(new GitPushJob(gitInterface.getRepository(), serverUser, gitInterface.getBranch()),
+        connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser, gitInterface.getBranch()),
                 connectionInfo, authInfo, observer);
 
         Thread.sleep(1000);
@@ -93,11 +93,18 @@ public class JettyTest extends TestCase {
         gitInterface.writeBytes("testFile2", "testDataClient2".getBytes());
         gitInterface.commit();
 
-        // pull
+        // sync
         connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser,
                 gitInterface.getBranch()), connectionInfo, authInfo, observer);
+        Thread.sleep(2000);
 
-        Thread.sleep(3000);
+        // pull into empty git
+        StorageLib.recursiveDeleteFile(new File(localGitDir));
+        gitInterface = new JGitInterface();
+        gitInterface.init(localGitDir, BRANCH, true);
+        connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser,
+                gitInterface.getBranch()), connectionInfo, authInfo, observer);
+        Thread.sleep(2000);
     }
 
     public void testSimple() throws Exception {

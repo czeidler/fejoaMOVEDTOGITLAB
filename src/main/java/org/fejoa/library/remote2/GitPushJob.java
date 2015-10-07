@@ -34,22 +34,22 @@ public class GitPushJob extends JsonRemoteJob {
     static public org.eclipse.jgit.lib.ProgressMonitor progressMonitor = new ProgressMonitor() {
         @Override
         public void start(int i) {
-            System.out.println("start " + i);
+            //System.out.println("start " + i);
         }
 
         @Override
         public void beginTask(String s, int i) {
-            System.out.println("beginTask " + s + " " + i);
+            //System.out.println("beginTask " + s + " " + i);
         }
 
         @Override
         public void update(int i) {
-            System.out.println("update " + i);
+            //System.out.println("update " + i);
         }
 
         @Override
         public void endTask() {
-            System.out.println("endTask");
+            //System.out.println("endTask");
         }
 
         @Override
@@ -68,12 +68,12 @@ public class GitPushJob extends JsonRemoteJob {
     public Result run(IRemoteRequest remoteRequest) throws IOException {
         super.run(remoteRequest);
 
-        JsonRPC jsonRPC = new JsonRPC();
         JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
         JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
 
         String advertisementHeader = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
+        startNewJsonRPC();
         String header = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request", METHOD_REQUEST_PUSH_DATA),
                 serverUserArg, branchArg);
 

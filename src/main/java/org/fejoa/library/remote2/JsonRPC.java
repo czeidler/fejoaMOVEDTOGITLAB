@@ -108,9 +108,9 @@ public class JsonRPC {
         return jsonObject.getJSONObject("result");
     }
 
-    protected int setNewJsonId() {
-        globalJsonId++;
+    synchronized protected int setNewJsonId() {
         jsonId = globalJsonId;
+        globalJsonId++;
         return jsonId;
     }
 

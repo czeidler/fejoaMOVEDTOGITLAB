@@ -47,13 +47,12 @@ public class GitPullHandler extends JsonRequestHandler {
             refAdvertiser.advertiseCapability("multi_ack_detailed");
             receivePack.sendAdvertisedRefs(refAdvertiser);
         } else if (request.equals(GitSyncJob.METHOD_REQUEST_PULL_DATA)) {
-            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive push data"),
+            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive pull data"),
                     responseHandler, data);
 
             UploadPack uploadPack = new UploadPack(repository);
             uploadPack.setBiDirectionalPipe(false);
             uploadPack.upload(pipe.getInputStream(), pipe.getOutputStream(), null);
-
         } else {
             throw new Exception("Invalid pull request: " + request);
         }

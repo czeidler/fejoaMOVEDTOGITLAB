@@ -42,12 +42,12 @@ public class GitSyncJob extends JsonRemoteJob {
      * @throws IOException
      */
     private ObjectId fetch(String refName, IRemoteRequest remoteRequest) throws IOException {
-        JsonRPC jsonRPC = new JsonRPC();
         JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
         JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
 
         String advertisementHeader = jsonRPC.call(GitSyncJob.METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
+        startNewJsonRPC();
         String header = jsonRPC.call(GitSyncJob.METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_PULL_DATA), serverUserArg, branchArg);
 
@@ -63,7 +63,10 @@ public class GitSyncJob extends JsonRemoteJob {
         // pull
         RefSpec refSpec = new RefSpec(refName);
         List<Ref> want = new ArrayList<>();
-        want.add(connection.getRef(refSpec.getSource()));
+        Ref remoteRef = connection.getRef(refSpec.getSource());
+        if (remoteRef == null)
+            return null;
+        want.add(remoteRef);
         Set<ObjectId> have = new HashSet<>();
         connection.fetch(GitPushJob.progressMonitor, want, have);
 
@@ -118,6 +121,10 @@ public class GitSyncJob extends JsonRemoteJob {
             oldTip = tip.getObjectId();
 
         ObjectId newRef = fetch(refName, remoteRequest);
+        if (newRef == null) {
+            setFollowUpJob(new GitPushJob(repository, serverUser, branch));
+            return new Result(Result.FOLLOW_UP_JOB, "remote does not exist, try to push");
+        }
 
         RefUpdate refUpdate = repository.updateRef(refName);
         //refUpdate.setForceUpdate(true);
@@ -135,12 +142,12 @@ public class GitSyncJob extends JsonRemoteJob {
             case NO_CHANGE:
                 return new Result(Result.DONE, "no changes");
             case NEW:
-                return new Result(Result.DONE, "new");
+                return new Result(Result.DONE, "pulled new branch");
             case REJECTED:
             case REJECTED_CURRENT_BRANCH:
                 return mergeAndPush(refName, oldTip, newRef);
             default: FAST_FORWARD:
-                return new Result(Result.DONE, "ok");
+                return new Result(Result.DONE, "sync ok");
         }
     }
 }

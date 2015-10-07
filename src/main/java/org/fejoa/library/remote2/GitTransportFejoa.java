@@ -77,11 +77,6 @@ public class GitTransportFejoa extends Transport implements WalkTransport,
         }
     }
 
-    private static final String SVC_UPLOAD_PACK = "git-upload-pack"; //$NON-NLS-1$
-
-    private static final String SVC_RECEIVE_PACK = "git-receive-pack"; //$NON-NLS-1$
-
-
     final private IRemoteRequest remoteRequest;
     private boolean useSmartHttp = true;
     final private String pushHeader;
@@ -102,54 +97,18 @@ public class GitTransportFejoa extends Transport implements WalkTransport,
     public PushConnection openPush() throws NotSupportedException, TransportException {
         try {
             if (useSmartHttp) {
-                return smartPush();
+                return new SmartFejoaPushConnection();
             } else {
                 final String msg = JGitText.get().remoteDoesNotSupportSmartHTTPPush;
                 throw new NotSupportedException(msg);
             }
         } catch (NotSupportedException err) {
             throw err;
-        } catch (TransportException err) {
-            throw err;
-        } catch (IOException err) {
+        }  catch (IOException err) {
             throw new TransportException(uri, JGitText.get().errorReadingInfoRefs, err);
         }
     }
 
-    private PushConnection smartPush() throws IOException, TransportException {
-        //readSmartHeaders(initialInputStream, SVC_RECEIVE_PACK);
-
-        return new SmartFejoaPushConnection();
-    }
-/*
-    private void readSmartHeaders(final InputStream in, final String service)
-            throws IOException {
-        // A smart reply will have a '#' after the first 4 bytes, but
-        // a dumb reply cannot contain a '#' until after byte 41. Do a
-        // quick check to make sure its a smart reply before we parse
-        // as a pkt-line stream.
-        //
-        final byte[] magic = new byte[5];
-        IO.readFully(in, magic, 0, magic.length);
-        if (magic[4] != '#') {
-            throw new TransportException(uri, MessageFormat.format(
-                    JGitText.get().expectedPktLineWithService, RawParseUtils.decode(magic)));
-        }
-
-        final PacketLineIn pckIn = new PacketLineIn(new UnionInputStream(
-                new ByteArrayInputStream(magic), in));
-        final String exp = "# service=" + service; //$NON-NLS-1$
-        final String act = pckIn.readString();
-        if (!exp.equals(act)) {
-            throw new TransportException(uri, MessageFormat.format(
-                    JGitText.get().expectedGot, exp, act));
-        }
-
-        while (pckIn.readString() != PacketLineIn.END) {
-            // for now, ignore the remaining header lines
-        }
-    }
-*/
     @Override
     public void close() {
 

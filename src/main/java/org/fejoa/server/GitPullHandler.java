@@ -47,7 +47,7 @@ public class GitPullHandler extends JsonRequestHandler {
             refAdvertiser.advertiseCapability("multi_ack_detailed");
             receivePack.sendAdvertisedRefs(refAdvertiser);
         } else if (request.equals(GitSyncJob.METHOD_REQUEST_PULL_DATA)) {
-            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive pull data"),
+            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "data pipe ok"),
                     responseHandler, data);
 
             UploadPack uploadPack = new UploadPack(repository);

@@ -44,7 +44,7 @@ public class GitPushHandler extends JsonRequestHandler {
             pckOut.setFlushOnEnd(false);
             receivePack.sendAdvertisedRefs(new RefAdvertiser.PacketLineOutRefAdvertiser(pckOut));
         } else if (request.equals(GitPushJob.METHOD_REQUEST_PUSH_DATA)) {
-            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "receive push data"),
+            ServerPipe pipe = new ServerPipe(jsonRPCHandler.makeResult(Portal.Errors.OK, "data pipe ok"),
                     responseHandler, data);
 
             ReceivePack receivePack = new ReceivePack(repository);

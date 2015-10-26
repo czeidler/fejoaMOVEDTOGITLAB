@@ -16,12 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 
-abstract class AbstractStorageDirList<T extends AbstractStorageDirList.IEntry> {
-    public interface IEntry {
-        void write(StorageDir dir) throws IOException;
-        void read(StorageDir dir) throws IOException;
-    }
-
+abstract class AbstractStorageDirList<T extends IStorageDirBundle> {
     final protected Map<String, T> map = new HashMap<>();
     final protected StorageDir storageDir;
 

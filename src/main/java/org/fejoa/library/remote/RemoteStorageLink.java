@@ -27,29 +27,51 @@ public class RemoteStorageLink {
     private ConnectionInfo connectionInfo;
     final private StorageDir localStorage;
 
+    final private String UID_KEY = "uid";
+    final private String STORAGE_UID_KEY = "storageUid";
+    final private String STORAGE_BRANCH_KEY = "storageBranch";
+    final private String SERVER_USER_KEY = "serverUser";
+    final private String SERVER_KEY = "server";
+
+    /**
+     * Read an existing storage link from a storage dir.
+     *
+     * @param environment
+     * @param linkStorage
+     * @param myself
+     * @throws IOException
+     * @throws CryptoException
+     */
     public RemoteStorageLink(FejoaEnvironment environment, SecureStorageDir linkStorage, ContactPrivate myself)
             throws IOException, CryptoException {
         this.linkStorage = linkStorage;
-        this.uid = linkStorage.readString("uid");
+        this.uid = linkStorage.readString(UID_KEY);
         this.myself = myself;
-        storageUid = linkStorage.readSecureString("storageUid");
-        String databaseBranch = linkStorage.readSecureString("storageBranch");
+        storageUid = linkStorage.readSecureString(STORAGE_UID_KEY);
+        String databaseBranch = linkStorage.readSecureString(STORAGE_BRANCH_KEY);
         localStorage = environment.getByStorageId(storageUid, databaseBranch);
 
         try {
-            String serverUser = linkStorage.readSecureString("serverUser");
-            String server = linkStorage.readSecureString("server");
+            String serverUser = linkStorage.readSecureString(SERVER_USER_KEY);
+            String server = linkStorage.readSecureString(SERVER_KEY);
             connectionInfo = new ConnectionInfo(server, serverUser, myself);
         } catch (IOException e) {
             // no server specified
         }
     }
 
-    public RemoteStorageLink(SecureStorageDir baseDir, IStorageUid storeage, ContactPrivate myself) {
+    /**
+     * Create a new storage link.
+     *
+     * @param baseDir
+     * @param storage
+     * @param myself
+     */
+    public RemoteStorageLink(SecureStorageDir baseDir, IStorageUid storage, ContactPrivate myself) {
         this.uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(Crypto.get().generateInitializationVector(40)));
         this.linkStorage = new SecureStorageDir(baseDir, uid);
-        this.localStorage = storeage.getStorageDir();
-        this.storageUid = storeage.getUid();
+        this.localStorage = storage.getStorageDir();
+        this.storageUid = storage.getUid();
         this.connectionInfo = null;
         this.myself = myself;
     }
@@ -75,13 +97,13 @@ public class RemoteStorageLink {
     }
 
     public void write() throws IOException, CryptoException {
-        linkStorage.writeString("uid", uid);
-        linkStorage.writeSecureString("storageUid", storageUid);
-        linkStorage.writeSecureString("storageBranch", localStorage.getBranch());
+        linkStorage.writeString(UID_KEY, uid);
+        linkStorage.writeSecureString(STORAGE_UID_KEY, storageUid);
+        linkStorage.writeSecureString(STORAGE_BRANCH_KEY, localStorage.getBranch());
 
         if (connectionInfo != null) {
-            linkStorage.writeSecureString("serverUser", connectionInfo.serverUser);
-            linkStorage.writeSecureString("server", connectionInfo.server);
+            linkStorage.writeSecureString(SERVER_USER_KEY, connectionInfo.serverUser);
+            linkStorage.writeSecureString(SERVER_KEY, connectionInfo.server);
         }
     }
 

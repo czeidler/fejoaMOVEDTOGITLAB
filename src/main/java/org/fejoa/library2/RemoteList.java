@@ -18,7 +18,7 @@ import java.io.IOException;
 public class RemoteList extends AbstractStorageDirList<RemoteList.Entry> {
     static final private String DEFAULT_REMOTE_KEY = "default";
 
-    static public class Entry implements AbstractStorageDirList.IEntry {
+    static public class Entry implements IStorageDirBundle {
         static final private String ID_KEY = "id";
         static final private String USER_KEY = "user";
         static final private String SERVER_KEY = "server";

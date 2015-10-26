@@ -12,8 +12,8 @@ import org.fejoa.library2.database.StorageDir;
 import java.io.IOException;
 
 
-public class StorageList extends AbstractStorageDirList<StorageList.StorageEntry> {
-    static public class StorageEntry implements AbstractStorageDirList.IEntry {
+public class StorageList extends AbstractStorageDirList<IStorageDirBundle> {
+    static public class StorageEntry implements IStorageDirBundle {
         static final private String STORAGE_ID_KEY = "id";
 
         private String id;

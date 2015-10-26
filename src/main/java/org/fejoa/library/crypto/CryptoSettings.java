@@ -64,6 +64,7 @@ public class CryptoSettings {
 
         cryptoSettings.masterPassword.kdfAlgorithm = "PBKDF2WithHmacSHA1";
         cryptoSettings.masterPassword.kdfIterations = 20000;
+        cryptoSettings.masterPassword.keyType = "AES";
         cryptoSettings.masterPassword.keySize = 256;
         cryptoSettings.masterPassword.ivSize = 16;
 

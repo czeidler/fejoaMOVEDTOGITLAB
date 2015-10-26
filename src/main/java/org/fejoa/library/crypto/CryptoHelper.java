@@ -74,6 +74,10 @@ public class CryptoHelper {
         }
     }
 
+    static public String generateSha1Id(ICryptoInterface crypto) {
+        return sha1HashHex(crypto.generateInitializationVector(64));
+    }
+
     static public SecretKey symmetricKeyFromRaw(byte[] key, CryptoSettings.Symmetric settings) {
         return new SecretKeySpec(key, 0, key.length, settings.keyType);
     }

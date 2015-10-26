@@ -18,4 +18,9 @@ public class KeyId {
     public String getKeyId() {
         return keyId;
     }
+
+    @Override
+    public String toString() {
+        return keyId;
+    }
 }

@@ -8,7 +8,7 @@
 package org.fejoa.server;
 
 
-import org.fejoa.library.remote2.JsonRPCHandler;
+import org.fejoa.library2.remote.JsonRPCHandler;
 
 import java.io.InputStream;
 

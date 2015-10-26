@@ -5,7 +5,7 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library.remote2;
+package org.fejoa.library2.remote;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -72,7 +72,8 @@ public class JsonRemoteJob extends RemoteJob {
         job.setErrorCallback(errorHandler);
         Result result = job.run(remoteRequest);
         if (result.status == Result.FOLLOW_UP_JOB) {
-            System.out.println("Follow up: " + result.message);
+            System.out.println("Start follow up job (" + job.getFollowUpJob().getClass().getSimpleName() + ") after: "
+                    + result.message);
             return run(job.getFollowUpJob(), remoteRequest, errorHandler);
         }
         return result;

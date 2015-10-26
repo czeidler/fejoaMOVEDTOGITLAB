@@ -9,7 +9,7 @@ package org.fejoa.library.remote;
 
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.database.StorageDir;
-import org.fejoa.library.remote2.JsonRPC;
+import org.fejoa.library2.remote.JsonRPC;
 import org.json.JSONObject;
 import rx.Observable;
 

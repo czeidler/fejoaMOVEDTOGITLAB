@@ -7,7 +7,7 @@
  */
 package org.fejoa.library.remote;
 
-import org.fejoa.library.remote2.JsonRPC;
+import org.fejoa.library2.remote.JsonRPC;
 import org.fejoa.library.support.*;
 import org.json.JSONArray;
 import org.json.JSONObject;

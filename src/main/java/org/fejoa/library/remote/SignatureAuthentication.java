@@ -10,7 +10,7 @@ package org.fejoa.library.remote;
 import org.eclipse.jgit.util.Base64;
 import org.fejoa.library.ContactPrivate;
 import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.remote2.JsonRPC;
+import org.fejoa.library2.remote.JsonRPC;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rx.Observable;

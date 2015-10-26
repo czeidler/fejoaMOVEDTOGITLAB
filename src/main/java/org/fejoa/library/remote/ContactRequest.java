@@ -10,7 +10,7 @@ package org.fejoa.library.remote;
 import org.fejoa.library.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
-import org.fejoa.library.remote2.JsonRPC;
+import org.fejoa.library2.remote.JsonRPC;
 import org.json.JSONObject;
 
 import java.io.IOException;

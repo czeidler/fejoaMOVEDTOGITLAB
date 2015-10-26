@@ -16,7 +16,7 @@ import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.mailbox.MessageBranch;
 import org.fejoa.library.mailbox.MessageBranchInfo;
 import org.fejoa.library.mailbox.MessageChannel;
-import org.fejoa.library.remote2.JsonRPC;
+import org.fejoa.library2.remote.JsonRPC;
 import org.json.JSONObject;
 import rx.Observable;
 

@@ -5,10 +5,9 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library.remote2;
+package org.fejoa.library2.remote;
 
 import org.bouncycastle.util.encoders.Base64;
-import org.fejoa.library.crypto.Crypto;
 import org.fejoa.library.crypto.CryptoException;
 import org.json.JSONException;
 import org.json.JSONObject;

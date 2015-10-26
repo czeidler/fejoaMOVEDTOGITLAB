@@ -3,7 +3,7 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library.remote2.*;
+import org.fejoa.library2.remote.*;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.server.JettyServer;
 import rx.Observer;

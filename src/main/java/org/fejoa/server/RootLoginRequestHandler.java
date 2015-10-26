@@ -7,10 +7,10 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library.remote2.CreateAccountJob;
-import org.fejoa.library.remote2.JsonRPC;
-import org.fejoa.library.remote2.JsonRPCHandler;
-import org.fejoa.library.remote2.RootLoginJob;
+import org.fejoa.library2.remote.CreateAccountJob;
+import org.fejoa.library2.remote.JsonRPC;
+import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library2.remote.RootLoginJob;
 import org.json.JSONObject;
 
 import java.io.File;

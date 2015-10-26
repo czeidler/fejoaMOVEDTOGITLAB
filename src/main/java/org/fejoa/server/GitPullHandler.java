@@ -13,8 +13,8 @@ import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.RefAdvertiser;
 import org.eclipse.jgit.transport.UploadPack;
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library.remote2.GitSyncJob;
-import org.fejoa.library.remote2.JsonRPCHandler;
+import org.fejoa.library2.remote.GitSyncJob;
+import org.fejoa.library2.remote.JsonRPCHandler;
 import org.json.JSONObject;
 
 import java.io.InputStream;

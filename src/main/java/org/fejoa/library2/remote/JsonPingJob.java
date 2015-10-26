@@ -5,7 +5,7 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library.remote2;
+package org.fejoa.library2.remote;
 
 import org.json.JSONObject;
 

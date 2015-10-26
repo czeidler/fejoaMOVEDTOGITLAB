@@ -12,7 +12,7 @@ import org.fejoa.library2.database.StorageDir;
 import java.io.IOException;
 
 
-public class StorageList extends AbstractStorageDirList {
+public class StorageList extends AbstractStorageDirList<StorageList.StorageEntry> {
     static public class StorageEntry implements AbstractStorageDirList.IEntry {
         static final private String STORAGE_ID_KEY = "id";
 
@@ -47,7 +47,7 @@ public class StorageList extends AbstractStorageDirList {
     }
 
     @Override
-    protected IEntry instantiate(StorageDir dir) {
+    protected StorageEntry instantiate(StorageDir dir) {
         return new StorageEntry();
     }
 

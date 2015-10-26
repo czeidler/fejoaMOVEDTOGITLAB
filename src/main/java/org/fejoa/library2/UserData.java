@@ -105,4 +105,8 @@ public class UserData extends StorageKeyStore {
     public RemoteList getRemoteList() {
         return remoteList;
     }
+
+    public StorageList getStorageList() {
+        return storageList;
+    }
 }

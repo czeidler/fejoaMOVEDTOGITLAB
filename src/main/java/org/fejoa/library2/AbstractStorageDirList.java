@@ -10,21 +10,22 @@ package org.fejoa.library2;
 import org.fejoa.library2.database.StorageDir;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 
-abstract class AbstractStorageDirList {
+abstract class AbstractStorageDirList<T extends AbstractStorageDirList.IEntry> {
     public interface IEntry {
         void write(StorageDir dir) throws IOException;
         void read(StorageDir dir) throws IOException;
     }
 
-    final protected Map<String, IEntry> map = new HashMap<>();
+    final protected Map<String, T> map = new HashMap<>();
     final protected StorageDir storageDir;
 
-    abstract protected IEntry instantiate(StorageDir dir);
+    abstract protected T instantiate(StorageDir dir);
 
     protected void load() {
         List<String> dirs;
@@ -35,7 +36,7 @@ abstract class AbstractStorageDirList {
         }
         for (String dir : dirs) {
             StorageDir subDir = new StorageDir(storageDir, dir);
-            IEntry entry = instantiate(subDir);
+            T entry = instantiate(subDir);
             try {
                 entry.read(subDir);
             } catch (IOException e) {
@@ -50,7 +51,11 @@ abstract class AbstractStorageDirList {
         this.storageDir = storageDir;
     }
 
-    public void add(IEntry entry) throws IOException {
+    public Collection<T> getEntries() {
+        return map.values();
+    }
+
+    public void add(T entry) throws IOException {
         String key = getFreeKey();
         StorageDir subDir = new StorageDir(storageDir, key);
         entry.write(subDir);

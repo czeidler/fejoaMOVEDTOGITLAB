@@ -8,33 +8,57 @@
 package org.fejoa.library2;
 
 
+import org.fejoa.library.crypto.Crypto;
+import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library2.database.StorageDir;
 
 import java.io.IOException;
 
 
-public class RemoteList extends AbstractStorageDirList {
+public class RemoteList extends AbstractStorageDirList<RemoteList.Entry> {
     static final private String DEFAULT_REMOTE_KEY = "default";
 
-    static class RemoteEntry implements AbstractStorageDirList.IEntry {
+    static public class Entry implements AbstractStorageDirList.IEntry {
         static final private String ID_KEY = "id";
         static final private String USER_KEY = "user";
         static final private String SERVER_KEY = "server";
 
-        private String uid;
+        private String id;
         private String user;
         private String server;
 
+        private Entry() {
+
+        }
+
+        public Entry(String user, String server) {
+            this.id = CryptoHelper.generateSha1Id(Crypto.get());
+            this.user = user;
+            this.server = server;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public String getUser() {
+            return user;
+        }
+
+        public String getServer() {
+            return server;
+        }
+
         @Override
         public void write(StorageDir dir) throws IOException {
-            dir.writeString(ID_KEY, uid);
+            dir.writeString(ID_KEY, id);
             dir.writeString(USER_KEY, user);
             dir.writeString(SERVER_KEY, server);
         }
 
         @Override
         public void read(StorageDir dir) throws IOException {
-            uid = dir.readString(ID_KEY);
+            id = dir.readString(ID_KEY);
             user = dir.readString(USER_KEY);
             server = dir.readString(SERVER_KEY);
         }
@@ -50,15 +74,15 @@ public class RemoteList extends AbstractStorageDirList {
         return list;
     }
 
-    private RemoteEntry defaultRemote = null;
+    private Entry defaultRemote = null;
 
     protected RemoteList(StorageDir storageDir) {
         super(storageDir);
     }
 
     @Override
-    protected IEntry instantiate(StorageDir dir) {
-        return new RemoteEntry();
+    protected Entry instantiate(StorageDir dir) {
+        return new Entry();
     }
 
     @Override
@@ -71,15 +95,27 @@ public class RemoteList extends AbstractStorageDirList {
         } catch (IOException e) {
             return;
         }
-        defaultRemote = (RemoteEntry)map.get(defaultId);
+
+        defaultRemote = getRemote(defaultId);
     }
 
-    public void setDefault(RemoteEntry entry) throws IOException {
+    public Entry getRemote(String id) {
+        for (Entry entry : map.values()) {
+            if (entry.getId().equals(id))
+                return entry;
+        }
+        return null;
+    }
+
+    public void setDefault(Entry entry) throws IOException {
+        if (!map.containsValue(entry))
+            throw new IOException("entry not in list");
+
         defaultRemote = entry;
-        storageDir.writeString(DEFAULT_REMOTE_KEY, entry.uid);
+        storageDir.writeString(DEFAULT_REMOTE_KEY, entry.getId());
     }
 
-    public RemoteEntry getDefault() {
+    public Entry getDefault() {
         return defaultRemote;
     }
 }

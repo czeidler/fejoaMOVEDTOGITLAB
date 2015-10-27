@@ -14,6 +14,9 @@ import java.io.IOException;
 
 
 public class CryptoSettingsIO {
+    final static private String KEY_SIZE_KEY = "keySize";
+    final static private String KEY_TYPE = "keyType";
+
     final static private String ALGORITHM_KEY = "algorithm";
     final static private String IV_SIZE_KEY = "ivSize";
 
@@ -28,8 +31,15 @@ public class CryptoSettingsIO {
     }
 
     static public void write(CryptoSettings.Symmetric settings, StorageDir dir, String keyPrefix) throws IOException {
+        write((CryptoSettings.KeyTypeSettings)settings, dir, keyPrefix);
         dir.writeString(key(keyPrefix, ALGORITHM_KEY), settings.algorithm);
         dir.writeInt(key(keyPrefix, IV_SIZE_KEY), settings.ivSize);
+    }
+
+    static public void write(CryptoSettings.KeyTypeSettings keyTypeSettings, StorageDir dir, String keyPrefix)
+            throws IOException {
+        dir.writeInt(key(keyPrefix, KEY_SIZE_KEY), keyTypeSettings.keySize);
+        dir.writeString(key(keyPrefix, KEY_TYPE), keyTypeSettings.keyType);
     }
 
     static public void read(CryptoSettings.Symmetric settings, StorageDir dir) throws IOException {
@@ -37,7 +47,15 @@ public class CryptoSettingsIO {
     }
 
     static public void read(CryptoSettings.Symmetric settings, StorageDir dir, String keyPrefix) throws IOException {
+        read((CryptoSettings.KeyTypeSettings)settings, dir, keyPrefix);
         settings.algorithm = dir.readString(key(keyPrefix, ALGORITHM_KEY));
         settings.ivSize = dir.readInt(key(keyPrefix, IV_SIZE_KEY));
     }
+
+    static public void read(CryptoSettings.KeyTypeSettings keyTypeSettings, StorageDir dir, String keyPrefix)
+            throws IOException {
+        keyTypeSettings.keySize = dir.readInt(key(keyPrefix, KEY_SIZE_KEY));
+        keyTypeSettings.keyType = dir.readString(key(keyPrefix, KEY_TYPE));
+    }
+
 }

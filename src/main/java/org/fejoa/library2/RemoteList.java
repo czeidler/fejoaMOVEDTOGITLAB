@@ -19,7 +19,6 @@ public class RemoteList extends AbstractStorageDirList<RemoteList.Entry> {
     static final private String DEFAULT_REMOTE_KEY = "default";
 
     static public class Entry implements IStorageDirBundle {
-        static final private String ID_KEY = "id";
         static final private String USER_KEY = "user";
         static final private String SERVER_KEY = "server";
 
@@ -51,14 +50,14 @@ public class RemoteList extends AbstractStorageDirList<RemoteList.Entry> {
 
         @Override
         public void write(StorageDir dir) throws IOException {
-            dir.writeString(ID_KEY, id);
+            dir.writeString(Constants.ID_KEY, id);
             dir.writeString(USER_KEY, user);
             dir.writeString(SERVER_KEY, server);
         }
 
         @Override
         public void read(StorageDir dir) throws IOException {
-            id = dir.readString(ID_KEY);
+            id = dir.readString(Constants.ID_KEY);
             user = dir.readString(USER_KEY);
             server = dir.readString(SERVER_KEY);
         }

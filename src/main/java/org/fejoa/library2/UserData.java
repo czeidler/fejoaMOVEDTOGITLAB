@@ -12,6 +12,7 @@ import org.fejoa.library2.database.StorageDir;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
+import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +20,7 @@ import java.util.List;
 public class UserData extends StorageKeyStore {
     final static private String STORAGE_LIST_DIR = "storage";
     final static private String REMOTES_LIST_DIR = "remotes";
+    final static private String IDENTITY_KEYS_ID_KEY = "identityKeysId";
 
     static public UserData create(FejoaContext context, String password) throws IOException, CryptoException {
         return create(context, CryptoHelper.generateSha1Id(Crypto.get()), password);
@@ -40,8 +42,9 @@ public class UserData extends StorageKeyStore {
     }
 
     final private List<KeyStore> keyStores = new ArrayList<>();
-    private StorageList storageList;
+    private StorageRefList storageRefList;
     private RemoteList remoteList;
+    private IdentityKeys identityKeys;
 
     private UserData(FejoaContext context, StorageDir dir) {
         super(context, dir);
@@ -63,12 +66,21 @@ public class UserData extends StorageKeyStore {
 
         // storage list
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
-        storageList = StorageList.create(storageListDir);
+        storageRefList = StorageRefList.create(storageListDir);
         addStorage(keyStore.getId());
 
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
         remoteList = RemoteList.create(remotesDir);
+
+        identityKeys = IdentityKeys.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
+        storageDir.writeString(IDENTITY_KEYS_ID_KEY, identityKeys.getId());
+        KeyPair signatureKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().signature);
+        String signatureKeyId = identityKeys.addKeyPair(signatureKeyPair, context.getCryptoSettings().signature);
+        identityKeys.setDefaultSignatureKey(signatureKeyId);
+        KeyPair publicKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().publicKey);
+        String publicKeyId = identityKeys.addKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
+        identityKeys.setDefaultPublicKey(publicKeyId);
     }
 
     private void open(String password) throws IOException, CryptoException {
@@ -82,31 +94,37 @@ public class UserData extends StorageKeyStore {
 
         // storage list
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
-        storageList = StorageList.load(storageListDir);
+        storageRefList = StorageRefList.load(storageListDir);
 
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
         remoteList = RemoteList.load(remotesDir);
+
+        // identity keys
+        String identityKeysId = storageDir.readString(IDENTITY_KEYS_ID_KEY);
+        StorageDir identityKeysDir = context.getStorage(identityKeysId);
+        identityKeys = IdentityKeys.open(context, identityKeysDir, keyStores);
     }
 
     public void commit() throws IOException {
         keyStore.commit();
         storageDir.commit();
-    }
-
-    public String getId() {
-        return storageDir.getBranch();
+        identityKeys.commit();
     }
 
     private void addStorage(String storageId) throws IOException {
-        storageList.add(new StorageList.StorageEntry(storageId));
+        storageRefList.add(new StorageRefList.StorageEntry(storageId));
     }
 
     public RemoteList getRemoteList() {
         return remoteList;
     }
 
-    public StorageList getStorageList() {
-        return storageList;
+    public IdentityKeys getIdentityKeys() {
+        return identityKeys;
+    }
+
+    public StorageRefList getStorageRefList() {
+        return storageRefList;
     }
 }

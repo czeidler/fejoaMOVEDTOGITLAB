@@ -68,4 +68,8 @@ public class StorageKeyStore {
     public void commit() throws IOException {
         storageDir.commit();
     }
+
+    public String getId() {
+        return storageDir.getBranch();
+    }
 }

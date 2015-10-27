@@ -12,10 +12,8 @@ import org.fejoa.library2.database.StorageDir;
 import java.io.IOException;
 
 
-public class StorageList extends AbstractStorageDirList<IStorageDirBundle> {
+public class StorageRefList extends AbstractStorageDirList<StorageRefList.StorageEntry> {
     static public class StorageEntry implements IStorageDirBundle {
-        static final private String STORAGE_ID_KEY = "id";
-
         private String id;
 
         public StorageEntry(String id) {
@@ -27,23 +25,23 @@ public class StorageList extends AbstractStorageDirList<IStorageDirBundle> {
 
         @Override
         public void write(StorageDir dir) throws IOException {
-            dir.writeString(STORAGE_ID_KEY, id);
+            dir.writeString(Constants.ID_KEY, id);
         }
 
         @Override
         public void read(StorageDir dir) throws IOException {
-            id = dir.readString(STORAGE_ID_KEY);
+            id = dir.readString(Constants.ID_KEY);
         }
     }
 
-    static public StorageList create(StorageDir dir) {
-        return new StorageList(dir);
+    static public StorageRefList create(StorageDir dir) {
+        return new StorageRefList(dir);
     }
 
-    static public StorageList load(StorageDir dir) {
-        StorageList storageList = new StorageList(dir);
-        storageList.load();
-        return storageList;
+    static public StorageRefList load(StorageDir dir) {
+        StorageRefList storageRefList = new StorageRefList(dir);
+        storageRefList.load();
+        return storageRefList;
     }
 
     @Override
@@ -51,7 +49,7 @@ public class StorageList extends AbstractStorageDirList<IStorageDirBundle> {
         return new StorageEntry();
     }
 
-    private StorageList(StorageDir storageDir) {
+    private StorageRefList(StorageDir storageDir) {
         super(storageDir);
     }
 }

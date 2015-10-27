@@ -45,15 +45,21 @@ public class UserDataTest extends TestCase {
         RemoteList.Entry remoteEntry = new RemoteList.Entry(user, server);
         userData.getRemoteList().add(remoteEntry);
         userData.getRemoteList().setDefault(remoteEntry);
+
+        String defaultSignatureKey = userData.getIdentityKeys().getDefaultSignatureKey();
+        String defaultPublicKey = userData.getIdentityKeys().getDefaultPublicKey();
         userData.commit();
 
         // open it again
         context = new FejoaContext(dir);
         userData = UserData.open(context, context.getStorage(id), password);
 
-        assertEquals(1, userData.getStorageList().getEntries().size());
+        assertEquals(1, userData.getStorageRefList().getEntries().size());
 
         assertEquals(1, userData.getRemoteList().getEntries().size());
         assertEquals(remoteEntry.getId(), userData.getRemoteList().getDefault().getId());
+
+        assertEquals(defaultSignatureKey, userData.getIdentityKeys().getDefaultSignatureKey());
+        assertEquals(defaultPublicKey, userData.getIdentityKeys().getDefaultPublicKey());
     }
 }

@@ -21,6 +21,8 @@ public class UserData extends StorageKeyStore {
     final static private String STORAGE_LIST_DIR = "storage";
     final static private String REMOTES_LIST_DIR = "remotes";
     final static private String IDENTITY_KEYS_ID_KEY = "identityKeysId";
+    final static private String IN_COMMAND_QUEUE_ID_KEY = "inCommandQueue";
+    final static private String OUT_COMMAND_QUEUE_ID_KEY = "outCommandQueue";
 
     static public UserData create(FejoaContext context, String password) throws IOException, CryptoException {
         return create(context, CryptoHelper.generateSha1Id(Crypto.get()), password);
@@ -45,6 +47,9 @@ public class UserData extends StorageKeyStore {
     private StorageRefList storageRefList;
     private RemoteList remoteList;
     private IdentityKeys identityKeys;
+    private IncomingCommandQueue incomingCommandQueue;
+    private OutgoingCommandQueue outgoingCommandQueue;
+
 
     private UserData(FejoaContext context, StorageDir dir) {
         super(context, dir);
@@ -81,6 +86,17 @@ public class UserData extends StorageKeyStore {
         KeyPair publicKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().publicKey);
         String publicKeyId = identityKeys.addKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
         identityKeys.setDefaultPublicKey(publicKeyId);
+
+        // command queues
+        String incomingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
+        StorageDir inCommandQueueDir = context.getStorage(incomingCommandQueueId);
+        incomingCommandQueue = new IncomingCommandQueue(inCommandQueueDir);
+        storageDir.writeString(IN_COMMAND_QUEUE_ID_KEY, incomingCommandQueue.getId());
+
+        String outgoingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
+        StorageDir outCommandQueueDir = context.getStorage(outgoingCommandQueueId);
+        outgoingCommandQueue = new OutgoingCommandQueue(outCommandQueueDir);
+        storageDir.writeString(OUT_COMMAND_QUEUE_ID_KEY, outgoingCommandQueue.getId());
     }
 
     private void open(String password) throws IOException, CryptoException {
@@ -104,6 +120,12 @@ public class UserData extends StorageKeyStore {
         String identityKeysId = storageDir.readString(IDENTITY_KEYS_ID_KEY);
         StorageDir identityKeysDir = context.getStorage(identityKeysId);
         identityKeys = IdentityKeys.open(context, identityKeysDir, keyStores);
+
+        // command queues
+        String inCommandQueueId = storageDir.readString(IN_COMMAND_QUEUE_ID_KEY);
+        incomingCommandQueue = new IncomingCommandQueue(context.getStorage(inCommandQueueId));
+        String outCommandQueueId = storageDir.readString(OUT_COMMAND_QUEUE_ID_KEY);
+        outgoingCommandQueue = new OutgoingCommandQueue(context.getStorage(outCommandQueueId));
     }
 
     public void commit() throws IOException {

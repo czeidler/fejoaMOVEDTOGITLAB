@@ -20,7 +20,8 @@ import java.util.List;
 public class UserData extends StorageKeyStore {
     final static private String STORAGE_LIST_DIR = "storage";
     final static private String REMOTES_LIST_DIR = "remotes";
-    final static private String IDENTITY_KEYS_ID_KEY = "identityKeysId";
+    final static private String IDENTITY_STORE_KEY = "identity";
+    final static private String CONTACT_STORE_KEY = "contacts";
     final static private String IN_COMMAND_QUEUE_ID_KEY = "inCommandQueue";
     final static private String OUT_COMMAND_QUEUE_ID_KEY = "outCommandQueue";
 
@@ -44,9 +45,22 @@ public class UserData extends StorageKeyStore {
     }
 
     final private List<KeyStore> keyStores = new ArrayList<>();
-    private StorageRefList storageRefList;
+    final private StorageDirList<Storage> storageRefList = new StorageDirList<Storage>(new StorageDirList.AbstractEntryIO<Storage>() {
+        @Override
+        public String getId(Storage entry) {
+            return entry.getId();
+        }
+
+        @Override
+        public Storage read(StorageDir dir) throws IOException {
+            Storage entry = new Storage();
+            entry.read(dir);
+            return entry;
+        }
+    });
     private RemoteList remoteList;
-    private IdentityKeys identityKeys;
+    private IdentityStore identityStore;
+    private StorageKeyStore contactStore;
     private IncomingCommandQueue incomingCommandQueue;
     private OutgoingCommandQueue outgoingCommandQueue;
 
@@ -71,21 +85,26 @@ public class UserData extends StorageKeyStore {
 
         // storage list
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
-        storageRefList = StorageRefList.create(storageListDir);
+        storageRefList.setTo(storageListDir);
         addStorage(keyStore.getId());
 
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
-        remoteList = RemoteList.create(remotesDir);
+        remoteList.setTo(remotesDir);
 
-        identityKeys = IdentityKeys.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
-        storageDir.writeString(IDENTITY_KEYS_ID_KEY, identityKeys.getId());
+        // identity
+        identityStore = IdentityStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
+        storageDir.writeString(IDENTITY_STORE_KEY, identityStore.getId());
         KeyPair signatureKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().signature);
-        String signatureKeyId = identityKeys.addKeyPair(signatureKeyPair, context.getCryptoSettings().signature);
-        identityKeys.setDefaultSignatureKey(signatureKeyId);
+        String signatureKeyId = identityStore.addSignatureKeyPair(signatureKeyPair, context.getCryptoSettings().signature);
+        identityStore.setDefaultSignatureKey(signatureKeyId);
         KeyPair publicKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().publicKey);
-        String publicKeyId = identityKeys.addKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
-        identityKeys.setDefaultPublicKey(publicKeyId);
+        String publicKeyId = identityStore.addEncryptionKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
+        identityStore.setDefaultEncryptionKey(publicKeyId);
+
+        // contacts
+        contactStore = ContactStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
+        storageDir.writeString(CONTACT_STORE_KEY, contactStore.getId());
 
         // command queues
         String incomingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
@@ -110,16 +129,21 @@ public class UserData extends StorageKeyStore {
 
         // storage list
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
-        storageRefList = StorageRefList.load(storageListDir);
+        storageRefList.setTo(storageListDir);
 
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
-        remoteList = RemoteList.load(remotesDir);
+        remoteList.setTo(remotesDir);
 
         // identity keys
-        String identityKeysId = storageDir.readString(IDENTITY_KEYS_ID_KEY);
+        String identityKeysId = storageDir.readString(IDENTITY_STORE_KEY);
         StorageDir identityKeysDir = context.getStorage(identityKeysId);
-        identityKeys = IdentityKeys.open(context, identityKeysDir, keyStores);
+        identityStore = IdentityStore.open(context, identityKeysDir, keyStores);
+
+        // contacts
+        String contactStoreId = storageDir.readString(CONTACT_STORE_KEY);
+        StorageDir contactStoreDir = context.getStorage(contactStoreId);
+        contactStore = ContactStore.open(context, contactStoreDir, keyStores);
 
         // command queues
         String inCommandQueueId = storageDir.readString(IN_COMMAND_QUEUE_ID_KEY);
@@ -131,22 +155,22 @@ public class UserData extends StorageKeyStore {
     public void commit() throws IOException {
         keyStore.commit();
         storageDir.commit();
-        identityKeys.commit();
+        identityStore.commit();
     }
 
     private void addStorage(String storageId) throws IOException {
-        storageRefList.add(new StorageRefList.StorageEntry(storageId));
+        storageRefList.add(new Storage(storageId));
     }
 
     public RemoteList getRemoteList() {
         return remoteList;
     }
 
-    public IdentityKeys getIdentityKeys() {
-        return identityKeys;
+    public IdentityStore getIdentityStore() {
+        return identityStore;
     }
 
-    public StorageRefList getStorageRefList() {
+    public StorageDirList<Storage> getStorageRefList() {
         return storageRefList;
     }
 }

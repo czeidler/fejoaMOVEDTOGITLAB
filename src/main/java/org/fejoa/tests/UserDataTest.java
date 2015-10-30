@@ -11,7 +11,7 @@ import junit.framework.TestCase;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.FejoaContext;
-import org.fejoa.library2.RemoteList;
+import org.fejoa.library2.Remote;
 import org.fejoa.library2.UserData;
 
 import java.io.File;
@@ -42,12 +42,12 @@ public class UserDataTest extends TestCase {
         FejoaContext context = new FejoaContext(dir);
         UserData userData = UserData.create(context, password);
         String id = userData.getId();
-        RemoteList.Entry remoteEntry = new RemoteList.Entry(user, server);
-        userData.getRemoteList().add(remoteEntry);
-        userData.getRemoteList().setDefault(remoteEntry);
+        Remote remoteRemote = new Remote(user, server);
+        userData.getRemoteList().add(remoteRemote);
+        userData.getRemoteList().setDefault(remoteRemote);
 
-        String defaultSignatureKey = userData.getIdentityKeys().getDefaultSignatureKey();
-        String defaultPublicKey = userData.getIdentityKeys().getDefaultPublicKey();
+        String defaultSignatureKey = userData.getIdentityStore().getDefaultSignatureKey();
+        String defaultPublicKey = userData.getIdentityStore().getDefaultEncryptionKey();
         userData.commit();
 
         // open it again
@@ -57,9 +57,9 @@ public class UserDataTest extends TestCase {
         assertEquals(1, userData.getStorageRefList().getEntries().size());
 
         assertEquals(1, userData.getRemoteList().getEntries().size());
-        assertEquals(remoteEntry.getId(), userData.getRemoteList().getDefault().getId());
+        assertEquals(remoteRemote.getId(), userData.getRemoteList().getDefault().getId());
 
-        assertEquals(defaultSignatureKey, userData.getIdentityKeys().getDefaultSignatureKey());
-        assertEquals(defaultPublicKey, userData.getIdentityKeys().getDefaultPublicKey());
+        assertEquals(defaultSignatureKey, userData.getIdentityStore().getDefaultSignatureKey());
+        assertEquals(defaultPublicKey, userData.getIdentityStore().getDefaultEncryptionKey());
     }
 }

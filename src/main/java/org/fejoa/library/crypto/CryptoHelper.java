@@ -26,6 +26,16 @@ public class CryptoHelper {
         return stringBuffer.toString().toLowerCase();
     }
 
+    // see:
+    // http://stackoverflow.com/questions/140131/convert-a-string-representation-of-a-hex-dump-to-a-byte-array-using-java
+    public static byte[] fromHex(String hex) {
+        int length = hex.length();
+        byte[] data = new byte[length / 2];
+        for (int i = 0; i < length; i += 2)
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4) + Character.digit(hex.charAt(i + 1), 16));
+        return data;
+    }
+
     static public MessageDigest sha1Hash() throws NoSuchAlgorithmException {
         return MessageDigest.getInstance("SHA-1");
     }

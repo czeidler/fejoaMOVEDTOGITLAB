@@ -12,10 +12,7 @@ import org.fejoa.library.database.IDatabaseInterface;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class StorageDir {
@@ -57,7 +54,10 @@ public class StorageDir {
             return database;
         }
 
-        public void writeBytes(String path, byte[] data) {
+        public void writeBytes(String path, byte[] data) throws IOException {
+            // process deleted items before adding new items
+            if (toDelete.size() > 0)
+                flush();
             this.toAdd.put(path, data);
         }
 

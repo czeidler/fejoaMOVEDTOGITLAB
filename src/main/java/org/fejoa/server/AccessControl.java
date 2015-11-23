@@ -28,4 +28,7 @@ public class AccessControl {
         return gitInterface;
     }
 
+    static public JGitInterface getReadDatabase(Session session, String user, String branch) throws IOException {
+        return getDatabase(session, user, branch);
+    }
 }

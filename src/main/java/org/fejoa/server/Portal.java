@@ -85,6 +85,7 @@ public class Portal extends AbstractHandler {
         this.baseDir = baseDir;
 
         addJsonHandler(new JsonPingHandler());
+        addJsonHandler(new WatchHandler());
         addJsonHandler(new GitPushHandler());
         addJsonHandler(new GitPullHandler());
         addJsonHandler(new CreateAccountHandler());

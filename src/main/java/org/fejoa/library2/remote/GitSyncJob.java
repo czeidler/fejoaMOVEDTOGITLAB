@@ -16,7 +16,24 @@ import org.eclipse.jgit.transport.RefSpec;
 import java.io.IOException;
 import java.util.*;
 
-public class GitSyncJob extends JsonRemoteJob {
+public class GitSyncJob extends JsonRemoteJob<RemoteJob.Result> {
+    /*public static class Result extends RemoteJob.Result {
+        final public static int REJECTED = -10;
+        final public static int NO_CHANGE = 0;
+        final public static int PULLED = 1;
+        final public static int PUSHED = 2;
+
+        final public String oldTip;
+        final public String newTip;
+
+        public Result(int status, String message, String oldTip, String newTip) {
+            super(status, message);
+
+            this.oldTip = oldTip;
+            this.newTip = newTip;
+        }
+    }*/
+
     static final public String METHOD = "gitPull";
     static final public String METHOD_REQUEST_ADVERTISEMENT = "getAdvertisement";
     static final public String METHOD_REQUEST_PULL_DATA = "pullData";

@@ -7,6 +7,7 @@
  */
 package org.fejoa.library2.remote;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 
-abstract public class SimpleJsonRemoteJob extends JsonRemoteJob {
+abstract public class SimpleJsonRemoteJob<T extends RemoteJob.Result> extends JsonRemoteJob<T> {
     private boolean hasData = false;
 
     public SimpleJsonRemoteJob(boolean hasData) {
@@ -29,29 +30,29 @@ abstract public class SimpleJsonRemoteJob extends JsonRemoteJob {
         return getJsonHeader(jsonRPC);
     }
 
-    private RemoteJob.Result handleResponse(String header, InputStream inputStream) {
+    private T handleResponse(String header, InputStream inputStream) throws IOException {
         JSONObject returnValue;
         try {
             returnValue = getReturnValue(header);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new RemoteJob.Result(RemoteJob.Result.ERROR, e.getMessage());
+        } catch (JSONException e) {
+            throw new IOException(e.getMessage());
         }
-        RemoteJob.Result result = handleJson(returnValue, inputStream);
-        if (result.status == RemoteJob.Result.ERROR && errorCallback != null)
+
+        T result = handleJson(returnValue, inputStream);
+        if (errorCallback != null)
             errorCallback.onError(returnValue, inputStream);
         return result;
     }
 
     abstract public String getJsonHeader(JsonRPC jsonRPC) throws IOException;
-    abstract protected RemoteJob.Result handleJson(JSONObject returnValue, InputStream binaryData);
+    abstract protected T handleJson(JSONObject returnValue, InputStream binaryData);
 
     public void writeData(OutputStream outputStream) throws IOException {
 
     }
 
     @Override
-    public Result run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws IOException {
         super.run(remoteRequest);
         OutputStream outputStream = remoteRequest.open(getHeader(), hasData());
         if (hasData())

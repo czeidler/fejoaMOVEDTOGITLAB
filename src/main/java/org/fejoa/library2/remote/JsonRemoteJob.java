@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 
-public class JsonRemoteJob extends RemoteJob {
+public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
+    final static public String ACCESS_DENIED_KEY = "access_denied";
+
     /**
      * Can be used for errors unrelated to the current job. For example, token expired or auth became invalid.
      */
@@ -23,7 +25,7 @@ public class JsonRemoteJob extends RemoteJob {
     }
 
     protected JsonRPC jsonRPC;
-    private JsonRemoteJob followUpJob;
+    private JsonRemoteJob<T> followUpJob;
     protected IErrorCallback errorCallback;
 
     protected JsonRPC startNewJsonRPC() {
@@ -48,11 +50,11 @@ public class JsonRemoteJob extends RemoteJob {
         return new Result(status, message);
     }
 
-    protected void setFollowUpJob(JsonRemoteJob followUpJob) {
+    protected void setFollowUpJob(JsonRemoteJob<T> followUpJob) {
         this.followUpJob = followUpJob;
     }
 
-    public JsonRemoteJob getFollowUpJob() {
+    public JsonRemoteJob<T> getFollowUpJob() {
         return followUpJob;
     }
 
@@ -61,16 +63,17 @@ public class JsonRemoteJob extends RemoteJob {
     }
 
     @Override
-    public Result run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws IOException {
         super.run(remoteRequest);
         startNewJsonRPC();
         return null;
     }
 
-    static public Result run(JsonRemoteJob job, IRemoteRequest remoteRequest, IErrorCallback errorHandler)
+    static public <T extends Result> T run(JsonRemoteJob<T> job, IRemoteRequest remoteRequest,
+                                           IErrorCallback errorHandler)
             throws IOException, JSONException {
         job.setErrorCallback(errorHandler);
-        Result result = job.run(remoteRequest);
+        T result = job.run(remoteRequest);
         if (result.status == Result.FOLLOW_UP_JOB) {
             System.out.println("Start follow up job (" + job.getFollowUpJob().getClass().getSimpleName() + ") after: "
                     + result.message);

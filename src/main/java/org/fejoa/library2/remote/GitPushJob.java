@@ -13,19 +13,17 @@ import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.transport.Transport;
+import org.fejoa.library2.*;
 
 import java.io.*;
 import java.text.MessageFormat;
 import java.util.*;
 
 
-public class GitPushJob extends JsonRemoteJob {
+public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
     static final public String METHOD = "gitPush";
     static final public String METHOD_REQUEST_ADVERTISEMENT = "getAdvertisement";
     static final public String METHOD_REQUEST_PUSH_DATA = "pushData";
-    static final public String SERVER_USER_KEY = "serverUser";
-    static final public String BRANCH_KEY = "branch";
-
 
     final private Repository repository;
     final private String serverUser;
@@ -68,8 +66,8 @@ public class GitPushJob extends JsonRemoteJob {
     public Result run(IRemoteRequest remoteRequest) throws IOException {
         super.run(remoteRequest);
 
-        JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
-        JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
+        JsonRPC.Argument serverUserArg = new JsonRPC.Argument(org.fejoa.library2.Constants.SERVER_USER_KEY, serverUser);
+        JsonRPC.Argument branchArg = new JsonRPC.Argument(org.fejoa.library2.Constants.BRANCH_KEY, branch);
 
         String advertisementHeader = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);

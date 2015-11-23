@@ -9,12 +9,6 @@ package org.fejoa.library2.remote;
 
 import org.fejoa.library.ContactPrivate;
 import org.json.JSONObject;
-import rx.Observable;
-import rx.Observer;
-import rx.Scheduler;
-import rx.Subscription;
-import rx.concurrency.Schedulers;
-import rx.util.functions.Func1;
 
 import java.io.InputStream;
 import java.net.CookieHandler;
@@ -92,82 +86,55 @@ public class ConnectionManager {
 
     //final private CookieStore cookieStore = new BasicCookieStore();
     final private ContactPrivate myself;
-    private Scheduler observerScheduler = Schedulers.immediate();
     final private TokenManager tokenManager = new TokenManager();
+    private Task.IScheduler startScheduler = new Task.NewThreadScheduler();
 
     public ConnectionManager(ContactPrivate myself) {
         this.myself = myself;
         CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
     }
 
-    public void setObserverScheduler(Scheduler observerScheduler) {
-        this.observerScheduler = observerScheduler;
+    public void setStartScheduler(Task.IScheduler startScheduler) {
+        this.startScheduler = startScheduler;
     }
 
-    public Subscription submit(final JsonRemoteJob job, ConnectionInfo connectionInfo, final AuthInfo authInfo,
-                       Observer<RemoteJob.Result> observer) {
-        return getRemoteRequest(connectionInfo).mapMany(new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
-            @Override
-            public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
-                return getAuthRequest(remoteRequest, authInfo);
-            }
-        }).mapMany(new Func1<IRemoteRequest, Observable<RemoteJob.Result>>() {
-            @Override
-            public Observable<RemoteJob.Result> call(IRemoteRequest remoteRequest) {
-                return runJob(remoteRequest, job);
-            }
-        }).subscribeOn(Schedulers.threadPoolForIO()).observeOn(observerScheduler).subscribe(observer);
+    public <T extends RemoteJob.Result> Task.ICancelFunction submit(final JsonRemoteJob<T> job,
+                                                                    ConnectionInfo connectionInfo,
+                                                                    final AuthInfo authInfo,
+                                                                    final Task.IObserver<Void, T> observer) {
+        IRemoteRequest remoteRequest = getAuthRequest(getRemoteRequest(connectionInfo), authInfo);
+        return runJob(remoteRequest, job).setStartScheduler(startScheduler).start(observer);
     }
 
-    private Observable<RemoteJob.Result> runJob(final IRemoteRequest remoteRequest, final JsonRemoteJob job) {
-        return Observable.create(new Observable.OnSubscribeFunc<RemoteJob.Result>() {
-            @Override
-            public Subscription onSubscribe(final Observer<? super RemoteJob.Result> observer) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            RemoteJob.Result result = JsonRemoteJob.run(job, remoteRequest, generalErrorHandler);
-                            observer.onNext(result);
-                            observer.onCompleted();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            observer.onError(e);
-                        } finally {
-                            remoteRequest.close();
-                        }
-                    }
-                }).start();
+    private <T extends RemoteJob.Result> Task<Void, T> runJob(final IRemoteRequest remoteRequest,
+                                                              final JsonRemoteJob<T> job) {
 
-                return new Subscription() {
-                    @Override
-                    public void unsubscribe() {
-                        remoteRequest.cancel();
-                    }
-                };
+        return new Task<Void, T>(new Task.ITaskFunction<Void, T>() {
+            @Override
+            public void run(Task<Void, T> task) throws Exception {
+                try {
+                    T result = JsonRemoteJob.run(job, remoteRequest, generalErrorHandler);
+                    task.onResult(result);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    task.onException(e);
+                } finally {
+                    remoteRequest.close();
+                }
+            }
+
+            @Override
+            public void cancel() {
+                remoteRequest.cancel();
             }
         });
     }
 
-    private Observable<IRemoteRequest> getAuthRequest(final IRemoteRequest remoteRequest, final AuthInfo authInfo) {
-        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
-            @Override
-            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
-                observer.onNext(remoteRequest);
-                observer.onCompleted();
-                return null;
-            }
-        });
+    private IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest, final AuthInfo authInfo) {
+        return remoteRequest;
     }
 
-    private Observable<IRemoteRequest> getRemoteRequest(final ConnectionInfo connectionInfo) {
-        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
-            @Override
-            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
-                observer.onNext(new HTMLRequest(connectionInfo.url));
-                observer.onCompleted();
-                return null;
-            }
-        });
+    private IRemoteRequest getRemoteRequest(ConnectionInfo connectionInfo) {
+        return new HTMLRequest(connectionInfo.url);
     }
 }

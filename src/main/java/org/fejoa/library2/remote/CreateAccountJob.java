@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 
-public class CreateAccountJob extends SimpleJsonRemoteJob {
+public class CreateAccountJob extends SimpleJsonRemoteJob<RemoteJob.Result> {
     static final public String METHOD = "createAccount";
 
     static final public String USER_NAME_KEY = "userName";

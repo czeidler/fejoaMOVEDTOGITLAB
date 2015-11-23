@@ -15,4 +15,7 @@ public class Constants {
     static final public String KEY_SIZE_KEY = "keySize";
     static final public String KEY_TYPE_KEY = "keyType";
     static final public String ALGORITHM_KEY = "algorithm";
+
+    static final public String SERVER_USER_KEY = "serverUser";
+    static final public String BRANCH_KEY = "branch";
 }

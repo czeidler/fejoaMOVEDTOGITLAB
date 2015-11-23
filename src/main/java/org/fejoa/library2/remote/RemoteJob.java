@@ -10,11 +10,12 @@ package org.fejoa.library2.remote;
 import java.io.IOException;
 
 
-public class RemoteJob {
+public class RemoteJob<T> {
     static public class Result {
-        final static public int ERROR = -1;
+        final static public int EXCEPTION = -3;
+        final static public int ERROR = -2;
+        final static public int FOLLOW_UP_JOB = -1;
         final static public int DONE = 0;
-        final static public int FOLLOW_UP_JOB = 1;
 
         final public int status;
         final public String message;
@@ -27,7 +28,7 @@ public class RemoteJob {
 
     protected IRemoteRequest remoteRequest;
 
-    public Result run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws IOException {
         this.remoteRequest = remoteRequest;
         return null;
     }

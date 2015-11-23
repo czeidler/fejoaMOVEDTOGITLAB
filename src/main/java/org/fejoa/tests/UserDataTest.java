@@ -52,7 +52,7 @@ public class UserDataTest extends TestCase {
 
         // open it again
         context = new FejoaContext(dir);
-        userData = UserData.open(context, context.getStorage(id), password);
+        userData = UserData.open(context, password);
 
         assertEquals(1, userData.getStorageRefList().getEntries().size());
 

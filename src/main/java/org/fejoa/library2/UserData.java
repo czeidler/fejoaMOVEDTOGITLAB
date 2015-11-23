@@ -29,23 +29,27 @@ public class UserData extends StorageKeyStore {
         return create(context, CryptoHelper.generateSha1Id(Crypto.get()), password);
     }
 
-    static public UserData create(FejoaContext context, String id, String password) throws IOException,
+    static private UserData create(FejoaContext context, String id, String password) throws IOException,
             CryptoException {
+        context.setUserDataId(id);
         StorageDir dir = context.getStorage(id);
         UserData userData = new UserData(context, dir);
         userData.create(password);
         return userData;
     }
 
-    static public UserData open(FejoaContext context, StorageDir dir, String password) throws IOException,
+    static public UserData open(FejoaContext context, String password) throws IOException,
             CryptoException {
+        String id = context.getUserDataId();
+        StorageDir dir = context.getStorage(id);
         UserData userData = new UserData(context, dir);
         userData.open(password);
         return userData;
     }
 
     final private List<KeyStore> keyStores = new ArrayList<>();
-    final private StorageDirList<Storage> storageRefList = new StorageDirList<Storage>(new StorageDirList.AbstractEntryIO<Storage>() {
+    final private StorageDirList<Storage> storageRefList = new StorageDirList<>(
+            new StorageDirList.AbstractEntryIO<Storage>() {
         @Override
         public String getId(Storage entry) {
             return entry.getId();
@@ -90,7 +94,7 @@ public class UserData extends StorageKeyStore {
 
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
-        remoteList.setTo(remotesDir);
+        remoteList = new RemoteList(remotesDir);
 
         // identity
         identityStore = IdentityStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
@@ -101,10 +105,12 @@ public class UserData extends StorageKeyStore {
         KeyPair publicKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().publicKey);
         String publicKeyId = identityStore.addEncryptionKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
         identityStore.setDefaultEncryptionKey(publicKeyId);
+        addStorage(identityStore.getId());
 
         // contacts
         contactStore = ContactStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
         storageDir.writeString(CONTACT_STORE_KEY, contactStore.getId());
+        addStorage(contactStore.getId());
 
         // command queues
         String incomingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());

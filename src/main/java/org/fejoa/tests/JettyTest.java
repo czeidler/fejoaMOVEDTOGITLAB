@@ -6,8 +6,6 @@ import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library2.remote.*;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.server.JettyServer;
-import rx.Observer;
-import rx.concurrency.Schedulers;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -22,7 +20,7 @@ public class JettyTest extends TestCase {
     JettyServer server;
     ConnectionManager.ConnectionInfo connectionInfo;
     ConnectionManager.AuthInfo authInfo;
-    Observer<RemoteJob.Result> observer;
+    Task.IObserver<Void, RemoteJob.Result> observer;
     ConnectionManager connectionManager;
 
     @Override
@@ -36,25 +34,24 @@ public class JettyTest extends TestCase {
 
         connectionInfo = new ConnectionManager.ConnectionInfo("", "http://localhost:8080/");
         authInfo = new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null);
-        observer = new Observer<RemoteJob.Result>() {
+        observer = new Task.IObserver<Void, RemoteJob.Result>() {
             @Override
-            public void onCompleted() {
-
+            public void onProgress(Void aVoid) {
+                System.out.println("onProgress: ");
             }
 
             @Override
-            public void onError(Throwable throwable) {
-                System.out.println("onError: " + throwable.getMessage());
-            }
-
-            @Override
-            public void onNext(RemoteJob.Result result) {
+            public void onResult(RemoteJob.Result result) {
                 System.out.println("onNext: " + result.message);
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                System.out.println("onError: " + exception.getMessage());
             }
         };
 
         connectionManager = new ConnectionManager(null);
-        connectionManager.setObserverScheduler(Schedulers.immediate());
     }
 
     @Override

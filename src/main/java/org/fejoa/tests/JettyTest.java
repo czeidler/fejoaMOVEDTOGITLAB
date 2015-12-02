@@ -8,6 +8,7 @@ import org.fejoa.library.support.StorageLib;
 import org.fejoa.server.JettyServer;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,11 +48,12 @@ public class JettyTest extends TestCase {
 
             @Override
             public void onException(Exception exception) {
-                System.out.println("onError: " + exception.getMessage());
+                fail(exception.getMessage());
             }
         };
 
         connectionManager = new ConnectionManager(null);
+        connectionManager.setStartScheduler(new Task.CurrentThreadScheduler());
     }
 
     @Override
@@ -75,10 +77,7 @@ public class JettyTest extends TestCase {
         gitInterface.init(localGitDir, BRANCH, true);
         gitInterface.writeBytes("testFile", "testData".getBytes());
         gitInterface.commit();
-        connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser, gitInterface.getBranch()),
-                connectionInfo, authInfo, observer);
-
-        Thread.sleep(1000);
+        sync(connectionManager, gitInterface, serverUser);
 
         // do changes on the server
         JGitInterface serverGit = new JGitInterface();
@@ -91,17 +90,43 @@ public class JettyTest extends TestCase {
         gitInterface.commit();
 
         // sync
-        connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser,
-                gitInterface.getBranch()), connectionInfo, authInfo, observer);
-        Thread.sleep(2000);
+        sync(connectionManager, gitInterface, serverUser);
 
         // pull into empty git
         StorageLib.recursiveDeleteFile(new File(localGitDir));
         gitInterface = new JGitInterface();
         gitInterface.init(localGitDir, BRANCH, true);
-        connectionManager.submit(new GitSyncJob(gitInterface.getRepository(), serverUser,
-                gitInterface.getBranch()), connectionInfo, authInfo, observer);
-        Thread.sleep(2000);
+        sync(connectionManager, gitInterface, serverUser);
+    }
+
+    private void sync(final ConnectionManager connectionManager, final JGitInterface gitInterface, final String serverUser) {
+        connectionManager.submit(new GitPullJob(gitInterface.getRepository(), serverUser,
+                gitInterface.getBranch()), connectionInfo, authInfo, new Task.IObserver<Void, GitPullJob.Result>() {
+            @Override
+            public void onProgress(Void aVoid) {
+                observer.onProgress(aVoid);
+            }
+
+            @Override
+            public void onResult(GitPullJob.Result result) {
+                observer.onResult(result);
+                try {
+                    gitInterface.merge(result.pulledRev);
+                    String tip = gitInterface.getTip();
+                    if (tip.equals(result.pulledRev))
+                        return;
+                    connectionManager.submit(new GitPushJob(gitInterface.getRepository(), serverUser,
+                            gitInterface.getBranch()), connectionInfo, authInfo, observer);
+                } catch (IOException e) {
+                    observer.onException(e);
+                }
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                observer.onException(exception);
+            }
+        });
     }
 
     public void testSimple() throws Exception {

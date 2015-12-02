@@ -94,28 +94,23 @@ public class ClientTest extends TestCase {
 
         // watch
         Remote defaultRemote = client.getUserData().getRemoteList().getDefault();
-        SyncManager syncManager = new SyncManager(client.getContext(), client.getConnectionManager(), defaultRemote);
-        syncManager.watch(client.getUserData().getStorageRefList().getEntries(),
-                new Task.IObserver<Void, WatchJob.Result>() {
-                    @Override
-                    public void onProgress(Void aVoid) {
+        final SyncManager syncManager = new SyncManager(client.getContext(), client.getConnectionManager(), defaultRemote);
+        syncManager.startWatching(client.getUserData().getStorageRefList().getEntries(),
+                new Task.IObserver<TaskUpdate, Void>() {
+            @Override
+            public void onProgress(TaskUpdate update) {
+                System.out.println(update.toString());
+            }
 
-                    }
+            @Override
+            public void onResult(Void aVoid) {
+                System.out.println("sync ok");
+            }
 
-                    @Override
-                    public void onResult(WatchJob.Result result) {
-                        if (result.status != RemoteJob.Result.DONE) {
-                            System.out.println(result.message);
-                            return;
-                        }
-                        for (String update : result.updated)
-                            System.out.println(update);
-                    }
-
-                    @Override
-                    public void onException(Exception exception) {
-
-                    }
-                });
+            @Override
+            public void onException(Exception exception) {
+                fail();
+            }
+        });
     }
 }

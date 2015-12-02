@@ -14,6 +14,7 @@ import org.fejoa.library2.KeyStore;
 
 import java.io.IOException;
 
+
 public class SecureIOFilter implements StorageDir.IIOFilter {
     final private KeyStore.SymmetricKeyData symmetricKeyData;
     final private ICryptoInterface crypto;

@@ -34,9 +34,9 @@ public class StorageDir {
     }
 
     /**
-     * The StorageDirCache between all StorageDir that are build from the same parent.
+     * The StorageDirCache is shared between all StorageDir that are build from the same parent.
      */
-    class StorageDirCache extends WeakListenable<StorageDir.IListener> {
+    static class StorageDirCache extends WeakListenable<StorageDir.IListener> {
         final private IDatabaseInterface database;
         final private Map<String, byte[]> toAdd = new HashMap<>();
         final private List<String> toDelete = new ArrayList<>();
@@ -77,15 +77,34 @@ public class StorageDir {
             toDelete.clear();
         }
 
-        public void commit() throws IOException {
-            String base = getDatabase().getTip();
+        private boolean needsCommit() {
+            if (toAdd.size() == 0 && toDelete.size() == 0)
+                return false;
+            return true;
+        }
 
+        public void commit() throws IOException {
+            if (!needsCommit())
+                return;
             flush();
+            String base = getDatabase().getTip();
             database.commit();
 
             if (getListeners().size() > 0) {
-                String tip = getTip();
+                String tip = getDatabase().getTip();
+                DatabaseDiff diff = getDatabase().getDiff(base, tip);
+                notifyTipChanged(diff, base, tip);
+            }
+        }
 
+        public void merge(String theirCommit) throws IOException {
+            commit();
+
+            String base = getDatabase().getTip();
+            database.merge(theirCommit);
+
+            if (getListeners().size() > 0) {
+                String tip = getDatabase().getTip();
                 DatabaseDiff diff = getDatabase().getDiff(base, tip);
                 notifyTipChanged(diff, base, tip);
             }
@@ -132,7 +151,7 @@ public class StorageDir {
         this.filter = filter;
     }
 
-    private IDatabaseInterface getDatabase() {
+    public IDatabaseInterface getDatabase() {
         return cache.getDatabase();
     }
 
@@ -218,4 +237,7 @@ public class StorageDir {
         return getDatabase().getDiff(baseCommit, endCommit);
     }
 
+    public void merge(String theirCommit) throws IOException {
+        cache.merge(theirCommit);
+    }
 }

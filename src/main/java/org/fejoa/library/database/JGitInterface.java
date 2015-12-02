@@ -15,6 +15,8 @@ import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
+import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.merge.Merger;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -127,14 +129,19 @@ public class JGitInterface implements IDatabaseInterface {
         }
 
         // get root tree if existing
+        rootTree = getTipTree();
+    }
+
+    private ObjectId getTipTree() throws IOException {
+        // get root tree if existing
         Ref branchRef = repository.getRef(branch);
-        if (branchRef != null) {
-            RevWalk walk = new RevWalk(repository);
-            RevCommit commit = walk.parseCommit(branchRef.getLeaf().getObjectId());
-            if (commit == null)
-                throw new IOException();
-            rootTree = commit.getTree().toObjectId();
-        }
+        if (branchRef == null)
+            return ObjectId.zeroId();
+        RevWalk walk = new RevWalk(repository);
+        RevCommit commit = walk.parseCommit(branchRef.getLeaf().getObjectId());
+        if (commit == null)
+            throw new IOException("no commit in head!");
+        return commit.getTree().toObjectId();
     }
 
     @Override
@@ -324,10 +331,14 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public String getTip() throws IOException {
-        Ref head = repository.getRef("refs/heads/" + branch);
+        Ref head = getHeadRef();
         if (head == null)
             return "";
         return head.getObjectId().name();
+    }
+
+    private Ref getHeadRef() throws IOException {
+        return repository.getRef("refs/heads/" + branch);
     }
 
     @Override
@@ -341,6 +352,49 @@ public class JGitInterface implements IDatabaseInterface {
         } finally {
             out.close();
         }
+    }
+
+    private boolean needsCommit() throws IOException {
+        if (getTipTree().equals(rootTree))
+            return false;
+        return true;
+    }
+
+    @Override
+    public void merge(String theirCommitId) throws IOException {
+        if (theirCommitId.equals(""))
+            return;
+        // commit if necessary
+        if (needsCommit())
+            commit();
+
+        Ref headRef = getHeadRef();
+        if (headRef == null) {
+            ObjectId commitId = repository.resolve(theirCommitId);
+
+            // we have no commit; just set tip to their commit
+            RefUpdate refUpdate = repository.updateRef("refs/heads/" + getBranch());
+            refUpdate.setForceUpdate(true);
+            refUpdate.setRefLogIdent(new PersonIdent("client", ""));
+            refUpdate.setNewObjectId(commitId);
+            refUpdate.setExpectedOldObjectId(ObjectId.zeroId());
+            refUpdate.setRefLogMessage("client commit", false);
+            RefUpdate.Result result = refUpdate.update();
+            if (result == RefUpdate.Result.REJECTED)
+                throw new IOException();
+            return;
+        }
+        ObjectId ours = getHeadRef().getObjectId();
+
+        ObjectId theirs = ObjectId.fromString(theirCommitId);
+        Merger ourMerger = MergeStrategy.SIMPLE_TWO_WAY_IN_CORE.newMerger(repository);
+        boolean merged = ourMerger.merge(ours, theirs);
+        if (!merged)
+            throw new IOException("can't merge");
+        rootTree = ourMerger.getResultTreeId();
+
+        if (needsCommit())
+            commit();
     }
 
     @Override
@@ -467,7 +521,7 @@ public class JGitInterface implements IDatabaseInterface {
 
         BufferedReader reader = null;
         try {
-            reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(refPath))));
+            reader = new BufferedReader(new InputStreamReader((new FileInputStream(refPath))));
             return reader.readLine();
         } catch (Exception e) {
             return "";

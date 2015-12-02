@@ -28,6 +28,8 @@ public interface IDatabaseInterface {
     String getTip() throws IOException;
     void updateTip(String commit) throws IOException;
 
+    void merge(String theirCommitId) throws IOException;
+
     void remove(String path) throws IOException;
 
     DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException;

@@ -16,16 +16,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 
-interface IContactPublic {
-    boolean verify(KeyId keyId, byte[] data, byte[] signature, CryptoSettings.Signature signatureSettings)
-            throws CryptoException;
-}
-
-interface IContactPrivate extends IContactPublic {
-    byte[] sign(KeyId keyId, byte data[], CryptoSettings.Signature signatureSettings) throws CryptoException;
-}
-
-
 abstract class Contact<T> implements IContactPublic {
     final static private String SIGNATURE_KEYS_DIR = "signatureKeys";
     final static private String ENCRYPTION_KEYS_DIR = "encryptionKeys";
@@ -53,7 +43,7 @@ abstract class Contact<T> implements IContactPublic {
         try {
             id = storageDir.readString(Constants.ID_KEY);
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         signatureKeys = new StorageDirList<>(new StorageDir(dir, SIGNATURE_KEYS_DIR), entryIO);
@@ -100,79 +90,12 @@ abstract class Contact<T> implements IContactPublic {
     }
 
     public T getEncryptionKey(KeyId id) {
-        return encryptionKeys.get(id.toString());
+        return getEncryptionKey(id.toString());
+    }
+
+    public T getEncryptionKey(String id) {
+        return encryptionKeys.get(id);
     }
 }
 
 
-class ContactPublic extends Contact<PublicKeyItem> {
-    final static private String REMOTES_DIR = "remotes";
-
-    private RemoteList remotes;
-
-    public ContactPublic(FejoaContext context) {
-        super(context, getEntryIO(), null);
-    }
-
-    protected ContactPublic(FejoaContext context, StorageDir storageDir) {
-        super(context, getEntryIO(), storageDir);
-    }
-
-    static private StorageDirList.AbstractEntryIO<PublicKeyItem> getEntryIO() {
-        return new StorageDirList.AbstractEntryIO<PublicKeyItem>() {
-            @Override
-            public String getId(PublicKeyItem entry) {
-                return entry.getId();
-            }
-
-            @Override
-            public PublicKeyItem read(StorageDir dir) throws IOException {
-                PublicKeyItem item = new PublicKeyItem();
-                item.read(dir);
-                return item;
-            }
-        };
-    }
-
-    @Override
-    protected void setStorageDir(StorageDir dir) {
-        super.setStorageDir(dir);
-
-        remotes = new RemoteList(new StorageDir(storageDir, REMOTES_DIR));
-    }
-
-    @Override
-    public PublicKey getVerificationKey(KeyId keyId) {
-        return signatureKeys.get(keyId.toString()).getKey();
-    }
-}
-
-class ContactPrivate extends Contact<KeyPairItem> implements IContactPrivate {
-    protected ContactPrivate(FejoaContext context, StorageDir dir) {
-        super(context, new StorageDirList.AbstractEntryIO<KeyPairItem>() {
-            @Override
-            public String getId(KeyPairItem entry) {
-                return entry.getId();
-            }
-
-            @Override
-            public KeyPairItem read(StorageDir dir) throws IOException {
-                KeyPairItem keyPairItem = new KeyPairItem();
-                keyPairItem.read(dir);
-                return keyPairItem;
-            }
-        }, dir);
-    }
-
-    @Override
-    public PublicKey getVerificationKey(KeyId keyId) {
-        return signatureKeys.get(keyId.toString()).getKeyPair().getPublic();
-    }
-
-    @Override
-    public byte[] sign(KeyId keyId, byte[] data, CryptoSettings.Signature signatureSettings) throws CryptoException {
-        ICryptoInterface crypto = context.getCrypto();
-        PrivateKey publicKey = signatureKeys.get(keyId.toString()).getKeyPair().getPrivate();
-        return crypto.sign(data, publicKey, signatureSettings);
-    }
-}

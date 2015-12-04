@@ -28,6 +28,7 @@ public class FejoaContext {
 
     public FejoaContext(String homeDir) {
         this.homeDir = homeDir;
+        new File(homeDir).mkdirs();
     }
 
     public String getHomeDir() {

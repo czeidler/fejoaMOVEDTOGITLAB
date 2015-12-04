@@ -8,9 +8,11 @@
 package org.fejoa.library.crypto;
 
 import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
@@ -149,5 +151,10 @@ public class CryptoHelper {
             e.printStackTrace();
             return null;
         }
+    }
+
+    static public SecretKey secretKey(byte[] key, CryptoSettings.KeyTypeSettings settings)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
+        return new SecretKeySpec(key, 0, settings.keySize / 8, settings.keyType);
     }
 }

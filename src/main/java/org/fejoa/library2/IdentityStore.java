@@ -19,7 +19,7 @@ import java.util.List;
 
 public class IdentityStore extends StorageKeyStore {
     final static private String MY_SELF_DIR = "keys";
-    static private ContactPrivate myself;
+    private ContactPrivate myself;
 
     static public IdentityStore create(FejoaContext context, String id, KeyStore keyStore, KeyId keyId)
             throws IOException, CryptoException {
@@ -52,6 +52,10 @@ public class IdentityStore extends StorageKeyStore {
         super.open(keyStores);
 
         myself = new ContactPrivate(context, new StorageDir(storageDir, MY_SELF_DIR));
+    }
+
+    public ContactPrivate getMyself() {
+        return myself;
     }
 
     public String addSignatureKeyPair(KeyPair pair, CryptoSettings.KeyTypeSettings keyTypeSettings) throws IOException {

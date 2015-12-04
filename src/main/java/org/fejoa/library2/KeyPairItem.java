@@ -7,6 +7,7 @@
  */
 package org.fejoa.library2;
 
+import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library2.database.StorageDir;
@@ -58,7 +59,8 @@ class PublicKeyItem implements IStorageDirBundle {
     }
 }
 
-class KeyPairItem implements IStorageDirBundle {
+
+public class KeyPairItem implements IStorageDirBundle {
     final private String PATH_PRIVATE_KEY = "privateKey";
     final private String PATH_PUBLIC_KEY = "publicKey";
 
@@ -107,6 +109,10 @@ class KeyPairItem implements IStorageDirBundle {
 
     public String getId() {
         return id;
+    }
+
+    public KeyId getKeyId() {
+        return new KeyId(id);
     }
 
     public KeyPair getKeyPair() {

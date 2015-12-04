@@ -34,6 +34,8 @@ public interface ICryptoInterface {
 
     OutputStream encryptSymmetric(OutputStream out, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
             throws CryptoException;
+    InputStream encryptSymmetric(InputStream in, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
+            throws CryptoException;
     InputStream decryptSymmetric(InputStream input, SecretKey secretKey, byte[] iv, CryptoSettings.Symmetric settings)
             throws CryptoException;
 

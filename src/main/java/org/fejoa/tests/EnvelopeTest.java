@@ -8,6 +8,7 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
+import org.apache.commons.io.IOUtils;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.ContactPrivate;
@@ -19,7 +20,9 @@ import org.fejoa.library2.messages.PublicCryptoEnvelope;
 import org.fejoa.library2.messages.SignatureEnvelope;
 import org.fejoa.library2.messages.ZipEnvelope;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +59,7 @@ public class EnvelopeTest extends TestCase {
 
         // zip
         byte[] zippedData = ZipEnvelope.zip(message.getBytes(), true);
-        byte[] unzippedData = Envelope.unpack(zippedData, myself, context);
+        byte[] unzippedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(zippedData), myself, context));
 
         assertEquals(message, new String(unzippedData));
 
@@ -64,15 +67,17 @@ public class EnvelopeTest extends TestCase {
         KeyPairItem key = myself.getEncryptionKeys().getDefault();
         byte[] encryptedData = PublicCryptoEnvelope.encrypt(message.getBytes(), true, key.getId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] decryptedData = Envelope.unpack(encryptedData, myself, context);
+        byte[] decryptedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(encryptedData), myself, context));
 
         assertEquals(message, new String(decryptedData));
 
         // combination
-        encryptedData = PublicCryptoEnvelope.encrypt(signedData, false, key.getId(),
+        InputStream signStream = SignatureEnvelope.signStream(message.getBytes(), true, myself, keyItemPair.getKeyId(),
+                cryptoSettings.signature);
+        InputStream zipStream = ZipEnvelope.zip(signStream, false);
+        InputStream encryptStream = PublicCryptoEnvelope.encrypt(zipStream, false, key.getId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] packedData = ZipEnvelope.zip(encryptedData, false);
-        byte[] rawData = Envelope.unpack(packedData, myself, context);
+        byte[] rawData = IOUtils.toByteArray(Envelope.unpack(encryptStream, myself, context));
 
         assertEquals(message, new String(rawData));
     }

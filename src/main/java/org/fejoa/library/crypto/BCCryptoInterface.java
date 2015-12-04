@@ -125,6 +125,19 @@ public class BCCryptoInterface implements ICryptoInterface {
     }
 
     @Override
+    public InputStream encryptSymmetric(InputStream in, SecretKey secretKey, byte[] iv,
+                                         CryptoSettings.Symmetric settings) throws CryptoException {
+        try {
+            Cipher cipher = Cipher.getInstance(settings.algorithm);
+            IvParameterSpec ips = new IvParameterSpec(iv);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ips);
+            return new CipherInputStream(in, cipher);
+        } catch (Exception e) {
+            throw new CryptoException(e.getMessage());
+        }
+    }
+
+    @Override
     public OutputStream encryptSymmetric(OutputStream out, SecretKey secretKey, byte[] iv,
                                          CryptoSettings.Symmetric settings) throws CryptoException {
         try {

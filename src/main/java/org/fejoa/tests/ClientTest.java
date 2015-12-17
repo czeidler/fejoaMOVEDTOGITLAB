@@ -11,11 +11,15 @@ import junit.framework.TestCase;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.Client;
 import org.fejoa.library2.Remote;
+import org.fejoa.library2.command.ICommand;
+import org.fejoa.library2.command.OutgoingCommandQueue;
+import org.fejoa.library2.command.OutgoingQueueManager;
 import org.fejoa.library2.remote.*;
 import org.fejoa.library2.util.LooperThread;
 import org.fejoa.server.JettyServer;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
@@ -32,7 +36,9 @@ public class ClientTest extends TestCase {
     private JettyServer server;
     private Client client;
     private LooperThread clientThread = new LooperThread(10);
-    private Semaphore finishedSemaphore = new Semaphore(0);
+
+    private boolean firstSyncFinished;
+    private Semaphore finishedSemaphore;
 
     class SimpleObserver implements Task.IObserver<Void, RemoteJob.Result> {
         final private Runnable onSuccess;
@@ -64,6 +70,9 @@ public class ClientTest extends TestCase {
     protected void setUp() throws Exception {
         super.setUp();
 
+        firstSyncFinished = false;
+        finishedSemaphore = new Semaphore(0);
+
         cleanUpDirs.add(TEST_DIR);
         for (String dir : cleanUpDirs)
             StorageLib.recursiveDeleteFile(new File(dir));
@@ -88,35 +97,60 @@ public class ClientTest extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
+    private void onFirstSyncFinished() throws IOException {
+        client.getUserData().getOutgoingCommandQueue().post(new ICommand() {
+            @Override
+            public byte[] getCommand() {
+                return "hello command".getBytes();
+            }
+        }, USER_NAME, SERVER_URL);
+    }
+
     private void onAccountCreated() throws Exception {
         System.out.print("Account Created");
-
-        client.create(USER_NAME, SERVER_URL, PASSWORD);
-        client.commit();
-
         // watch
-        Remote defaultRemote = client.getUserData().getRemoteList().getDefault();
-        final SyncManager syncManager = new SyncManager(client.getContext(), client.getConnectionManager(), defaultRemote);
-        syncManager.startWatching(client.getUserData().getStorageRefList().getEntries(),
-                new Task.IObserver<TaskUpdate, Void>() {
-                    @Override
-                    public void onProgress(TaskUpdate update) {
-                        System.out.println(update.toString());
-                        if (update.getProgress() == update.getTotalWork())
-                            syncManager.stopWatching();
+        client.startSyncing(new Task.IObserver<TaskUpdate, Void>() {
+            @Override
+            public void onProgress(TaskUpdate update) {
+                System.out.println(update.toString());
+                if (!firstSyncFinished && update.getTotalWork() > 0 && update.getProgress() == update.getTotalWork()) {
+                    firstSyncFinished = true;
+                    try {
+                        onFirstSyncFinished();
+                    } catch (IOException e) {
+                        fail(e.getMessage());
                     }
+                }
+            }
 
-                    @Override
-                    public void onResult(Void aVoid) {
-                        System.out.println("sync ok");
-                        finish();
-                    }
+            @Override
+            public void onResult(Void aVoid) {
+                System.out.println("sync ok");
+                finish();
+            }
 
-                    @Override
-                    public void onException(Exception exception) {
-                        fail();
-                    }
-                });
+            @Override
+            public void onException(Exception exception) {
+                fail();
+            }
+        });
+
+        client.startCommandHandling(new Task.IObserver<TaskUpdate, Void>() {
+            @Override
+            public void onProgress(TaskUpdate update) {
+                System.out.println(update.toString());
+            }
+
+            @Override
+            public void onResult(Void aVoid) {
+                System.out.println("Command sending finished");
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                fail();
+            }
+        });
     }
 
     private void finish() {
@@ -124,21 +158,19 @@ public class ClientTest extends TestCase {
     }
 
     public void testClient() throws Exception {
-        clientThread.post(new Runnable() {
+        client.create(USER_NAME, SERVER_URL, PASSWORD);
+        client.commit();
+
+        client.createAccount(USER_NAME, PASSWORD, SERVER_URL, new SimpleObserver(new Runnable() {
             @Override
             public void run() {
-                client.createAccount(USER_NAME, PASSWORD, SERVER_URL, new SimpleObserver(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            onAccountCreated();
-                        } catch (Exception e) {
-                            fail(e.getMessage());
-                        }
-                    }
-                }));
+                try {
+                    onAccountCreated();
+                } catch (Exception e) {
+                    fail(e.getMessage());
+                }
             }
-        });
+        }));
 
         finishedSemaphore.acquire();
         clientThread.quit(true);

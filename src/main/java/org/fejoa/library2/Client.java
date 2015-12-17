@@ -10,17 +10,19 @@ package org.fejoa.library2;
 
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library2.remote.ConnectionManager;
-import org.fejoa.library2.remote.CreateAccountJob;
-import org.fejoa.library2.remote.RemoteJob;
-import org.fejoa.library2.remote.Task;
+import org.fejoa.library2.command.IncomingCommandHandler;
+import org.fejoa.library2.command.OutgoingQueueManager;
+import org.fejoa.library2.remote.*;
 
 import java.io.IOException;
 
 public class Client {
     final private FejoaContext context;
-    ConnectionManager connectionManager;
+    private ConnectionManager connectionManager;
     private UserData userData;
+    private SyncManager syncManager;
+    private OutgoingQueueManager outgoingQueueManager;
+    private IncomingCommandHandler incomingCommandHandler;
 
     public Client(String home) {
         this.context = new FejoaContext(home);
@@ -56,13 +58,33 @@ public class Client {
 
     public void createAccount(String userName, String password, String server,
                               Task.IObserver<Void, RemoteJob.Result> observer) {
-        connectionManager.submit(new CreateAccountJob(userName, password, CryptoSettings.getDefault().masterPassword),
+        connectionManager.submit(new CreateAccountJob(userName, password, userData.getId(),
+                CryptoSettings.getDefault().masterPassword),
                 new ConnectionManager.ConnectionInfo(userName, server),
                 new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
                 observer);
     }
 
-    public void startSync() {
-
+    public void startSyncing(Task.IObserver<TaskUpdate, Void> observer) {
+        Remote defaultRemote = getUserData().getRemoteList().getDefault();
+        syncManager = new SyncManager(context, getConnectionManager(), defaultRemote);
+        syncManager.startWatching(getUserData().getStorageRefList().getEntries(), observer);
     }
+
+    public void stopSyncing() {
+        if (syncManager == null)
+            return;
+        syncManager.stopWatching();
+        syncManager = null;
+    }
+
+    public void startCommandHandling(Task.IObserver<TaskUpdate, Void> observer) {
+        outgoingQueueManager = new OutgoingQueueManager(userData.getOutgoingCommandQueue(), connectionManager);
+        outgoingQueueManager.start(observer);
+
+        incomingCommandHandler = new IncomingCommandHandler(userData.getIncomingCommandQueue());
+        incomingCommandHandler.start();
+    }
+
+
 }

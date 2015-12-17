@@ -8,8 +8,6 @@
 package org.fejoa.library2.remote;
 
 import org.eclipse.jgit.lib.*;
-import org.eclipse.jgit.merge.MergeStrategy;
-import org.eclipse.jgit.merge.Merger;
 import org.eclipse.jgit.transport.RefSpec;
 
 import java.io.IOException;
@@ -55,10 +53,10 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
         JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
         JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
 
-        String advertisementHeader = jsonRPC.call(GitSyncJob.METHOD, new JsonRPC.Argument("request",
+        String advertisementHeader = jsonRPC.call(METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
         startNewJsonRPC();
-        String header = jsonRPC.call(GitSyncJob.METHOD, new JsonRPC.Argument("request",
+        String header = jsonRPC.call(METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_PULL_DATA), serverUserArg, branchArg);
 
         GitTransportFejoa transport = new GitTransportFejoa(repository, remoteRequest, header);

@@ -44,8 +44,8 @@ public class SyncManager {
             sync(id, storageIdList.size(), observer);
     }
 
-    private void watch(Collection<Storage> storages, Task.IObserver<Void, WatchJob.Result> observer) {
-        watchFunction = connectionManager.submit(new WatchJob(context, remote.getUser(), storages),
+    private void watch(Collection<Storage> storageList, Task.IObserver<Void, WatchJob.Result> observer) {
+        watchFunction = connectionManager.submit(new WatchJob(context, remote.getUser(), storageList),
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
                 new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.ROOT, null),
                 observer);

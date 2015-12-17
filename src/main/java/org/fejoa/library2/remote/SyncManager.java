@@ -45,8 +45,6 @@ public class SyncManager {
     }
 
     private void watch(Collection<Storage> storages, Task.IObserver<Void, WatchJob.Result> observer) {
-        if (watchFunction != null)
-            return;
         watchFunction = connectionManager.submit(new WatchJob(context, remote.getUser(), storages),
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
                 new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.ROOT, null),
@@ -67,7 +65,7 @@ public class SyncManager {
             @Override
             public void onResult(WatchJob.Result result) {
                 // timeout?
-                if (result.updated.size() == 0) {
+                if (result.updated == null || result.updated.size() == 0) {
                     watch(storageList, this);
                     observer.onProgress(makeUpdate("timeout"));
                     return;

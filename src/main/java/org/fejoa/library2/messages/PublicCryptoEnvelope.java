@@ -8,6 +8,7 @@
 package org.fejoa.library2.messages;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.fejoa.library.KeyId;
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.support.StreamHelper;
 import org.fejoa.library2.ContactPrivate;
@@ -30,8 +31,8 @@ public class PublicCryptoEnvelope {
     static final public String SYMMETRIC_SETTINGS_KEY = "symSettings";
     static final public String PUBLIC_KEY_SETTINGS_KEY = "pubKeySettings";
 
-    static public InputStream encrypt(InputStream data, boolean isRawData, String keyId, PublicKey key, FejoaContext context)
-            throws JSONException, CryptoException, IOException {
+    static public InputStream encrypt(InputStream data, boolean isRawData, KeyId keyId, PublicKey key,
+                                      FejoaContext context) throws JSONException, CryptoException, IOException {
         JSONObject object = new JSONObject();
         object.put(Envelope.PACK_TYPE_KEY, CRYPTO_TYPE);
         if (isRawData)
@@ -48,7 +49,7 @@ public class PublicCryptoEnvelope {
         byte[] encSymKey = crypto.encryptAsymmetric(symKey.getEncoded(), key, pubKeySettings);
         String base64EncSymKey = DatatypeConverter.printBase64Binary(encSymKey);
 
-        object.put(PUBLIC_KEY_ID_KEY, keyId);
+        object.put(PUBLIC_KEY_ID_KEY, keyId.getKeyId());
         object.put(PUBLIC_KEY_SETTINGS_KEY, JsonCryptoSettings.toJson(pubKeySettings));
         object.put(IV_KEY, base64IV);
         object.put(ENC_SYMMETRIC_KEY_KEY, base64EncSymKey);
@@ -85,7 +86,7 @@ public class PublicCryptoEnvelope {
         return crypto.decryptSymmetric(inputStream, key, iv, symSettings);
     }
 
-    static public byte[] encrypt(byte[] data, boolean isRawData, String keyId, PublicKey key, FejoaContext context)
+    static public byte[] encrypt(byte[] data, boolean isRawData, KeyId keyId, PublicKey key, FejoaContext context)
             throws JSONException, CryptoException, IOException {
         JSONObject object = new JSONObject();
         object.put(Envelope.PACK_TYPE_KEY, CRYPTO_TYPE);
@@ -103,7 +104,7 @@ public class PublicCryptoEnvelope {
         byte[] encSymKey = crypto.encryptAsymmetric(symKey.getEncoded(), key, pubKeySettings);
         String base64EncSymKey = DatatypeConverter.printBase64Binary(encSymKey);
 
-        object.put(PUBLIC_KEY_ID_KEY, keyId);
+        object.put(PUBLIC_KEY_ID_KEY, keyId.getKeyId());
         object.put(PUBLIC_KEY_SETTINGS_KEY, JsonCryptoSettings.toJson(pubKeySettings));
         object.put(IV_KEY, base64IV);
         object.put(ENC_SYMMETRIC_KEY_KEY, base64EncSymKey);
@@ -118,8 +119,8 @@ public class PublicCryptoEnvelope {
         return outStream.toByteArray();
     }
 
-    static public byte[] decrypt(JSONObject header, InputStream inputStream, ContactPrivate contact, FejoaContext context)
-            throws JSONException, IOException, CryptoException {
+    static public byte[] decrypt(JSONObject header, InputStream inputStream, ContactPrivate contact,
+                                 FejoaContext context) throws JSONException, IOException, CryptoException {
         String keyId = header.getString(PUBLIC_KEY_ID_KEY);
         CryptoSettings.Asymmetric asymSettings = JsonCryptoSettings.asymFromJson(header.getJSONObject(
                 PUBLIC_KEY_SETTINGS_KEY));

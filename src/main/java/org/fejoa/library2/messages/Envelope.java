@@ -8,8 +8,7 @@
 package org.fejoa.library2.messages;
 
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library2.ContactPrivate;
-import org.fejoa.library2.FejoaContext;
+import org.fejoa.library2.*;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,8 +19,9 @@ public class Envelope {
     static final public String PACK_TYPE_KEY = "type";
     static final public String CONTAINS_DATA_KEY = "data";
 
-    static public InputStream unpack(InputStream pack, ContactPrivate contact, FejoaContext context) throws IOException,
-            JSONException, CryptoException {
+    static public InputStream unpack(InputStream pack, ContactPrivate contact,
+                                     IContactFinder<IContactPublic> contactFinder, FejoaContext context)
+            throws IOException, JSONException, CryptoException {
         int newLinePos = 0;
         final int BUFFER_SIZE = 1024;
         byte[] headerBuffer = new byte[BUFFER_SIZE];
@@ -40,7 +40,7 @@ public class Envelope {
         InputStream result;
         switch (packType) {
             case SignatureEnvelope.SIGNATURE_TYPE:
-                result = SignatureEnvelope.verifyStream(object, pack, contact);
+                result = SignatureEnvelope.verifyStream(object, pack, contactFinder);
                 break;
             case ZipEnvelope.ZIP_TYPE:
                 result = ZipEnvelope.unzipStream(object, pack);
@@ -53,11 +53,11 @@ public class Envelope {
         }
         if (object.has(CONTAINS_DATA_KEY) && object.getInt(CONTAINS_DATA_KEY) > 0)
             return result;
-        return unpack(result, contact, context);
+        return unpack(result, contact, contactFinder, context);
     }
 
-    static public byte[] unpack(byte[] pack, ContactPrivate contact, FejoaContext context) throws IOException,
-            JSONException, CryptoException {
+    static public byte[] unpack(byte[] pack, ContactPrivate contact, IContactFinder<IContactPublic> contactFinder,
+                                FejoaContext context) throws IOException, JSONException, CryptoException {
         int newLinePos = 0;
         for (; newLinePos < pack.length; newLinePos++) {
             if (pack[newLinePos] == '\n')
@@ -72,7 +72,7 @@ public class Envelope {
         byte[] data;
         switch (packType) {
             case SignatureEnvelope.SIGNATURE_TYPE:
-                data = SignatureEnvelope.verify(object, inputStream, contact);
+                data = SignatureEnvelope.verify(object, inputStream, contactFinder);
                 break;
             case ZipEnvelope.ZIP_TYPE:
                 data = ZipEnvelope.unzip(object, inputStream);
@@ -85,6 +85,6 @@ public class Envelope {
         }
         if (object.has(CONTAINS_DATA_KEY) && object.getInt(CONTAINS_DATA_KEY) > 0)
             return data;
-        return unpack(data, contact, context);
+        return unpack(data, contact, contactFinder, context);
     }
 }

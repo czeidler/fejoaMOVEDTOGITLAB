@@ -11,10 +11,7 @@ import junit.framework.TestCase;
 import org.apache.commons.io.IOUtils;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.ContactPrivate;
-import org.fejoa.library2.FejoaContext;
-import org.fejoa.library2.KeyPairItem;
-import org.fejoa.library2.UserData;
+import org.fejoa.library2.*;
 import org.fejoa.library2.messages.Envelope;
 import org.fejoa.library2.messages.PublicCryptoEnvelope;
 import org.fejoa.library2.messages.SignatureEnvelope;
@@ -44,7 +41,16 @@ public class EnvelopeTest extends TestCase {
 
         FejoaContext context = new FejoaContext(dir);
         UserData userData = UserData.create(context, "test");
-        ContactPrivate myself = userData.getIdentityStore().getMyself();
+        final ContactPrivate myself = userData.getIdentityStore().getMyself();
+        IContactFinder<IContactPublic> finder = new IContactFinder<IContactPublic>() {
+            @Override
+            public IContactPublic get(String contactId) {
+                if (contactId.equals(myself.getId()))
+                    return myself;
+                return null;
+            }
+        };
+
         CryptoSettings cryptoSettings = context.getCryptoSettings();
 
         final String message = "Hallo Fejoa";
@@ -53,21 +59,23 @@ public class EnvelopeTest extends TestCase {
         KeyPairItem keyItemPair = myself.getSignatureKeys().getDefault();
         byte[] signedData = SignatureEnvelope.sign(message.getBytes(), true, myself, keyItemPair.getKeyId(),
                 cryptoSettings.signature);
-        byte[] verifiedData = Envelope.unpack(signedData, myself, context);
+        byte[] verifiedData = Envelope.unpack(signedData, myself, finder, context);
 
         assertEquals(message, new String(verifiedData));
 
         // zip
         byte[] zippedData = ZipEnvelope.zip(message.getBytes(), true);
-        byte[] unzippedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(zippedData), myself, context));
+        byte[] unzippedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(zippedData), myself,
+                finder, context));
 
         assertEquals(message, new String(unzippedData));
 
         // public, sym encryption
         KeyPairItem key = myself.getEncryptionKeys().getDefault();
-        byte[] encryptedData = PublicCryptoEnvelope.encrypt(message.getBytes(), true, key.getId(),
+        byte[] encryptedData = PublicCryptoEnvelope.encrypt(message.getBytes(), true, key.getKeyId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] decryptedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(encryptedData), myself, context));
+        byte[] decryptedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(encryptedData), myself,
+                finder, context));
 
         assertEquals(message, new String(decryptedData));
 
@@ -75,9 +83,9 @@ public class EnvelopeTest extends TestCase {
         InputStream signStream = SignatureEnvelope.signStream(message.getBytes(), true, myself, keyItemPair.getKeyId(),
                 cryptoSettings.signature);
         InputStream zipStream = ZipEnvelope.zip(signStream, false);
-        InputStream encryptStream = PublicCryptoEnvelope.encrypt(zipStream, false, key.getId(),
+        InputStream encryptStream = PublicCryptoEnvelope.encrypt(zipStream, false, key.getKeyId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] rawData = IOUtils.toByteArray(Envelope.unpack(encryptStream, myself, context));
+        byte[] rawData = IOUtils.toByteArray(Envelope.unpack(encryptStream, myself, finder, context));
 
         assertEquals(message, new String(rawData));
     }

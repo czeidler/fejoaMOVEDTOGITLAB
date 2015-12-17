@@ -13,6 +13,7 @@ import org.fejoa.library.crypto.CryptoSettings;
 
 
 public interface IContactPublic {
+    String getId();
     boolean verify(KeyId keyId, byte[] data, byte[] signature, CryptoSettings.Signature signatureSettings)
             throws CryptoException;
 }

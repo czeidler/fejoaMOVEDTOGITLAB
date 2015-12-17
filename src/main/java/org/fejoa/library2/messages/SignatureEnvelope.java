@@ -13,6 +13,7 @@ import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.crypto.JsonCryptoSettings;
 import org.fejoa.library.support.StreamHelper;
+import org.fejoa.library2.IContactFinder;
 import org.fejoa.library2.IContactPrivate;
 import org.fejoa.library2.IContactPublic;
 import org.json.JSONException;
@@ -24,6 +25,7 @@ import java.io.*;
 public class SignatureEnvelope {
     static final public String SIGNATURE_TYPE = "signature";
     static final private String SIGNATURE_KEY = "signature";
+    static final private String SENDER_ID_KEY = "senderId";
     static final private String KEY_ID_KEY = "keyId";
     static final private String SETTINGS_KEY = "settings";
 
@@ -37,6 +39,7 @@ public class SignatureEnvelope {
         if (isRawData)
             object.put(Envelope.CONTAINS_DATA_KEY, 1);
         object.put(KEY_ID_KEY, keyId.toString());
+        object.put(SENDER_ID_KEY, contactPrivate.getId());
         object.put(SIGNATURE_KEY, signature);
         object.put(SETTINGS_KEY, JsonCryptoSettings.toJson(settings));
         String header = object.toString() + "\n";
@@ -44,13 +47,29 @@ public class SignatureEnvelope {
         return new SequenceInputStream(new ByteArrayInputStream(header.getBytes()), new ByteArrayInputStream(data));
     }
 
-    static InputStream verifyStream(JSONObject header, InputStream inputStream, IContactPublic contact)
+    /**
+     * Verifies the signature of the input stream
+     *
+     * @param header
+     * @param inputStream
+     * @param contactFinder
+     * @return
+     * @throws IOException
+     * @throws JSONException
+     * @throws CryptoException
+     */
+    static InputStream verifyStream(JSONObject header, InputStream inputStream,
+                                    IContactFinder<IContactPublic> contactFinder)
             throws IOException, JSONException, CryptoException {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         StreamHelper.copy(inputStream, outStream);
         byte[] data = outStream.toByteArray();
 
         // verify
+        String senderId = header.getString(SENDER_ID_KEY);
+        IContactPublic contact = contactFinder.get(senderId);
+        if (contact == null)
+            throw new IOException("Unknown sender!");
         KeyId keyId = new KeyId(header.getString(KEY_ID_KEY));
         byte[] signature = CryptoHelper.fromHex(header.getString(SIGNATURE_KEY));
         CryptoSettings.Signature settings = JsonCryptoSettings.signatureFromJson(header.getJSONObject(SETTINGS_KEY));
@@ -61,6 +80,7 @@ public class SignatureEnvelope {
         return new ByteArrayInputStream(data);
     }
 
+
     static public byte[] sign(byte[] data, boolean isRawData, IContactPrivate contactPrivate, KeyId keyId,
                               CryptoSettings.Signature settings) throws CryptoException, JSONException, IOException {
         byte[] hash = CryptoHelper.sha256Hash(data);
@@ -70,6 +90,7 @@ public class SignatureEnvelope {
         if (isRawData)
             object.put(Envelope.CONTAINS_DATA_KEY, 1);
         object.put(KEY_ID_KEY, keyId.toString());
+        object.put(SENDER_ID_KEY, contactPrivate.getId());
         object.put(SIGNATURE_KEY, signature);
         object.put(SETTINGS_KEY, JsonCryptoSettings.toJson(settings));
         String header = object.toString() + "\n";
@@ -80,13 +101,18 @@ public class SignatureEnvelope {
         return outStream.toByteArray();
     }
 
-    static public byte[] verify(JSONObject header, InputStream inputStream, IContactPublic contact) throws IOException,
-            JSONException, CryptoException {
+    static public byte[] verify(JSONObject header, InputStream inputStream,
+                                IContactFinder<IContactPublic> contactFinder)
+            throws IOException, JSONException, CryptoException {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         StreamHelper.copy(inputStream, outStream);
         byte[] data = outStream.toByteArray();
 
         // verify
+        String senderId = header.getString(SENDER_ID_KEY);
+        IContactPublic contact = contactFinder.get(senderId);
+        if (contact == null)
+            throw new IOException("Unknown sender!");
         KeyId keyId = new KeyId(header.getString(KEY_ID_KEY));
         byte[] signature = CryptoHelper.fromHex(header.getString(SIGNATURE_KEY));
         CryptoSettings.Signature settings = JsonCryptoSettings.signatureFromJson(header.getJSONObject(SETTINGS_KEY));

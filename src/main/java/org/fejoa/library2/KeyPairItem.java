@@ -19,47 +19,6 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 
-class PublicKeyItem implements IStorageDirBundle {
-    final private String PATH_KEY = "key";
-
-    private String id;
-    private PublicKey key;
-    private CryptoSettings.KeyTypeSettings typeSettings;
-
-    PublicKeyItem() {
-
-    }
-
-    PublicKeyItem(PublicKey key, CryptoSettings.KeyTypeSettings settings) {
-        this.id = CryptoHelper.sha1HashHex(key.getEncoded());
-        this.key = key;
-        this.typeSettings = settings;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    @Override
-    public void write(StorageDir dir) throws IOException {
-        dir.writeString(Constants.ID_KEY, id);
-        KeyPairItem.write(key, dir, PATH_KEY);
-        CryptoSettingsIO.write(typeSettings, dir, "");
-    }
-
-    @Override
-    public void read(StorageDir dir) throws IOException {
-        id = dir.readString(Constants.ID_KEY);
-        key = KeyPairItem.read(dir, PATH_KEY);
-        CryptoSettingsIO.read(typeSettings, dir, "");
-    }
-
-    public PublicKey getKey() {
-        return key;
-    }
-}
-
-
 public class KeyPairItem implements IStorageDirBundle {
     final private String PATH_PRIVATE_KEY = "privateKey";
     final private String PATH_PUBLIC_KEY = "publicKey";

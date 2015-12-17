@@ -1,5 +1,12 @@
 package org.fejoa.server;
 
+import org.fejoa.library2.FejoaContext;
+import org.fejoa.library2.UserData;
+import org.fejoa.library2.command.IncomingCommandQueue;
+import org.fejoa.library2.database.StorageDir;
+import org.fejoa.library2.remote.CreateAccountJob;
+import org.json.JSONObject;
+
 import javax.servlet.http.HttpSession;
 import java.util.HashSet;
 
@@ -19,7 +26,7 @@ public class Session {
         return baseDir;
     }
 
-    public String serverUserDir(String serverUser) {
+    public String getServerUserDir(String serverUser) {
         return getBaseDir() + "/" + serverUser;
     }
 
@@ -42,5 +49,21 @@ public class Session {
         if (roles == null)
             return new HashSet<>();
         return roles;
+    }
+
+    public AccountSettings getAccountSettings(String serverUser) {
+        return new AccountSettings(getServerUserDir(serverUser));
+    }
+
+    public IncomingCommandQueue getIncomingCommandQueue(String serverUser) throws Exception {
+        JSONObject settings = getAccountSettings(serverUser).getSettings();
+        if (!settings.has(CreateAccountJob.USER_DATA_BRANCH_KEY))
+            throw new Exception("No user data branch set");
+        String userDataBranch = settings.getString(CreateAccountJob.USER_DATA_BRANCH_KEY);
+        FejoaContext context = new FejoaContext(getServerUserDir(serverUser));
+        StorageDir userDataDir = context.getStorage(userDataBranch);
+        String incomingQueueBranch = userDataDir.readString(UserData.IN_COMMAND_QUEUE_ID_KEY);
+        StorageDir incomingQueueDir = context.getStorage(incomingQueueBranch);
+        return new IncomingCommandQueue(incomingQueueDir);
     }
 }

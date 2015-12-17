@@ -33,6 +33,10 @@ public class StorageDir {
         cache.addListener(listener);
     }
 
+    public void removeListener(IListener listener) {
+        cache.removeListener(listener);
+    }
+
     /**
      * The StorageDirCache is shared between all StorageDir that are build from the same parent.
      */

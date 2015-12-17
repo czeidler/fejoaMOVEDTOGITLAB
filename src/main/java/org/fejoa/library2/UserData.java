@@ -8,6 +8,8 @@
 package org.fejoa.library2;
 
 import org.fejoa.library.crypto.*;
+import org.fejoa.library2.command.IncomingCommandQueue;
+import org.fejoa.library2.command.OutgoingCommandQueue;
 import org.fejoa.library2.database.StorageDir;
 
 import javax.crypto.SecretKey;
@@ -22,7 +24,7 @@ public class UserData extends StorageKeyStore {
     final static private String REMOTES_LIST_DIR = "remotes";
     final static private String IDENTITY_STORE_KEY = "identity";
     final static private String CONTACT_STORE_KEY = "contacts";
-    final static private String IN_COMMAND_QUEUE_ID_KEY = "inCommandQueue";
+    final static public String IN_COMMAND_QUEUE_ID_KEY = "inCommandQueue";
     final static private String OUT_COMMAND_QUEUE_ID_KEY = "outCommandQueue";
 
     static public UserData create(FejoaContext context, String password) throws IOException, CryptoException {
@@ -62,15 +64,18 @@ public class UserData extends StorageKeyStore {
             return entry;
         }
     });
+    final private StorageDir plainTextDir;
     private RemoteList remoteList;
     private IdentityStore identityStore;
     private StorageKeyStore contactStore;
     private IncomingCommandQueue incomingCommandQueue;
     private OutgoingCommandQueue outgoingCommandQueue;
 
-
     private UserData(FejoaContext context, StorageDir dir) {
         super(context, dir);
+
+        plainTextDir = new StorageDir(dir);
+        plainTextDir.setFilter(null);
     }
 
     private void create(String password) throws IOException, CryptoException {
@@ -90,6 +95,8 @@ public class UserData extends StorageKeyStore {
         // storage list
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
         storageRefList.setTo(storageListDir);
+
+        addStorage(getId());
         addStorage(keyStore.getId());
 
         // remote list
@@ -116,12 +123,14 @@ public class UserData extends StorageKeyStore {
         String incomingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
         StorageDir inCommandQueueDir = context.getStorage(incomingCommandQueueId);
         incomingCommandQueue = new IncomingCommandQueue(inCommandQueueDir);
-        storageDir.writeString(IN_COMMAND_QUEUE_ID_KEY, incomingCommandQueue.getId());
+        plainTextDir.writeString(IN_COMMAND_QUEUE_ID_KEY, incomingCommandQueue.getId());
+        addStorage(incomingCommandQueue.getId());
 
         String outgoingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
         StorageDir outCommandQueueDir = context.getStorage(outgoingCommandQueueId);
         outgoingCommandQueue = new OutgoingCommandQueue(outCommandQueueDir);
         storageDir.writeString(OUT_COMMAND_QUEUE_ID_KEY, outgoingCommandQueue.getId());
+        addStorage(outgoingCommandQueue.getId());
     }
 
     private void open(String password) throws IOException, CryptoException {
@@ -137,6 +146,9 @@ public class UserData extends StorageKeyStore {
         StorageDir storageListDir = new StorageDir(storageDir, STORAGE_LIST_DIR);
         storageRefList.setTo(storageListDir);
 
+        // ourselves to the list
+        addStorage(getId());
+
         // remote list
         StorageDir remotesDir = new StorageDir(storageDir, REMOTES_LIST_DIR);
         remoteList.setTo(remotesDir);
@@ -145,23 +157,31 @@ public class UserData extends StorageKeyStore {
         String identityKeysId = storageDir.readString(IDENTITY_STORE_KEY);
         StorageDir identityKeysDir = context.getStorage(identityKeysId);
         identityStore = IdentityStore.open(context, identityKeysDir, keyStores);
+        addStorage(identityStore.getId());
 
         // contacts
         String contactStoreId = storageDir.readString(CONTACT_STORE_KEY);
         StorageDir contactStoreDir = context.getStorage(contactStoreId);
         contactStore = ContactStore.open(context, contactStoreDir, keyStores);
+        addStorage(contactStore.getId());
 
         // command queues
-        String inCommandQueueId = storageDir.readString(IN_COMMAND_QUEUE_ID_KEY);
+        String inCommandQueueId = plainTextDir.readString(IN_COMMAND_QUEUE_ID_KEY);
         incomingCommandQueue = new IncomingCommandQueue(context.getStorage(inCommandQueueId));
+        addStorage(incomingCommandQueue.getId());
         String outCommandQueueId = storageDir.readString(OUT_COMMAND_QUEUE_ID_KEY);
         outgoingCommandQueue = new OutgoingCommandQueue(context.getStorage(outCommandQueueId));
+        addStorage(outgoingCommandQueue.getId());
     }
 
     public void commit() throws IOException {
-        keyStore.commit();
         storageDir.commit();
+
+        keyStore.commit();
         identityStore.commit();
+
+        incomingCommandQueue.commit();
+        outgoingCommandQueue.commit();
     }
 
     private void addStorage(String storageId) throws IOException {
@@ -178,5 +198,13 @@ public class UserData extends StorageKeyStore {
 
     public StorageDirList<Storage> getStorageRefList() {
         return storageRefList;
+    }
+
+    public IncomingCommandQueue getIncomingCommandQueue() {
+        return incomingCommandQueue;
+    }
+
+    public OutgoingCommandQueue getOutgoingCommandQueue() {
+        return outgoingCommandQueue;
     }
 }

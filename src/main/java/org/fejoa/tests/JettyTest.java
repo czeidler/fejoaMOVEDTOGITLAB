@@ -132,7 +132,7 @@ public class JettyTest extends TestCase {
     public void testSimple() throws Exception {
         connectionManager.submit(new JsonPingJob(), connectionInfo, authInfo, observer);
 
-        connectionManager.submit(new CreateAccountJob("userName", "password",
+        connectionManager.submit(new CreateAccountJob("userName", "password", "noUserDataBranch",
                 CryptoSettings.getDefault().masterPassword), connectionInfo, authInfo, observer);
         Thread.sleep(1000);
 

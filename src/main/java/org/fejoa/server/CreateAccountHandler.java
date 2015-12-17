@@ -17,8 +17,6 @@ import java.io.*;
 
 
 public class CreateAccountHandler extends JsonRequestHandler {
-    static final public String ACCOUNT_INFO_FILE = "account.info";
-
     public CreateAccountHandler() {
         super(CreateAccountJob.METHOD);
     }
@@ -53,17 +51,13 @@ public class CreateAccountHandler extends JsonRequestHandler {
         if (userName.contains(".") || userName.contains("/"))
             return "invalid user name";
 
-        File dir = new File(session.serverUserDir(userName));
+        File dir = new File(session.getServerUserDir(userName));
         if (dir.exists())
             return "user already exist";
         if (!dir.mkdirs())
             return "can't create user dir";
-        File accountInfoFile = new File(dir, ACCOUNT_INFO_FILE);
         try {
-            Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(accountInfoFile)));
-            writer.write(params.toString());
-            writer.flush();
-            writer.close();
+            session.getAccountSettings(userName).update(params, null);
         } catch (IOException e) {
             e.printStackTrace();
             StorageLib.recursiveDeleteFile(dir);

@@ -30,9 +30,7 @@ public class RootLoginRequestHandler extends JsonRequestHandler {
         String request = params.getString("request");
         String userName = params.getString(CreateAccountJob.USER_NAME_KEY);
 
-        String content = new Scanner(new File(session.serverUserDir(userName),
-                CreateAccountHandler.ACCOUNT_INFO_FILE)).useDelimiter("\\Z").next();
-        JSONObject userConfig = new JSONObject(content);
+        JSONObject userConfig = session.getAccountSettings(userName).getSettings();
 
         if (request.equals(RootLoginJob.PARAMETER_REQUEST)) {
             String saltBase64 = userConfig.getString(CreateAccountJob.SALT_BASE64_KEY);

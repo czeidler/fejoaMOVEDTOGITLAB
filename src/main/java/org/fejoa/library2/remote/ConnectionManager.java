@@ -88,6 +88,7 @@ public class ConnectionManager {
     final private ContactPrivate myself;
     final private TokenManager tokenManager = new TokenManager();
     private Task.IScheduler startScheduler = new Task.NewThreadScheduler();
+    private Task.IScheduler observerScheduler = new Task.CurrentThreadScheduler();
 
     public ConnectionManager(ContactPrivate myself) {
         this.myself = myself;
@@ -98,18 +99,23 @@ public class ConnectionManager {
         this.startScheduler = startScheduler;
     }
 
+    public void setObserverScheduler(Task.IScheduler scheduler) {
+        this.observerScheduler = scheduler;
+    }
+
     public <T extends RemoteJob.Result> Task.ICancelFunction submit(final JsonRemoteJob<T> job,
                                                                     ConnectionInfo connectionInfo,
                                                                     final AuthInfo authInfo,
                                                                     final Task.IObserver<Void, T> observer) {
         IRemoteRequest remoteRequest = getAuthRequest(getRemoteRequest(connectionInfo), authInfo);
-        return runJob(remoteRequest, job).setStartScheduler(startScheduler).start(observer);
+        return runJob(remoteRequest, job).setStartScheduler(startScheduler).setObserverScheduler(observerScheduler)
+                .start(observer);
     }
 
     private <T extends RemoteJob.Result> Task<Void, T> runJob(final IRemoteRequest remoteRequest,
                                                               final JsonRemoteJob<T> job) {
 
-        return new Task<Void, T>(new Task.ITaskFunction<Void, T>() {
+        return new Task<>(new Task.ITaskFunction<Void, T>() {
             @Override
             public void run(Task<Void, T> task) throws Exception {
                 try {

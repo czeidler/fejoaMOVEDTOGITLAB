@@ -8,6 +8,8 @@
 package org.fejoa.library2.remote;
 
 
+import org.fejoa.library2.util.LooperThread;
+
 public class Task<Update, Result> {
     public interface ICancelFunction {
         void cancel();
@@ -25,6 +27,19 @@ public class Task<Update, Result> {
 
     public interface IScheduler {
         void run(Runnable runnable);
+    }
+
+    static public class LooperThreadScheduler implements IScheduler {
+        final private LooperThread thread;
+
+        public LooperThreadScheduler(LooperThread thread) {
+            this.thread = thread;
+        }
+
+        @Override
+        public void run(Runnable runnable) {
+            thread.post(runnable);
+        }
     }
 
     static public class NewThreadScheduler implements IScheduler {

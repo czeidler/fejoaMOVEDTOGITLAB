@@ -62,7 +62,6 @@ abstract class Contact<T> implements IContactPublic {
 
     public void setId(String id) throws IOException {
         this.id = id;
-        storageDir.writeString(Constants.ID_KEY, id);
     }
 
     public String getId() {

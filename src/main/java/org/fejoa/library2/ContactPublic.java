@@ -19,7 +19,12 @@ public class ContactPublic extends Contact<PublicKeyItem> {
 
     private RemoteList remotes;
 
-    public ContactPublic(FejoaContext context) {
+    /**
+     * Should not be called directly but by the contact store.
+     *
+     * @param context the used context.
+     */
+    ContactPublic(FejoaContext context) {
         super(context, getEntryIO(), null);
     }
 
@@ -53,5 +58,9 @@ public class ContactPublic extends Contact<PublicKeyItem> {
     @Override
     public PublicKey getVerificationKey(KeyId keyId) {
         return signatureKeys.get(keyId.toString()).getKey();
+    }
+
+    public RemoteList getRemotes() {
+        return remotes;
     }
 }

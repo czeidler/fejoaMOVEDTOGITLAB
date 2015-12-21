@@ -8,11 +8,28 @@
 package org.fejoa.library.crypto;
 
 import org.fejoa.library2.Constants;
+import org.fejoa.library2.database.StorageDir;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
+
 
 public class JsonCryptoSettings {
+    static public JSONObject toJson(CryptoSettings.KeyTypeSettings keyTypeSettings) throws JSONException {
+        JSONObject object = new JSONObject();
+        object.put(Constants.KEY_SIZE_KEY, keyTypeSettings.keySize);
+        object.put(Constants.KEY_TYPE_KEY, keyTypeSettings.keyType);
+        return object;
+    }
+
+    static public CryptoSettings.KeyTypeSettings keyTypeFromJson(JSONObject object) throws JSONException {
+        CryptoSettings.KeyTypeSettings settings = new CryptoSettings.KeyTypeSettings();
+        settings.keySize = object.getInt(Constants.KEY_SIZE_KEY);
+        settings.keyType = object.getString(Constants.KEY_TYPE_KEY);
+        return settings;
+    }
+
     static public JSONObject toJson(CryptoSettings.Signature settings) throws JSONException {
         JSONObject object = new JSONObject();
         object.put(Constants.KEY_SIZE_KEY, settings.keySize);

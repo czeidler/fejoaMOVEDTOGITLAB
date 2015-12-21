@@ -36,7 +36,7 @@ public class ContactStore extends StorageKeyStore {
     protected ContactStore(final FejoaContext context, StorageDir dir) {
         super(context, dir);
 
-        contactList = new StorageDirList<>(
+        contactList = new StorageDirList<>(dir,
                 new StorageDirList.IEntryIO<ContactPublic>() {
                     @Override
                     public String getId(ContactPublic entry) {
@@ -50,6 +50,7 @@ public class ContactStore extends StorageKeyStore {
 
                     @Override
                     public void write(ContactPublic entry, StorageDir dir) throws IOException {
+                        dir.writeString(Constants.ID_KEY, entry.getId());
                         entry.setStorageDir(dir);
                     }
                 });
@@ -66,10 +67,15 @@ public class ContactStore extends StorageKeyStore {
         super.open(keyStores);
     }
 
-    public ContactPublic addConntact(String id) throws IOException {
-        ContactPublic contactPublic = new ContactPublic(context);
-        contactList.add(contactPublic);
-        contactPublic.setId(id);
-        return contactPublic;
+    public ContactPublic addContact(String id) throws IOException {
+        ContactPublic contact = new ContactPublic(context);
+        contact.setId(id);
+        // contact needs an id before added to the contact list
+        contactList.add(contact);
+        return contact;
+    }
+
+    public StorageDirList<ContactPublic> getContactList() {
+        return contactList;
     }
 }

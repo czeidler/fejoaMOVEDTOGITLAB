@@ -28,7 +28,7 @@ public class PublicKeyItem implements IStorageDirBundle {
 
     }
 
-    PublicKeyItem(PublicKey key, CryptoSettings.KeyTypeSettings settings) {
+    public PublicKeyItem(PublicKey key, CryptoSettings.KeyTypeSettings settings) {
         this.id = CryptoHelper.sha1HashHex(key.getEncoded());
         this.key = key;
         this.typeSettings = settings;

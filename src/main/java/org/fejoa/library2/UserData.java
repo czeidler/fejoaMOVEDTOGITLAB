@@ -67,7 +67,7 @@ public class UserData extends StorageKeyStore {
     final private StorageDir plainTextDir;
     private RemoteList remoteList;
     private IdentityStore identityStore;
-    private StorageKeyStore contactStore;
+    private ContactStore contactStore;
     private IncomingCommandQueue incomingCommandQueue;
     private OutgoingCommandQueue outgoingCommandQueue;
 
@@ -107,8 +107,10 @@ public class UserData extends StorageKeyStore {
         identityStore = IdentityStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
         storageDir.writeString(IDENTITY_STORE_KEY, identityStore.getId());
         KeyPair signatureKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().signature);
-        String signatureKeyId = identityStore.addSignatureKeyPair(signatureKeyPair, context.getCryptoSettings().signature);
+        String signatureKeyId = identityStore.addSignatureKeyPair(signatureKeyPair,
+                context.getCryptoSettings().signature);
         identityStore.setDefaultSignatureKey(signatureKeyId);
+        identityStore.getMyself().setId(signatureKeyId);
         KeyPair publicKeyPair = context.getCrypto().generateKeyPair(context.getCryptoSettings().publicKey);
         String publicKeyId = identityStore.addEncryptionKeyPair(publicKeyPair, context.getCryptoSettings().publicKey);
         identityStore.setDefaultEncryptionKey(publicKeyId);
@@ -179,6 +181,7 @@ public class UserData extends StorageKeyStore {
 
         keyStore.commit();
         identityStore.commit();
+        contactStore.commit();
 
         incomingCommandQueue.commit();
         outgoingCommandQueue.commit();
@@ -194,6 +197,10 @@ public class UserData extends StorageKeyStore {
 
     public IdentityStore getIdentityStore() {
         return identityStore;
+    }
+
+    public ContactStore getContactStore() {
+        return contactStore;
     }
 
     public StorageDirList<Storage> getStorageRefList() {

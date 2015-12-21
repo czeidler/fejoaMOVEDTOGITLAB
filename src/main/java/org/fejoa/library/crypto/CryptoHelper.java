@@ -121,16 +121,25 @@ public class CryptoHelper {
         return convertToPEM("PRIVATE KEY", key);
     }
 
+    static public PrivateKey privateKeyFromRaw(byte[] key, String keyType) throws Exception {
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(key);
+        KeyFactory keyFactory = KeyFactory.getInstance(keyType);
+        return keyFactory.generatePrivate(spec);
+    }
+
+    static public PublicKey publicKeyFromRaw(byte[] key, String keyType) throws Exception {
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(key);
+        KeyFactory keyFactory = KeyFactory.getInstance(keyType);
+        return keyFactory.generatePublic(spec);
+    }
+
     static public PublicKey publicKeyFromPem(String pemKey) {
         pemKey = pemKey.replace("-----BEGIN PUBLIC KEY-----\n", "");
         pemKey = pemKey.replace("-----END PUBLIC KEY-----", "");
 
         byte [] decoded = DatatypeConverter.parseBase64Binary(pemKey);
-
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
         try {
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            return keyFactory.generatePublic(spec);
+            return publicKeyFromRaw(decoded, "RSA");
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -142,11 +151,8 @@ public class CryptoHelper {
         pemKey = pemKey.replace("-----END PRIVATE KEY-----", "");
 
         byte [] decoded = DatatypeConverter.parseBase64Binary(pemKey);
-
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decoded);
         try {
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            return keyFactory.generatePrivate(spec);
+            return privateKeyFromRaw(decoded, "RSA");
         } catch (Exception e) {
             e.printStackTrace();
             return null;

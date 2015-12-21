@@ -77,4 +77,8 @@ public class KeyPairItem implements IStorageDirBundle {
     public KeyPair getKeyPair() {
         return keyPair;
     }
+
+    public CryptoSettings.KeyTypeSettings getKeyTypeSettings() {
+        return typeSettings;
+    }
 }

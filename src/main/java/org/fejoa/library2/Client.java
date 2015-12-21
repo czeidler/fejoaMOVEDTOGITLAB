@@ -10,7 +10,7 @@ package org.fejoa.library2;
 
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library2.command.IncomingCommandHandler;
+import org.fejoa.library2.command.IncomingCommandManager;
 import org.fejoa.library2.command.OutgoingQueueManager;
 import org.fejoa.library2.remote.*;
 
@@ -22,7 +22,7 @@ public class Client {
     private UserData userData;
     private SyncManager syncManager;
     private OutgoingQueueManager outgoingQueueManager;
-    private IncomingCommandHandler incomingCommandHandler;
+    private IncomingCommandManager incomingCommandManager;
 
     public Client(String home) {
         this.context = new FejoaContext(home);
@@ -78,13 +78,15 @@ public class Client {
         syncManager = null;
     }
 
-    public void startCommandHandling(Task.IObserver<TaskUpdate, Void> observer) {
+    public void startCommandManagers(Task.IObserver<TaskUpdate, Void> outgoingCommandObserver) {
         outgoingQueueManager = new OutgoingQueueManager(userData.getOutgoingCommandQueue(), connectionManager);
-        outgoingQueueManager.start(observer);
+        outgoingQueueManager.start(outgoingCommandObserver);
 
-        incomingCommandHandler = new IncomingCommandHandler(userData.getIncomingCommandQueue());
-        incomingCommandHandler.start();
+        incomingCommandManager = new IncomingCommandManager(context, userData);
+        incomingCommandManager.start();
     }
 
-
+    public IncomingCommandManager getIncomingCommandManager() {
+        return incomingCommandManager;
+    }
 }

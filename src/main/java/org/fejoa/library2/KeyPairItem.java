@@ -37,32 +37,26 @@ public class KeyPairItem implements IStorageDirBundle {
         this.typeSettings = typeSettings;
     }
 
-    static void write(PublicKey key, StorageDir dir, String storageKey) throws IOException {
-        String publicKeyPem = CryptoHelper.convertToPEM(key);
-        dir.writeString(storageKey, publicKeyPem);
-    }
-
-    static PublicKey read(StorageDir dir, String storageKey) throws IOException {
-        String publicKeyPem = dir.readString(storageKey);
-        return CryptoHelper.publicKeyFromPem(publicKeyPem);
-    }
-
     @Override
     public void write(StorageDir dir) throws IOException {
         dir.writeString(Constants.ID_KEY, id);
-        String privateKeyPem = CryptoHelper.convertToPEM(keyPair.getPrivate());
-        dir.writeString(PATH_PRIVATE_KEY, privateKeyPem);
-        write(keyPair.getPublic(), dir, PATH_PUBLIC_KEY);
+        dir.writeBytes(PATH_PRIVATE_KEY, keyPair.getPrivate().getEncoded());
+        dir.writeBytes(PATH_PUBLIC_KEY, keyPair.getPublic().getEncoded());
         CryptoSettingsIO.write(typeSettings, dir, "");
     }
 
     @Override
     public void read(StorageDir dir) throws IOException {
         id = dir.readString(Constants.ID_KEY);
-        String privateKeyPem = dir.readString(PATH_PRIVATE_KEY);
-        PrivateKey privateKey = CryptoHelper.privateKeyFromPem((privateKeyPem));
-        PublicKey publicKey = read(dir, PATH_PUBLIC_KEY);
         CryptoSettingsIO.read(typeSettings, dir, "");
+        PrivateKey privateKey;
+        PublicKey publicKey;
+        try {
+            privateKey = CryptoHelper.privateKeyFromRaw(dir.readBytes(PATH_PRIVATE_KEY), typeSettings.keyType);
+            publicKey = CryptoHelper.publicKeyFromRaw(dir.readBytes(PATH_PUBLIC_KEY), typeSettings.keyType);
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
         keyPair = new KeyPair(publicKey, privateKey);
     }
 

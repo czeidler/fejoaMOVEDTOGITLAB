@@ -45,15 +45,19 @@ public class PublicKeyItem implements IStorageDirBundle {
     @Override
     public void write(StorageDir dir) throws IOException {
         dir.writeString(Constants.ID_KEY, id);
-        KeyPairItem.write(key, dir, PATH_KEY);
+        dir.writeBytes(PATH_KEY, key.getEncoded());
         CryptoSettingsIO.write(typeSettings, dir, "");
     }
 
     @Override
     public void read(StorageDir dir) throws IOException {
         id = dir.readString(Constants.ID_KEY);
-        key = KeyPairItem.read(dir, PATH_KEY);
         CryptoSettingsIO.read(typeSettings, dir, "");
+        try {
+            key = CryptoHelper.publicKeyFromRaw(dir.readBytes(PATH_KEY), typeSettings.keyType);
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
     }
 
     public PublicKey getKey() {

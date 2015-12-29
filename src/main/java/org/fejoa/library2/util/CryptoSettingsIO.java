@@ -36,6 +36,12 @@ public class CryptoSettingsIO {
         dir.writeInt(key(keyPrefix, IV_SIZE_KEY), settings.ivSize);
     }
 
+    static public void write(CryptoSettings.Signature settings, StorageDir dir, String keyPrefix)
+            throws IOException {
+        write((CryptoSettings.KeyTypeSettings)settings, dir, keyPrefix);
+        dir.writeString(key(keyPrefix, ALGORITHM_KEY), settings.algorithm);
+    }
+
     static public void write(CryptoSettings.KeyTypeSettings keyTypeSettings, StorageDir dir, String keyPrefix)
             throws IOException {
         dir.writeInt(key(keyPrefix, KEY_SIZE_KEY), keyTypeSettings.keySize);
@@ -52,10 +58,15 @@ public class CryptoSettingsIO {
         settings.ivSize = dir.readInt(key(keyPrefix, IV_SIZE_KEY));
     }
 
+    static public void read(CryptoSettings.Signature settings, StorageDir dir, String keyPrefix)
+            throws IOException {
+        read((CryptoSettings.KeyTypeSettings)settings, dir, keyPrefix);
+        settings.algorithm = dir.readString(key(keyPrefix, ALGORITHM_KEY));
+    }
+
     static public void read(CryptoSettings.KeyTypeSettings keyTypeSettings, StorageDir dir, String keyPrefix)
             throws IOException {
         keyTypeSettings.keySize = dir.readInt(key(keyPrefix, KEY_SIZE_KEY));
         keyTypeSettings.keyType = dir.readString(key(keyPrefix, KEY_TYPE));
     }
-
 }

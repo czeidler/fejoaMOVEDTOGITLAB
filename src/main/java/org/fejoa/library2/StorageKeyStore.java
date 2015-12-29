@@ -69,6 +69,10 @@ public class StorageKeyStore {
         storageDir.commit();
     }
 
+    public FejoaContext getContext() {
+        return context;
+    }
+
     public String getId() {
         return storageDir.getBranch();
     }

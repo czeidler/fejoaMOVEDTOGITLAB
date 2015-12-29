@@ -78,4 +78,13 @@ public class ContactStore extends StorageKeyStore {
     public StorageDirList<ContactPublic> getContactList() {
         return contactList;
     }
+
+    public IContactFinder<IContactPublic> getContactFinder() {
+        return new IContactFinder<IContactPublic>() {
+            @Override
+            public ContactPublic get(String contactId) {
+                return contactList.get(contactId);
+            }
+        };
+    }
 }

@@ -9,12 +9,9 @@ package org.fejoa.tests;
 
 import junit.framework.TestCase;
 import org.fejoa.library.support.StorageLib;
+import org.fejoa.library2.*;
 import org.fejoa.library2.Client;
-import org.fejoa.library2.ContactPublic;
-import org.fejoa.library2.Remote;
-import org.fejoa.library2.command.ContactRequest;
-import org.fejoa.library2.command.ContactRequestHandler;
-import org.fejoa.library2.command.IncomingCommandManager;
+import org.fejoa.library2.command.*;
 import org.fejoa.library2.remote.*;
 import org.fejoa.library2.util.LooperThread;
 import org.fejoa.server.JettyServer;
@@ -31,15 +28,20 @@ public class ClientTest extends TestCase {
 
         public void setNextTask(TestTask nextTask) {
             if (this.nextTask != null)
-                fail("next task already set!");
+                finishAndFail("next task already set!");
             this.nextTask = nextTask;
         }
 
+        protected void cleanUp() {
+
+        }
+
         protected void onTaskPerformed() {
+            cleanUp();
             try {
                 nextTask.perform(this);
             } catch (Exception e) {
-                fail(e.getMessage());
+                finishAndFail(e.getMessage());
             }
         }
 
@@ -58,7 +60,7 @@ public class ClientTest extends TestCase {
     final static String TEST_DIR = "jettyTest";
     final static String SERVER_TEST_DIR = TEST_DIR + "/Server";
     final static String SERVER_URL = "http://localhost:8080/";
-    final static String USER_NAME_1 = "testUser";
+    final static String USER_NAME_1 = "testUser1";
     final static String USER_NAME_2 = "testUser2";
     final static String PASSWORD = "password";
 
@@ -88,14 +90,14 @@ public class ClientTest extends TestCase {
         @Override
         public void onResult(RemoteJob.Result result) {
             if (result.status != RemoteJob.Result.DONE)
-                fail(result.message);
+                finishAndFail(result.message);
             System.out.println("onNext: " + result.message);
             onSuccess.run();
         }
 
         @Override
         public void onException(Exception exception) {
-            fail(exception.getMessage());
+            finishAndFail(exception.getMessage());
         }
     }
 
@@ -135,6 +137,11 @@ public class ClientTest extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
+    private void finishAndFail(String message) {
+        finishedSemaphore.release();
+        fail(message);
+    }
+
     class FinishTask extends TestTask {
         @Override
         protected void perform(TestTask previousTask) throws Exception {
@@ -164,36 +171,62 @@ public class ClientTest extends TestCase {
     }
 
     class ContactRequestTask extends TestTask {
-        private IncomingCommandManager.IListener listener = new IncomingCommandManager.IListener() {
+        private ContactRequest contactRequest = new ContactRequest(client1);
+        private ContactRequest.IHandler handler = new ContactRequest.AutoAcceptHandler() {
             @Override
-            public void onCommandReceived(IncomingCommandManager.ReturnValue returnValue) {
-                if (returnValue.command.equals(ContactRequest.COMMAND_NAME)) {
-                    String contactId = ((ContactRequestHandler.ReturnValue)returnValue).contactId;
-                    ContactPublic contactPublic = client2.getUserData().getContactStore().getContactList().get(
-                            contactId);
-                    Remote remote = contactPublic.getRemotes().getDefault();
-                    System.out.println("Contact received: " + contactId + " user: " + remote.getUser() + " server: "
-                            + remote.getServer());
-
-                    client2.getIncomingCommandManager().removeListener(this);
-                    onTaskPerformed();
-                } else
-                    fail("unexpected command");
+            public void onFinish() {
+                onTaskPerformed();
             }
 
             @Override
             public void onException(Exception exception) {
-                fail(exception.getMessage());
+                finishAndFail(exception.getMessage());
             }
         };
 
         @Override
         protected void perform(TestTask previousTask) throws Exception {
-            client1.getUserData().getOutgoingCommandQueue().post(new ContactRequest(client1.getContext(),
-                    client1.getUserData().getIdentityStore().getMyself(),
-                    client1.getUserData().getRemoteList().getDefault()), USER_NAME_2, SERVER_URL);
+            contactRequest.startRequest(USER_NAME_2, SERVER_URL, handler);
+        }
+    }
 
-            client2.getIncomingCommandManager().addListener(listener);
+    class GrantAccessTask extends TestTask {
+        private IncomingCommandManager.IListener listener = new IncomingCommandManager.IListener() {
+            @Override
+            public void onCommandReceived(IncomingCommandManager.ReturnValue returnValue) {
+                if (returnValue.command.equals(AccessCommand.COMMAND_NAME)) {
+                    AccessCommandHandler.ReturnValue ret = (AccessCommandHandler.ReturnValue)returnValue;
+                    String contactId = ret.contactId;
+                    AccessTokenContact accessTokenContact = ret.accessTokenContact;
+                    System.out.println("Access granted: " + contactId + " access entry: "
+                            + accessTokenContact.getAccessEntry());
+
+                    onTaskPerformed();
+                }
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                finishAndFail(exception.getMessage());
+            }
+        };
+
+        @Override
+        protected void perform(TestTask previousTask) throws Exception {
+            client1.getIncomingCommandManager().addListener(listener);
+
+            UserData clientUserData = client2.getUserData();
+            ContactStore contactStore = clientUserData.getContactStore();
+            ContactPublic client2Contact = contactStore.getContactList().get(
+                    client1.getUserData().getIdentityStore().getMyself().getId());
+
+            // grant access to the access branch
+            client2.grantAccess(clientUserData.getAccessStore().getId(), AccessRight.PULL, client2Contact);
+        }
+
+        @Override
+        protected void cleanUp() {
+            client2.getIncomingCommandManager().removeListener(listener);
         }
     }
 
@@ -217,7 +250,7 @@ public class ClientTest extends TestCase {
                     try {
                         onAccountCreated(client, status);
                     } catch (Exception e) {
-                        fail(e.getMessage());
+                        finishAndFail(e.getMessage());
                     }
                 }
             }));
@@ -244,7 +277,7 @@ public class ClientTest extends TestCase {
 
                 @Override
                 public void onException(Exception exception) {
-                    fail();
+                    finishAndFail(exception.getMessage());
                 }
             });
         }
@@ -263,28 +296,27 @@ public class ClientTest extends TestCase {
 
                 @Override
                 public void onException(Exception exception) {
-                    fail();
+                    finishAndFail(exception.getMessage());
                 }
             });
         }
+    }
+
+    private void chainUpTasks(TestTask... tasks) {
+        for (int i = 0; i < tasks.length - 1; i++)
+            tasks[i].setNextTask(tasks[i + 1]);
     }
 
     public void testClient() throws Exception {
         CreateAndSyncAccountTask createAccountTask1 = new CreateAndSyncAccountTask(client1, clientStatus1);
         CreateAndSyncAccountTask createAccountTask2 = new CreateAndSyncAccountTask(client2, clientStatus2);
 
-        // merge both
-        MergeTask firstSyncMergeTask = new MergeTask(createAccountTask1, createAccountTask2);
-
-        // contact request
-        ContactRequestTask contactRequestTask = new ContactRequestTask();
-        firstSyncMergeTask.setNextTask(contactRequestTask);
-
-        // finish
-        FinishTask finishTask = new FinishTask();
-        contactRequestTask.setNextTask(finishTask);
-
         // start it
+        chainUpTasks(new MergeTask(createAccountTask1, createAccountTask2),
+                new ContactRequestTask(),
+                new GrantAccessTask(),
+                new FinishTask());
+
         createAccountTask1.perform(null);
         createAccountTask2.perform(null);
 

@@ -1,5 +1,13 @@
+/*
+ * Copyright 2015.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.server;
 
+import org.fejoa.library2.AccessTokenServer;
 import org.fejoa.library2.FejoaContext;
 import org.fejoa.library2.UserData;
 import org.fejoa.library2.command.IncomingCommandQueue;
@@ -55,15 +63,28 @@ public class Session {
         return new AccountSettings(getServerUserDir(serverUser));
     }
 
-    public IncomingCommandQueue getIncomingCommandQueue(String serverUser) throws Exception {
+    private String getUserDataBranch(String serverUser) throws Exception {
         JSONObject settings = getAccountSettings(serverUser).getSettings();
         if (!settings.has(CreateAccountJob.USER_DATA_BRANCH_KEY))
             throw new Exception("No user data branch set");
-        String userDataBranch = settings.getString(CreateAccountJob.USER_DATA_BRANCH_KEY);
+        return settings.getString(CreateAccountJob.USER_DATA_BRANCH_KEY);
+    }
+
+    public IncomingCommandQueue getIncomingCommandQueue(String serverUser) throws Exception {
+        String userDataBranch = getUserDataBranch(serverUser);
         FejoaContext context = new FejoaContext(getServerUserDir(serverUser));
         StorageDir userDataDir = context.getStorage(userDataBranch);
         String incomingQueueBranch = userDataDir.readString(UserData.IN_COMMAND_QUEUE_ID_KEY);
         StorageDir incomingQueueDir = context.getStorage(incomingQueueBranch);
         return new IncomingCommandQueue(incomingQueueDir);
+    }
+
+    public AccessTokenServer getAccessToken(String serverUser, String tokenId) throws Exception {
+        String userDataBranch = getUserDataBranch(serverUser);
+        FejoaContext context = new FejoaContext(getServerUserDir(serverUser));
+        StorageDir userDataDir = context.getStorage(userDataBranch);
+        String accessStoreId = userDataDir.readString(UserData.ACCESS_STORE_KEY);
+        StorageDir tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);
+        return new AccessTokenServer(context, tokenDir);
     }
 }

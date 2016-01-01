@@ -10,11 +10,9 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.AccessToken;
-import org.fejoa.library2.AccessTokenContact;
-import org.fejoa.library2.AccessTokenServer;
-import org.fejoa.library2.FejoaContext;
+import org.fejoa.library2.*;
 import org.fejoa.library2.database.StorageDir;
+import org.json.JSONArray;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -50,18 +48,22 @@ public class AccessStoreTest extends TestCase {
 
         // create token
         AccessToken accessToken = AccessToken.create(context);
-        accessToken.setAccessEntry("test");
+        AccessRight accessRight = new AccessRight("branch");
+        accessRight.setGitAccessRights(AccessRight.PULL);
+        JSONArray accessRights = new JSONArray();
+        accessRights.put(accessRight.toJson());
+        accessToken.setAccessEntry(accessRights.toString());
         accessToken.write(serverDir);
         serverDir.commit();
 
         // test to reopen it
         serverDir = context.getStorage("server");
         accessToken = AccessToken.open(context, serverDir);
-        String contactToken = accessToken.getContactToken();
+        String contactToken = accessToken.getContactToken().toString();
 
         // pass it to the contact
         AccessTokenContact accessTokenContact = new AccessTokenContact(context, contactToken);
-        assertEquals("test", accessTokenContact.getAccessEntry());
+        assertEquals(accessRights.toString(), accessTokenContact.getAccessEntry());
 
         // let the server verify the access
         AccessTokenServer accessTokenServer = new AccessTokenServer(context, serverDir);

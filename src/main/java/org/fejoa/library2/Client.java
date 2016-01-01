@@ -7,14 +7,15 @@
  */
 package org.fejoa.library2;
 
-
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library2.command.IncomingCommandManager;
-import org.fejoa.library2.command.OutgoingQueueManager;
+import org.fejoa.library2.command.*;
 import org.fejoa.library2.remote.*;
+import org.json.JSONArray;
+import org.json.JSONException;
 
 import java.io.IOException;
+
 
 public class Client {
     final private FejoaContext context;
@@ -23,6 +24,8 @@ public class Client {
     private SyncManager syncManager;
     private OutgoingQueueManager outgoingQueueManager;
     private IncomingCommandManager incomingCommandManager;
+
+    private IncommingContactRequestHandler contactRequestHandler = new IncommingContactRequestHandler(this, null);
 
     public Client(String home) {
         this.context = new FejoaContext(home);
@@ -82,11 +85,33 @@ public class Client {
         outgoingQueueManager = new OutgoingQueueManager(userData.getOutgoingCommandQueue(), connectionManager);
         outgoingQueueManager.start(outgoingCommandObserver);
 
-        incomingCommandManager = new IncomingCommandManager(context, userData);
+        incomingCommandManager = new IncomingCommandManager(userData);
         incomingCommandManager.start();
+
+        contactRequestHandler.start();
     }
 
     public IncomingCommandManager getIncomingCommandManager() {
         return incomingCommandManager;
+    }
+
+    public void grantAccess(String branch, int rights, ContactPublic contact) throws CryptoException, JSONException,
+            IOException {
+        AccessRight accessRight = new AccessRight(branch);
+        accessRight.setGitAccessRights(rights);
+
+        JSONArray accessRights = new JSONArray();
+        accessRights.put(accessRight.toJson());
+
+        AccessToken accessToken = AccessToken.create(context);
+        accessToken.setAccessEntry(accessRights.toString());
+
+        userData.getAccessStore().addAccessToken(accessToken);
+
+        // send command to contact
+        AccessCommand accessCommand = new AccessCommand(context, userData.getIdentityStore().getMyself(), contact,
+                accessToken);
+        userData.getOutgoingCommandQueue().post(accessCommand, contact.getRemotes().getDefault(), true);
+        userData.getAccessStore().commit();
     }
 }

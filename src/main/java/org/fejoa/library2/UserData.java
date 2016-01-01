@@ -24,6 +24,7 @@ public class UserData extends StorageKeyStore {
     final static private String REMOTES_LIST_DIR = "remotes";
     final static private String IDENTITY_STORE_KEY = "identity";
     final static private String CONTACT_STORE_KEY = "contacts";
+    final static public String ACCESS_STORE_KEY = "access";
     final static public String IN_COMMAND_QUEUE_ID_KEY = "inCommandQueue";
     final static private String OUT_COMMAND_QUEUE_ID_KEY = "outCommandQueue";
 
@@ -68,6 +69,7 @@ public class UserData extends StorageKeyStore {
     private RemoteList remoteList;
     private IdentityStore identityStore;
     private ContactStore contactStore;
+    private AccessStore accessStore;
     private IncomingCommandQueue incomingCommandQueue;
     private OutgoingCommandQueue outgoingCommandQueue;
 
@@ -121,6 +123,14 @@ public class UserData extends StorageKeyStore {
         storageDir.writeString(CONTACT_STORE_KEY, contactStore.getId());
         addStorage(contactStore.getId());
 
+        // access store
+        accessStore = AccessStore.create(context, CryptoHelper.generateSha1Id(Crypto.get()), keyStore, keyId);
+        // the server needs access to the access store so make the branch id public
+        StorageDir plainStorageDir = new StorageDir(storageDir);
+        plainStorageDir.setFilter(null);
+        plainStorageDir.writeString(ACCESS_STORE_KEY, accessStore.getId());
+        addStorage(accessStore.getId());
+
         // command queues
         String incomingCommandQueueId = CryptoHelper.generateSha1Id(Crypto.get());
         StorageDir inCommandQueueDir = context.getStorage(incomingCommandQueueId);
@@ -167,6 +177,14 @@ public class UserData extends StorageKeyStore {
         contactStore = ContactStore.open(context, contactStoreDir, keyStores);
         addStorage(contactStore.getId());
 
+        // access
+        StorageDir plainStorageDir = new StorageDir(storageDir);
+        plainStorageDir.setFilter(null);
+        String accessStoreId = plainStorageDir.readString(ACCESS_STORE_KEY);
+        StorageDir accessStoreDir = context.getStorage(accessStoreId);
+        accessStore = AccessStore.open(context, accessStoreDir, keyStores);
+        addStorage(accessStore.getId());
+
         // command queues
         String inCommandQueueId = plainTextDir.readString(IN_COMMAND_QUEUE_ID_KEY);
         incomingCommandQueue = new IncomingCommandQueue(context.getStorage(inCommandQueueId));
@@ -181,6 +199,7 @@ public class UserData extends StorageKeyStore {
 
         keyStore.commit();
         identityStore.commit();
+        accessStore.commit();
         contactStore.commit();
 
         incomingCommandQueue.commit();
@@ -201,6 +220,10 @@ public class UserData extends StorageKeyStore {
 
     public ContactStore getContactStore() {
         return contactStore;
+    }
+
+    public AccessStore getAccessStore() {
+        return accessStore;
     }
 
     public StorageDirList<Storage> getStorageRefList() {

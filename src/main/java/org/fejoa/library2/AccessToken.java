@@ -87,14 +87,15 @@ public class AccessToken implements IStorageDirBundle {
         return CryptoHelper.sha1HashHex(contactAuthKey.getPublic().getEncoded());
     }
 
-    public String getContactToken() throws JSONException, CryptoException {
+    public JSONObject getContactToken() throws JSONException, CryptoException {
         JSONObject jsonObject = new JSONObject();
+        jsonObject.put(Constants.ID_KEY, getId());
         jsonObject.put(ACCESS_ENTRY_SIGNATURE_KEY, DatatypeConverter.printBase64Binary(getAccessEntrySignature()));
         jsonObject.put(ACCESS_ENTRY_KEY, accessEntry);
         jsonObject.put(CONTACT_AUTH_KEY_JSON_SETTINGS_KEY, JsonCryptoSettings.toJson(contactAuthKeySettings));
         jsonObject.put(CONTACT_AUTH_PRIVATE_KEY_KEY, DatatypeConverter.printBase64Binary(
                 contactAuthKey.getPrivate().getEncoded()));
-        return jsonObject.toString();
+        return jsonObject;
     }
 
     @Override

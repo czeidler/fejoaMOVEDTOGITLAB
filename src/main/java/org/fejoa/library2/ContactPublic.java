@@ -16,8 +16,10 @@ import java.security.PublicKey;
 
 public class ContactPublic extends Contact<PublicKeyItem> {
     final static private String REMOTES_DIR = "remotes";
+    final static private String ACCESS_DIR = "access";
 
     private RemoteList remotes;
+    private AccessTokenContactList access;
 
     /**
      * Should not be called directly but by the contact store.
@@ -53,6 +55,7 @@ public class ContactPublic extends Contact<PublicKeyItem> {
         super.setStorageDir(dir);
 
         remotes = new RemoteList(new StorageDir(storageDir, REMOTES_DIR));
+        access = new AccessTokenContactList(context, new StorageDir(storageDir, ACCESS_DIR));
     }
 
     @Override
@@ -62,5 +65,9 @@ public class ContactPublic extends Contact<PublicKeyItem> {
 
     public RemoteList getRemotes() {
         return remotes;
+    }
+
+    public AccessTokenContactList getAccessTokenList() {
+        return access;
     }
 }

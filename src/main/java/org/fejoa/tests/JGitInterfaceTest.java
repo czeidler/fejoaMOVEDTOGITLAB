@@ -176,6 +176,11 @@ public class JGitInterfaceTest extends TestCase {
         entries = git.listDirectories("");
         assertTrue(entries.size() == 0);
 
+        git.writeBytes("dir/file", "data".getBytes());
+        git.remove("dir");
+        entries = git.listDirectories("");
+        assertTrue(entries.size() == 0);
+
         final String remoteUid = "testRemoteUid";
         final String remoteBranch = "testRemoteBranch";
         final String tip = git.getTip();

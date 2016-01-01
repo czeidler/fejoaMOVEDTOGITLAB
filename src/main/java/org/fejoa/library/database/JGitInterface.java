@@ -399,10 +399,13 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public void remove(String path) throws IOException {
-        if (isDirectory(path))
+        /*if (isDirectory(path))
             rmDirectory(path);
         else
-            rmFile(path);
+            rmFile(path);*/
+        //todo isDirectory is not always working, see testRemove
+        rmFile(path);
+        rmDirectory(path);
     }
 
     @Override

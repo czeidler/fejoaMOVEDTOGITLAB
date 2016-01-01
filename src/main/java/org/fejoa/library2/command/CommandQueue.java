@@ -40,6 +40,11 @@ abstract class CommandQueue<T extends CommandQueue.Entry> {
         }
 
         @Override
+        public String toString() {
+            return hash();
+        }
+
+        @Override
         public void write(StorageDir dir) throws IOException {
             dir.writeBytes(COMMAND_KEY, data);
         }

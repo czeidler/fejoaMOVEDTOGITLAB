@@ -25,7 +25,7 @@ public class PublicKeyItem implements IStorageDirBundle {
     private CryptoSettings.KeyTypeSettings typeSettings;
 
     PublicKeyItem() {
-
+        this.typeSettings = new CryptoSettings.KeyTypeSettings();
     }
 
     public PublicKeyItem(PublicKey key, CryptoSettings.KeyTypeSettings settings) {

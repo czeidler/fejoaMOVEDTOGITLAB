@@ -16,7 +16,7 @@ import java.util.List;
 
 
 public class ContactStore extends StorageKeyStore {
-    final private StorageDirList<ContactPublic> contactList;
+    private StorageDirList<ContactPublic> contactList;
 
     static public ContactStore create(FejoaContext context, String id, KeyStore keyStore, KeyId keyId)
             throws IOException, CryptoException {
@@ -35,8 +35,22 @@ public class ContactStore extends StorageKeyStore {
 
     protected ContactStore(final FejoaContext context, StorageDir dir) {
         super(context, dir);
+    }
 
-        contactList = new StorageDirList<>(dir,
+    @Override
+    protected void create(KeyStore keyStore, KeyId keyId) throws IOException, CryptoException {
+        super.create(keyStore, keyId);
+        init();
+    }
+
+    @Override
+    protected void open(List<KeyStore> keyStores) throws IOException, CryptoException {
+        super.open(keyStores);
+        init();
+    }
+
+    private void init() {
+        contactList = new StorageDirList<>(storageDir,
                 new StorageDirList.IEntryIO<ContactPublic>() {
                     @Override
                     public String getId(ContactPublic entry) {
@@ -54,17 +68,6 @@ public class ContactStore extends StorageKeyStore {
                         entry.setStorageDir(dir);
                     }
                 });
-    }
-
-    @Override
-    protected void create(KeyStore keyStore, KeyId keyId) throws IOException, CryptoException {
-        super.create(keyStore, keyId);
-
-    }
-
-    @Override
-    protected void open(List<KeyStore> keyStores) throws IOException, CryptoException {
-        super.open(keyStores);
     }
 
     public ContactPublic addContact(String id) throws IOException {

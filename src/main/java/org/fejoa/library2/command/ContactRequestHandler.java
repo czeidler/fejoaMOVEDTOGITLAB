@@ -18,64 +18,68 @@ import javax.xml.bind.DatatypeConverter;
 import java.security.PublicKey;
 
 
-public class ContactRequestHandler implements IncomingCommandManager.Handler {
-    final private FejoaContext context;
+public class ContactRequestHandler extends EnvelopeCommandHandler {
     final private ContactStore contactStore;
 
     static public class ReturnValue extends IncomingCommandManager.ReturnValue {
         final public String contactId;
+        final public String state;
 
-        public ReturnValue(int status, String command, String contactId) {
-            super(status, command);
+        public ReturnValue(int status, String contactId, String state) {
+            super(status, ContactRequestCommand.COMMAND_NAME);
             this.contactId = contactId;
+            this.state = state;
         }
     }
 
-    public ContactRequestHandler(FejoaContext context, ContactStore contactStore) {
-        this.context = context;
-        this.contactStore = contactStore;
+    public ContactRequestHandler(UserData userData) {
+        super(userData, ContactRequestCommand.COMMAND_NAME);
+        this.contactStore = userData.getContactStore();
     }
 
     @Override
-    public IncomingCommandManager.ReturnValue handle(CommandQueue.Entry command) throws Exception {
-        JSONObject object = new JSONObject(new String(command.getData()));
+    protected IncomingCommandManager.ReturnValue handle(JSONObject command) throws Exception {
+        String state = command.getString(ContactRequestCommand.STATE);
+        String id = command.getString(Constants.ID_KEY);
+        if (state.equals(ContactRequestCommand.FINISH_STATE))
+            return new ReturnValue(IncomingCommandManager.ReturnValue.HANDLED, id, state);
 
-        String id = object.getString(Constants.ID_KEY);
-        String signingKeyBase64 = object.getString(ContactRequest.SIGNING_KEY_KEY);
-        CryptoSettings.KeyTypeSettings signingKeySettings = JsonCryptoSettings.keyTypeFromJson(object.getJSONObject(
-                ContactRequest.SIGNATURE_SETTINGS_KEY));
-        String publicKeyBase64 = object.getString(ContactRequest.PUBLIC_KEY_KEY);
-        CryptoSettings.KeyTypeSettings publicKeySettings = JsonCryptoSettings.keyTypeFromJson(object.getJSONObject(
-                ContactRequest.PUBLIC_KEY_SETTINGS_KEY));
+        String signingKeyBase64 = command.getString(ContactRequestCommand.SIGNING_KEY_KEY);
+        CryptoSettings.KeyTypeSettings signingKeySettings = JsonCryptoSettings.keyTypeFromJson(command.getJSONObject(
+                ContactRequestCommand.SIGNATURE_SETTINGS_KEY));
+        String publicKeyBase64 = command.getString(ContactRequestCommand.PUBLIC_KEY_KEY);
+        CryptoSettings.KeyTypeSettings publicKeySettings = JsonCryptoSettings.keyTypeFromJson(command.getJSONObject(
+                ContactRequestCommand.PUBLIC_KEY_SETTINGS_KEY));
 
         byte[] signingKeyRaw = DatatypeConverter.parseBase64Binary(signingKeyBase64);
         PublicKey signingKey = CryptoHelper.publicKeyFromRaw(signingKeyRaw, signingKeySettings.keyType);
         byte[] publicKeyRaw = DatatypeConverter.parseBase64Binary(publicKeyBase64);
         PublicKey publicKey = CryptoHelper.publicKeyFromRaw(publicKeyRaw, publicKeySettings.keyType);
 
-        String serverUser = object.getString(ContactRequest.USER_KEY);
-        String server = object.getString(ContactRequest.USER_SERVER_KEY);
+        String serverUser = command.getString(ContactRequestCommand.USER_KEY);
+        String server = command.getString(ContactRequestCommand.USER_SERVER_KEY);
         Remote remote = new Remote(serverUser, server);
 
         PublicKeyItem signingKeyItem = new PublicKeyItem(signingKey, signingKeySettings);
         PublicKeyItem publicKeyItem = new PublicKeyItem(publicKey, publicKeySettings);
 
         String hash = CryptoHelper.sha256HashHex(id + signingKeyBase64 + publicKeyBase64);
-        byte[] signature = DatatypeConverter.parseBase64Binary(object.getString(ContactRequest.SIGNATURE_KEY));
-        CryptoSettings.Signature signatureSettings = JsonCryptoSettings.signatureFromJson(object.getJSONObject(
-                ContactRequest.SIGNATURE_SETTINGS_KEY));
+        byte[] signature = DatatypeConverter.parseBase64Binary(command.getString(ContactRequestCommand.SIGNATURE_KEY));
+        CryptoSettings.Signature signatureSettings = JsonCryptoSettings.signatureFromJson(command.getJSONObject(
+                ContactRequestCommand.SIGNATURE_SETTINGS_KEY));
         ICryptoInterface crypto = context.getCrypto();
         if (!crypto.verifySignature(hash.getBytes(), signature, signingKey, signatureSettings))
             throw new Exception("Contact request with invalid signature!");
 
         ContactPublic contactPublic = contactStore.addContact(id);
         contactPublic.addSignatureKey(signingKeyItem);
+        contactPublic.getSignatureKeys().setDefault(signingKeyItem);
         contactPublic.addEncryptionKey(publicKeyItem);
+        contactPublic.getEncryptionKeys().setDefault(publicKeyItem);
         contactPublic.getRemotes().add(remote);
         contactPublic.getRemotes().setDefault(remote);
         contactStore.commit();
 
-        return new ReturnValue(IncomingCommandManager.ReturnValue.HANDLED,
-                ContactRequest.COMMAND_NAME, id);
+        return new ReturnValue(IncomingCommandManager.ReturnValue.HANDLED, id, state);
     }
 }

@@ -7,6 +7,7 @@
  */
 package org.fejoa.library2.command;
 
+import org.fejoa.library2.Remote;
 import org.fejoa.library2.database.StorageDir;
 
 import java.io.IOException;
@@ -58,6 +59,10 @@ public class OutgoingCommandQueue extends CommandQueue<OutgoingCommandQueue.Entr
 
     public OutgoingCommandQueue(StorageDir dir) throws IOException {
         super(dir);
+    }
+
+    public void post(ICommand command, Remote receiver, boolean commit) throws IOException {
+        post(command, receiver.getUser(), receiver.getServer(), commit);
     }
 
     public void post(ICommand command, String user, String server, boolean commit)

@@ -20,11 +20,11 @@ import java.io.IOException;
 import java.io.InputStream;
 
 
-public class SignedCryptoCommand implements ICommand {
+public class EncryptedZipSignedCommand implements ICommand {
     final private byte[] command;
 
-    public SignedCryptoCommand(FejoaContext context, String command, ContactPrivate sender,
-                               ContactPublic receiver) throws IOException, CryptoException, JSONException {
+    public EncryptedZipSignedCommand(FejoaContext context, String command, ContactPrivate sender,
+                                     ContactPublic receiver) throws IOException, CryptoException, JSONException {
         KeyPairItem signKey = sender.getSignatureKeys().getDefault();
         CryptoSettings cryptoSettings = context.getCryptoSettings();
         InputStream signStream = SignatureEnvelope.signStream(command.getBytes(), true, sender, signKey.getKeyId(),

@@ -7,20 +7,20 @@
  */
 package org.fejoa.library2.command;
 
-
 import org.apache.commons.io.IOUtils;
-import org.fejoa.library2.messages.PlainEnvelope;
+import org.fejoa.library2.messages.ZipEnvelope;
 import org.json.JSONException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class PlainTextCommand implements ICommand {
+
+public class ZipCommand implements ICommand {
     final private byte[] command;
 
-    public PlainTextCommand(String command) throws JSONException, IOException {
-        InputStream inputStream = PlainEnvelope.pack(new ByteArrayInputStream(command.getBytes()), true);
+    public ZipCommand(String command) throws JSONException, IOException {
+        InputStream inputStream = ZipEnvelope.zip(new ByteArrayInputStream(command.getBytes()), true);
         this.command = IOUtils.toByteArray(inputStream);
     }
 

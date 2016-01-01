@@ -39,6 +39,9 @@ public class Envelope {
 
         InputStream result;
         switch (packType) {
+            case PlainEnvelope.PLAIN_TYPE:
+                result = PlainEnvelope.unpack(pack);
+                break;
             case SignatureEnvelope.SIGNATURE_TYPE:
                 result = SignatureEnvelope.verifyStream(object, pack, contactFinder);
                 break;

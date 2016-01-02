@@ -67,6 +67,45 @@ public class JettyTest extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
+    public void testSync2() throws Exception {
+        String serverUser = "user1";
+        String localGitDir = TEST_DIR + "/.git";
+        String BRANCH = "testBranch";
+
+        // push
+        JGitInterface gitInterface = new JGitInterface();
+        gitInterface.init(localGitDir, BRANCH, true);
+        gitInterface.writeBytes("id", "testData".getBytes());
+        gitInterface.commit();
+        sync(connectionManager, gitInterface, serverUser);
+
+        // do changes on the server
+        JGitInterface serverGit = new JGitInterface();
+        serverGit.init(SERVER_TEST_DIR + "/" + serverUser + "/.git", BRANCH, false);
+        serverGit.writeBytes("hash/command", "testData".getBytes());
+        serverGit.commit();
+        sync(connectionManager, gitInterface, serverUser);
+
+        serverGit.writeBytes("hash2/command", "testData".getBytes());
+        serverGit.commit();
+
+        // client delete
+        gitInterface.remove("hash");
+        gitInterface.commit();
+        sync(connectionManager, gitInterface, serverUser);
+
+        // test trivial merge
+        serverGit.writeBytes("hash3/command", "testData".getBytes());
+        serverGit.commit();
+        sync(connectionManager, gitInterface, serverUser);
+
+        // pull into empty git
+        StorageLib.recursiveDeleteFile(new File(localGitDir));
+        gitInterface = new JGitInterface();
+        gitInterface.init(localGitDir, BRANCH, true);
+        sync(connectionManager, gitInterface, serverUser);
+    }
+
     public void testSync() throws Exception {
         String serverUser = "user1";
         String localGitDir = TEST_DIR + "/.git";
@@ -87,6 +126,7 @@ public class JettyTest extends TestCase {
 
         // merge
         gitInterface.writeBytes("testFile2", "testDataClient2".getBytes());
+        gitInterface.remove("testFile");
         gitInterface.commit();
 
         // sync

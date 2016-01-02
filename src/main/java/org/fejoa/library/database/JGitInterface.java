@@ -14,19 +14,24 @@ import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEntry;
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.Merger;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
+import org.eclipse.jgit.treewalk.NameConflictTreeWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 
 import java.io.*;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -360,6 +365,41 @@ public class JGitInterface implements IDatabaseInterface {
         return true;
     }
 
+    private String mergeCommit(ObjectId tree, RevCommit parent1, RevCommit parent2)
+            throws IOException {
+        CommitBuilder commit = new CommitBuilder();
+        PersonIdent personIdent = new PersonIdent("Client", "");
+        commit.setCommitter(personIdent);
+        commit.setAuthor(personIdent);
+        commit.setMessage("merge");
+        commit.setTreeId(tree);
+        commit.addParentId(parent1);
+        commit.addParentId(parent2);
+        String tip = getTip();
+        ObjectId oldTip;
+        if (tip.equals(""))
+            oldTip = ObjectId.zeroId();
+        else {
+            oldTip = ObjectId.fromString(tip);
+        }
+
+        ObjectInserter objectInserter = repository.newObjectInserter();
+        ObjectId commitId = objectInserter.insert(commit);
+        objectInserter.flush();
+
+        RefUpdate refUpdate = repository.updateRef("refs/heads/" + getBranch());
+        refUpdate.setForceUpdate(true);
+        refUpdate.setRefLogIdent(personIdent);
+        refUpdate.setNewObjectId(commitId);
+        refUpdate.setExpectedOldObjectId(oldTip);
+        refUpdate.setRefLogMessage("client commit", false);
+        RefUpdate.Result result = refUpdate.update();
+        if (result == RefUpdate.Result.REJECTED)
+            throw new IOException();
+
+        return commitId.name();
+    }
+
     @Override
     public void merge(String theirCommitId) throws IOException {
         if (theirCommitId.equals(""))
@@ -385,16 +425,24 @@ public class JGitInterface implements IDatabaseInterface {
             return;
         }
         ObjectId ours = getHeadRef().getObjectId();
-
         ObjectId theirs = ObjectId.fromString(theirCommitId);
+        if (ours.equals(theirs))
+            return;
+        RevCommit oursCommit = new RevWalk(repository).parseCommit(headRef.getObjectId());
+        RevCommit theirsCommit = new RevWalk(repository).parseCommit(theirs);
+
         Merger ourMerger = MergeStrategy.SIMPLE_TWO_WAY_IN_CORE.newMerger(repository);
         boolean merged = ourMerger.merge(ours, theirs);
         if (!merged)
             throw new IOException("can't merge");
         rootTree = ourMerger.getResultTreeId();
-
-        if (needsCommit())
-            commit();
+        if (needsCommit()) {
+            // create a normal commit if the merged tree is equal their's
+            if (rootTree.equals(theirsCommit.getTree()))
+                commit();
+            else
+                mergeCommit(rootTree, oursCommit, theirsCommit);
+        }
     }
 
     @Override
@@ -454,7 +502,7 @@ public class JGitInterface implements IDatabaseInterface {
                     break;
 
                 case DELETE:
-                    databaseDiff.modified.addPath(entry.getOldPath());
+                    databaseDiff.removed.addPath(entry.getOldPath());
                     break;
 
                 case RENAME:

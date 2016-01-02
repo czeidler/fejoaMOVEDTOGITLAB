@@ -34,11 +34,13 @@ public class GitPushHandler extends JsonRequestHandler {
         String branch = params.getString("branch");
         JGitInterface gitInterface = AccessControl.getDatabase(session, user, branch);
         Repository repository = gitInterface.getRepository();
+        boolean allowNonFastForwards = false;
 
         if (request.equals(GitPushJob.METHOD_REQUEST_ADVERTISEMENT)) {
             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "advertisement attached"));
 
             ReceivePack receivePack = new ReceivePack(repository);
+            receivePack.setAllowNonFastForwards(allowNonFastForwards);
             OutputStream rawOut = responseHandler.addData();
             PacketLineOut pckOut = new PacketLineOut(rawOut);
             pckOut.setFlushOnEnd(false);
@@ -48,6 +50,7 @@ public class GitPushHandler extends JsonRequestHandler {
                     responseHandler, data);
 
             ReceivePack receivePack = new ReceivePack(repository);
+            receivePack.setAllowNonFastForwards(allowNonFastForwards);
             receivePack.setBiDirectionalPipe(false);
             OutputStream rawOut = responseHandler.addData();
             PacketLineOut pckOut = new PacketLineOut(rawOut);

@@ -85,8 +85,10 @@ public class IncomingCommandManager extends WeakListenable<IncomingCommandManage
         List<CommandQueue.Entry> commands = queue.getCommands();
         boolean anyHandled = false;
         for (CommandQueue.Entry command : commands) {
-            if (handleCommand(command))
+            if (handleCommand(command)) {
                 anyHandled = true;
+                break;
+            }
         }
         if (anyHandled)
             queue.commit();

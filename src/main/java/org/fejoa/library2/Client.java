@@ -25,7 +25,7 @@ public class Client {
     private OutgoingQueueManager outgoingQueueManager;
     private IncomingCommandManager incomingCommandManager;
 
-    private IncommingContactRequestHandler contactRequestHandler = new IncommingContactRequestHandler(this, null);
+    private IncomingContactRequestHandler contactRequestHandler = new IncomingContactRequestHandler(this, null);
 
     public Client(String home) {
         this.context = new FejoaContext(home);

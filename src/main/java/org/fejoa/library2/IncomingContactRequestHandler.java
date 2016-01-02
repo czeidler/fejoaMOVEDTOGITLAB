@@ -14,7 +14,7 @@ import org.fejoa.library2.command.IncomingCommandManager;
 import java.util.logging.Logger;
 
 
-public class IncommingContactRequestHandler {
+public class IncomingContactRequestHandler {
     public interface IHandler {
         /**
          *  Called after the initial request is received.
@@ -31,7 +31,7 @@ public class IncommingContactRequestHandler {
         }
     }
 
-    final static private Logger LOG = Logger.getLogger(IncommingContactRequestHandler.class.getName());
+    final static private Logger LOG = Logger.getLogger(IncomingContactRequestHandler.class.getName());
 
     final private Client client;
     final IncomingCommandManager.IListener listener = new IncomingCommandManager.IListener() {
@@ -59,7 +59,7 @@ public class IncommingContactRequestHandler {
     };
     private IHandler handler;
 
-    public IncommingContactRequestHandler(Client client, IHandler handler) {
+    public IncomingContactRequestHandler(Client client, IHandler handler) {
         this.client = client;
         setHandler(handler);
     }

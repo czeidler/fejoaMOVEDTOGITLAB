@@ -15,6 +15,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
 
 public class Client {
@@ -111,7 +113,16 @@ public class Client {
         // send command to contact
         AccessCommand accessCommand = new AccessCommand(context, userData.getIdentityStore().getMyself(), contact,
                 accessToken);
-        userData.getOutgoingCommandQueue().post(accessCommand, contact.getRemotes().getDefault(), true);
         userData.getAccessStore().commit();
+        userData.getOutgoingCommandQueue().post(accessCommand, contact.getRemotes().getDefault(), true);
+    }
+
+    public void peekRemoteStatus(String branchId, Task.IObserver<Void, WatchJob.Result> observer) {
+        Storage branch = getUserData().getStorageRefList().get(branchId);
+        Remote remote = getUserData().getRemoteList().getDefault();
+        connectionManager.submit(new WatchJob(context, remote.getUser(), Collections.singletonList(branch), true),
+                new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
+                new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                observer);
     }
 }

@@ -8,6 +8,7 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
+import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.*;
 import org.fejoa.library2.Client;
@@ -18,6 +19,7 @@ import org.fejoa.server.JettyServer;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -72,6 +74,7 @@ public class ClientTest extends TestCase {
     private ClientStatus clientStatus2;
     private LooperThread clientThread = new LooperThread(10);
 
+    private boolean failure = false;
     private Semaphore finishedSemaphore;
 
     class SimpleObserver implements Task.IObserver<Void, RemoteJob.Result> {
@@ -138,6 +141,7 @@ public class ClientTest extends TestCase {
     }
 
     private void finishAndFail(String message) {
+        failure = true;
         finishedSemaphore.release();
         fail(message);
     }
@@ -201,7 +205,7 @@ public class ClientTest extends TestCase {
                     System.out.println("Access granted: " + contactId + " access entry: "
                             + accessTokenContact.getAccessEntry());
 
-                    onTaskPerformed();
+                    waitTillClient2UploadedTheAccessStore(0);
                 }
             }
 
@@ -227,6 +231,64 @@ public class ClientTest extends TestCase {
         @Override
         protected void cleanUp() {
             client2.getIncomingCommandManager().removeListener(listener);
+        }
+
+        private void waitTillClient2UploadedTheAccessStore(final int retryCount) {
+            UserData userData = client2.getUserData();
+            client2.peekRemoteStatus(userData.getAccessStore().getId(), new Task.IObserver<Void, WatchJob.Result>() {
+                @Override
+                public void onProgress(Void aVoid) {
+
+                }
+
+                @Override
+                public void onResult(WatchJob.Result result) {
+                    if (result.updated.size() == 0) {
+                        System.out.println("Access store updated, retry counts: " + retryCount);
+                        onTaskPerformed();
+                        return;
+                    }
+                    int count = retryCount + 1;
+                    if (count > 10) {
+                        finishAndFail("failed to check access store status: too many retries");
+                        return;
+                    }
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    waitTillClient2UploadedTheAccessStore(count);
+                }
+
+                @Override
+                public void onException(Exception exception) {
+                    finishAndFail("failed to check access store status");
+                }
+            });
+        }
+    }
+
+    class AccessRequest extends TestTask {
+
+        @Override
+        protected void perform(TestTask previousTask) throws Exception {
+            UserData clientUserData = client1.getUserData();
+            ContactStore contactStore = clientUserData.getContactStore();
+            ContactPublic client2Contact = contactStore.getContactList().get(
+                    client2.getUserData().getIdentityStore().getMyself().getId());
+
+            AccessTokenContact accessTokenContact = client2Contact.getAccessTokenList().getEntries().iterator().next();
+
+            client1.getConnectionManager().submit(new AccessRequestJob(USER_NAME_2, accessTokenContact),
+                    new ConnectionManager.ConnectionInfo(USER_NAME_2, SERVER_URL),
+                    new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                    new SimpleObserver(new Runnable() {
+                        @Override
+                        public void run() {
+                            onTaskPerformed();
+                        }
+                    }));
         }
     }
 
@@ -315,12 +377,14 @@ public class ClientTest extends TestCase {
         chainUpTasks(new MergeTask(createAccountTask1, createAccountTask2),
                 new ContactRequestTask(),
                 new GrantAccessTask(),
+                new AccessRequest(),
                 new FinishTask());
 
         createAccountTask1.perform(null);
         createAccountTask2.perform(null);
 
         finishedSemaphore.acquire();
+        assertFalse(failure);
         Thread.sleep(1000);
         clientThread.quit(true);
     }

@@ -29,6 +29,7 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
     static final public String STATUS_ACCESS_DENIED = "denied";
     static final public String STATUS_UPDATE = "update";
     static final public String WATCH_RESULT_KEY = "watchResults";
+    static final public String PEEK_KEY = "peek";
 
     public static class Result extends RemoteJob.Result {
         final public List<String> updated;
@@ -42,13 +43,19 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
     final private FejoaContext context;
     final private String serverUser;
     final private Collection<Storage> storageList;
+    final private boolean peek;
 
     public WatchJob(FejoaContext context, String serverUser, Collection<Storage> storageList) {
+        this(context, serverUser, storageList, false);
+    }
+
+    public WatchJob(FejoaContext context, String serverUser, Collection<Storage> storageList, boolean peek) {
         super(false);
 
         this.context = context;
         this.serverUser = serverUser;
         this.storageList = storageList;
+        this.peek = peek;
     }
 
     @Override
@@ -65,7 +72,8 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
             branches.add(argumentSet);
         }
 
-        return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(BRANCHES_KEY, branches));
+        return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(PEEK_KEY, peek),
+                new JsonRPC.Argument(BRANCHES_KEY, branches));
     }
 
     @Override

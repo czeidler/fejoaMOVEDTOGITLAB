@@ -39,6 +39,7 @@ public class WatchHandler extends JsonRequestHandler {
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String user = params.getString(Constants.SERVER_USER_KEY);
+        Boolean peek = params.getBoolean(WatchJob.PEEK_KEY);
         JSONArray branches = params.getJSONArray(WatchJob.BRANCHES_KEY);
 
         Map<String, String> branchMap = new HashMap<>();
@@ -47,9 +48,9 @@ public class WatchHandler extends JsonRequestHandler {
             branchMap.put(branch.getString(WatchJob.BRANCH_KEY), branch.getString(WatchJob.BRANCH_TIP_KEY));
         }
 
-        Map<String, Status> statusMap = watch(session, user, branchMap);
+        Map<String, Status> statusMap = watch(session, user, peek, branchMap);
 
-        if (statusMap.isEmpty()) {
+        if (statusMap.isEmpty() && !peek) {
             // timeout
             String response = jsonRPCHandler.makeResult(Portal.Errors.OK, "timeout");
             responseHandler.setResponseHeader(response);
@@ -79,7 +80,7 @@ public class WatchHandler extends JsonRequestHandler {
         responseHandler.setResponseHeader(response);
     }
 
-    private Map<String, Status> watch(Session session, String user, Map<String, String> branches) {
+    private Map<String, Status> watch(Session session, String user, boolean peek, Map<String, String> branches) {
         Map<String, Status> status = new HashMap<>();
 
         //TODO: use a file monitor instead of polling
@@ -104,6 +105,8 @@ public class WatchHandler extends JsonRequestHandler {
                 }
             }
             if (System.currentTimeMillis() - time > TIME_OUT)
+                break;
+            if (peek)
                 break;
             if (status.isEmpty()) {
                 try {

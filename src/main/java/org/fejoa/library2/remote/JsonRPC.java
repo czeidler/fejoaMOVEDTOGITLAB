@@ -44,6 +44,11 @@ public class JsonRPC {
             this.value = new Gson().toJson(value);
         }*/
 
+        public Argument(String name, boolean value) {
+            this.name = name;
+            this.value = Boolean.toString(value);
+        }
+
         public Argument(String name, int value) {
             this.name = name;
             this.value = Integer.toString(value);
@@ -60,6 +65,8 @@ public class JsonRPC {
         }
 
         public Argument(String name, String value) {
+            value = JSONObject.quote(value);
+            value = value.substring(1, value.length() - 1);
             this.name = name;
             this.value = "\"" + value + "\"";
         }

@@ -82,7 +82,7 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
     }
 
     @Override
-    public Result run(IRemoteRequest remoteRequest) throws IOException {
+    public Result run(IRemoteRequest remoteRequest) throws Exception {
         super.run(remoteRequest);
 
         final String refName = "refs/heads/" + branch;

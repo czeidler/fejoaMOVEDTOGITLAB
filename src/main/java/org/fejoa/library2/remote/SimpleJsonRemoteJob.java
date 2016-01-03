@@ -26,7 +26,7 @@ abstract public class SimpleJsonRemoteJob<T extends RemoteJob.Result> extends Js
         return hasData;
     }
 
-    public String getHeader() throws IOException {
+    public String getHeader() throws Exception {
         return getJsonHeader(jsonRPC);
     }
 
@@ -44,7 +44,7 @@ abstract public class SimpleJsonRemoteJob<T extends RemoteJob.Result> extends Js
         return result;
     }
 
-    abstract public String getJsonHeader(JsonRPC jsonRPC) throws IOException;
+    abstract public String getJsonHeader(JsonRPC jsonRPC) throws Exception;
     abstract protected T handleJson(JSONObject returnValue, InputStream binaryData);
 
     public void writeData(OutputStream outputStream) throws IOException {
@@ -52,7 +52,7 @@ abstract public class SimpleJsonRemoteJob<T extends RemoteJob.Result> extends Js
     }
 
     @Override
-    public T run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws Exception {
         super.run(remoteRequest);
         OutputStream outputStream = remoteRequest.open(getHeader(), hasData());
         if (hasData())

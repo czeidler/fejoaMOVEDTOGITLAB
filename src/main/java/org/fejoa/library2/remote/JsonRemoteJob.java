@@ -63,7 +63,7 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
     }
 
     @Override
-    public T run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws Exception {
         super.run(remoteRequest);
         startNewJsonRPC();
         return null;
@@ -71,7 +71,7 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
 
     static public <T extends Result> T run(JsonRemoteJob<T> job, IRemoteRequest remoteRequest,
                                            IErrorCallback errorHandler)
-            throws IOException, JSONException {
+            throws Exception {
         job.setErrorCallback(errorHandler);
         T result = job.run(remoteRequest);
         if (result.status == Result.FOLLOW_UP_JOB) {

@@ -63,7 +63,7 @@ public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
     }
 
     @Override
-    public Result run(IRemoteRequest remoteRequest) throws IOException {
+    public Result run(IRemoteRequest remoteRequest) throws Exception {
         super.run(remoteRequest);
 
         JsonRPC.Argument serverUserArg = new JsonRPC.Argument(org.fejoa.library2.Constants.SERVER_USER_KEY, serverUser);

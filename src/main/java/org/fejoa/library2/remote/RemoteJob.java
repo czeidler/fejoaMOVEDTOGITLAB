@@ -28,7 +28,7 @@ public class RemoteJob<T> {
 
     protected IRemoteRequest remoteRequest;
 
-    public T run(IRemoteRequest remoteRequest) throws IOException {
+    public T run(IRemoteRequest remoteRequest) throws IOException, Exception {
         this.remoteRequest = remoteRequest;
         return null;
     }

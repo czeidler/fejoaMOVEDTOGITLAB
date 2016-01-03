@@ -91,6 +91,7 @@ public class Portal extends AbstractHandler {
         addJsonHandler(new CreateAccountHandler());
         addJsonHandler(new RootLoginRequestHandler());
         addJsonHandler(new CommandHandler());
+        addJsonHandler(new AccessRequestHandler());
     }
 
     public void handle(String s, Request request, HttpServletRequest httpServletRequest,

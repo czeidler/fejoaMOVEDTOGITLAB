@@ -30,6 +30,10 @@ public class Session {
         this.session = session;
     }
 
+    public String getSessionId() {
+        return session.getId();
+    }
+
     public String getBaseDir() {
         return baseDir;
     }

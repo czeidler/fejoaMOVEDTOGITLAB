@@ -48,8 +48,7 @@ public class IncomingContactRequestHandler {
                     LOG.info("mutual contact established");
                 } else
                     onException(new Exception("unexpected state"));
-            } else
-                onException(new Exception("unexpected command"));
+            }
         }
 
         @Override

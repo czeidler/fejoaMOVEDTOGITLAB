@@ -73,8 +73,6 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
             branches.add(argumentSet);
         }
 
-        if (peek)
-            return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(BRANCHES_KEY, branches));
         return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(PEEK_KEY, peek), new JsonRPC.Argument(BRANCHES_KEY, branches));
     }
 

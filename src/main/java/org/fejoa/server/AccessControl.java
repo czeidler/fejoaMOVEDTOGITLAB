@@ -31,8 +31,10 @@ public class AccessControl {
     private boolean hasAccess(String branch, int rights) {
         if (session.isRootUser(user))
             return true;
-        // TODO access control
-        return true;
+        int roleRights = session.getRoleRights(user, branch);
+        if ((roleRights & rights) != rights)
+            return false;
+        return false;
     }
 
     public boolean canStartMigration() {

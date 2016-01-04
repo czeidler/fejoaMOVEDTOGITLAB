@@ -48,7 +48,7 @@ public class RootLoginRequestHandler extends JsonRequestHandler {
             String receivedPassword = params.getString(CreateAccountJob.PASSWORD_KEY);
             String password = userConfig.getString(CreateAccountJob.PASSWORD_KEY);
             if (receivedPassword.equals(password)) {
-                session.addRole(userName, "root");
+                session.addRootRole(userName);
                 responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "login successful"));
             } else
                 responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR, "login failed"));

@@ -16,6 +16,7 @@ import org.fejoa.library2.remote.CreateAccountJob;
 import org.json.JSONObject;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
 import java.util.HashSet;
 
 
@@ -46,21 +47,32 @@ public class Session {
         return serverUser + ":" + role;
     }
 
-    public boolean isRootUser(String serverUser) {
-        return getRoles().contains(makeRole(serverUser, "root"));
+    public void addRootRole(String userName) {
+        addRole(userName, "root", 0);
     }
 
-    public void addRole(String serverUser, String role) {
-        HashSet<String> roles = getRoles();
-        roles.add(makeRole(serverUser, role));
+    public boolean isRootUser(String serverUser) {
+        return getRoles().containsKey(makeRole(serverUser, "root"));
+    }
+
+    public void addRole(String serverUser, String role, Integer rights) {
+        HashMap<String, Integer> roles = getRoles();
+        roles.put(makeRole(serverUser, role), rights);
         session.setAttribute(ROLES_KEY, roles);
     }
 
-    public HashSet<String> getRoles() {
-        HashSet<String> roles = (HashSet<String>)session.getAttribute(ROLES_KEY);
+    public HashMap<String, Integer> getRoles() {
+        HashMap<String, Integer> roles = (HashMap<String, Integer>)session.getAttribute(ROLES_KEY);
         if (roles == null)
-            return new HashSet<>();
+            return new HashMap<>();
         return roles;
+    }
+
+    public int getRoleRights(String serverUser, String role) {
+        Integer rights = getRoles().get(makeRole(serverUser, role));
+        if (rights == null)
+            return -1;
+        return rights;
     }
 
     public AccountSettings getAccountSettings(String serverUser) {

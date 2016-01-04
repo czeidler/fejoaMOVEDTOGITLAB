@@ -9,6 +9,7 @@ package org.fejoa.server;
 
 
 import org.fejoa.library2.AccessTokenServer;
+import org.fejoa.library2.BranchAccessRight;
 import org.fejoa.library2.Constants;
 import org.fejoa.library2.remote.AccessRequestJob;
 import org.fejoa.library2.remote.JsonRPC;
@@ -55,7 +56,10 @@ public class AccessRequestHandler extends JsonRequestHandler {
                 return;
             }
 
-            session.addRole(serverUser, accessEntry);
+            BranchAccessRight branchAccessRight = new BranchAccessRight(accessEntry);
+            for (BranchAccessRight.Entry entry : branchAccessRight.getEntries())
+                session.addRole(serverUser, entry.getBranch(), entry.getRights());
+
             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "access request successful"));
         } else
             throw new Exception("Invalid access request: " + request);

@@ -89,4 +89,8 @@ public class BranchAccessRight {
     public void addBranchAccess(String branch, int rights) {
         entries.add(new Entry(branch, rights));
     }
+
+    public List<Entry> getEntries() {
+        return entries;
+    }
 }

@@ -70,6 +70,10 @@ public class AccessTokenContact {
         return accessEntry;
     }
 
+    public JSONObject getAccessEntryJson() throws JSONException {
+        return new JSONObject(accessEntry);
+    }
+
     public byte[] getAccessEntrySignature() {
         return accessEntrySignature;
     }

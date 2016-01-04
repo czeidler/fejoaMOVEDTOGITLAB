@@ -31,7 +31,8 @@ public class AccessTokenServer {
     final private PublicKey accessSignatureKey;
     final private CryptoSettings.Signature accessSignatureKeySettings;
 
-    AccessTokenServer(FejoaContext context, PublicKey contactAuthKey, CryptoSettings.Signature contactAuthKeySettings,
+    AccessTokenServer(FejoaContext context, PublicKey contactAuthKey,
+                      CryptoSettings.Signature contactAuthKeySettings,
                       PublicKey accessSignatureKey, CryptoSettings.Signature accessSignatureKeySettings) {
         this.context = context;
         this.contactAuthKey = contactAuthKey;
@@ -76,6 +77,10 @@ public class AccessTokenServer {
         rawKey = DatatypeConverter.parseBase64Binary(
                 jsonObject.getString(AccessToken.ACCESS_VERIFICATION_KEY_KEY));
         accessSignatureKey = CryptoHelper.publicKeyFromRaw(rawKey, contactAuthKeySettings.keyType);
+    }
+
+    public String getId() {
+        return AccessToken.getId(contactAuthKey);
     }
 
     public boolean auth(String authToken, byte[] signature) throws CryptoException {

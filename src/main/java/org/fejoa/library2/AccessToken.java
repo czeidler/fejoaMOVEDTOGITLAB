@@ -85,12 +85,20 @@ public class AccessToken implements IStorageDirBundle {
     }
 
     public String getId() {
-        return CryptoHelper.sha1HashHex(contactAuthKey.getPublic().getEncoded());
+        return getId(contactAuthKey.getPublic());
+    }
+
+    static String getId(PublicKey contactAuthKey) {
+        return CryptoHelper.sha1HashHex(contactAuthKey.getEncoded());
     }
 
     public AccessTokenServer toServerToken() {
         return new AccessTokenServer(context, contactAuthKey.getPublic(), contactAuthKeySettings,
                 accessSignatureKey.getPublic(), accessSignatureKeySettings);
+    }
+
+    public AccessTokenContact toContactToken() throws Exception {
+        return new AccessTokenContact(context, getContactToken().toString());
     }
 
     public JSONObject getContactToken() throws JSONException, CryptoException {

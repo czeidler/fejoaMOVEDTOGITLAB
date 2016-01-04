@@ -16,6 +16,7 @@ import org.fejoa.library2.remote.CreateAccountJob;
 import org.json.JSONObject;
 
 import javax.servlet.http.HttpSession;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -51,8 +52,16 @@ public class Session {
         addRole(userName, "root", 0);
     }
 
-    public boolean isRootUser(String serverUser) {
+    public boolean hasRootRole(String serverUser) {
         return getRoles().containsKey(makeRole(serverUser, "root"));
+    }
+
+    public void addMigrationRole(String userName) {
+        addRole(userName, "migration", 0);
+    }
+
+    public boolean hasMigrationRole(String serverUser) {
+        return getRoles().containsKey(makeRole(serverUser, "migration"));
     }
 
     public void addRole(String serverUser, String role, Integer rights) {
@@ -104,7 +113,20 @@ public class Session {
         FejoaContext context = getContext(serverUser);
         StorageDir userDataDir = context.getStorage(userDataBranch);
         String accessStoreId = userDataDir.readString(UserData.ACCESS_STORE_KEY);
-        StorageDir tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);
+        StorageDir tokenDir = null;
+        try {
+            tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);
+        } catch (IOException e) {
+            // try to read token for the migration process
+            JSONObject migrationToken = StartMigrationHandler.readMigrationAccessToken(this, serverUser);
+            AccessTokenServer accessToken = new AccessTokenServer(getContext(serverUser), migrationToken);
+            if (accessToken.getId().equals(tokenId))
+                return accessToken;
+            else
+                return null;
+        }
+
         return new AccessTokenServer(context, tokenDir);
     }
+
 }

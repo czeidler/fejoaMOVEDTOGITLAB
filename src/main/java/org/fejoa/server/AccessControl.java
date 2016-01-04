@@ -9,7 +9,6 @@ package org.fejoa.server;
 
 import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library2.BranchAccessRight;
-import org.fejoa.library2.remote.StartMigrationJob;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,7 +28,7 @@ public class AccessControl {
     }
 
     private boolean hasAccess(String branch, int rights) {
-        if (session.isRootUser(user))
+        if (session.hasRootRole(user))
             return true;
         int roleRights = session.getRoleRights(user, branch);
         if ((roleRights & rights) != rights)
@@ -38,11 +37,11 @@ public class AccessControl {
     }
 
     public boolean canStartMigration() {
-        return session.isRootUser(user);
+        return session.hasRootRole(user);
     }
 
     public boolean isRootUser() {
-        return session.isRootUser(user);
+        return session.hasRootRole(user);
     }
 
     public JGitInterface getDatabase(String branch, int rights) throws IOException {

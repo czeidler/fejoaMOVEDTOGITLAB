@@ -46,6 +46,12 @@ public class AccessRequestHandler extends JsonRequestHandler {
                     params.getString(AccessRequestJob.ACCESS_ENTRY_SIGNATURE_KEY));
 
             AccessTokenServer accessToken = session.getAccessToken(serverUser, accessTokenId);
+            if (accessToken == null) {
+                responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR,
+                        "can't find access token"));
+                return;
+            }
+
             if (!accessToken.auth(authToken, authTokenSignature)) {
                 responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR, "auth failed"));
                 return;
@@ -55,10 +61,11 @@ public class AccessRequestHandler extends JsonRequestHandler {
                         "can't verify access entry"));
                 return;
             }
-
-            BranchAccessRight branchAccessRight = new BranchAccessRight(accessEntry);
+            BranchAccessRight branchAccessRight = new BranchAccessRight(new JSONObject(accessEntry));
             for (BranchAccessRight.Entry entry : branchAccessRight.getEntries())
                 session.addRole(serverUser, entry.getBranch(), entry.getRights());
+            if (branchAccessRight.getType() == BranchAccessRight.MIGRATION_ACCESS)
+                session.addMigrationRole(serverUser);
 
             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK, "access request successful"));
         } else

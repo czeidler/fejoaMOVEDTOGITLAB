@@ -15,6 +15,7 @@ import org.fejoa.library2.command.*;
 import org.fejoa.library2.remote.*;
 import org.fejoa.library2.util.LooperThread;
 import org.fejoa.server.JettyServer;
+import org.fejoa.server.Portal;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -52,17 +53,22 @@ public class ClientTest extends TestCase {
 
     private class ClientStatus {
         final public String name;
+        final public String server;
         public boolean firstSync;
 
-        public ClientStatus(String name) {
+        public ClientStatus(String name, String server) {
             this.name = name;
+            this.server = server;
         }
     }
 
     final static String TEST_DIR = "jettyTest";
     final static String SERVER_TEST_DIR = TEST_DIR + "/Server";
-    final static String SERVER_URL = "http://localhost:8080/";
+    final static String SERVER_URL_1 = "http://localhost:8080/";
+    final static String SERVER_URL_2 = "http://localhost:8080/";
     final static String USER_NAME_1 = "testUser1";
+    final static String USER_NAME_1_NEW = "testUser1New";
+    final static String SERVER_URL_1_NEW = "http://localhost:8080/";
     final static String USER_NAME_2 = "testUser2";
     final static String PASSWORD = "password";
 
@@ -72,6 +78,7 @@ public class ClientTest extends TestCase {
     private ClientStatus clientStatus1;
     private Client client2;
     private ClientStatus clientStatus2;
+    private Client client1New;
     private LooperThread clientThread = new LooperThread(10);
 
     private boolean failure = false;
@@ -92,7 +99,7 @@ public class ClientTest extends TestCase {
 
         @Override
         public void onResult(T result) {
-            if (result.status != RemoteJob.Result.DONE)
+            if (result.status != Portal.Errors.DONE)
                 finishAndFail(result.message);
             System.out.println("onNext: " + result.message);
             onSuccess.run();
@@ -120,12 +127,16 @@ public class ClientTest extends TestCase {
         client1 = new Client(TEST_DIR + "/" + USER_NAME_1);
         client1.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
         client1.getConnectionManager().setObserverScheduler(new Task.LooperThreadScheduler(clientThread));
-        clientStatus1 = new ClientStatus(USER_NAME_1);
+        clientStatus1 = new ClientStatus(USER_NAME_1, SERVER_URL_1);
 
         client2 = new Client(TEST_DIR + "/" + USER_NAME_2);
         client2.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
         client2.getConnectionManager().setObserverScheduler(new Task.LooperThreadScheduler(clientThread));
-        clientStatus2 = new ClientStatus(USER_NAME_2);
+        clientStatus2 = new ClientStatus(USER_NAME_2, SERVER_URL_1);
+
+        client1New = new Client(TEST_DIR + "/" + USER_NAME_1_NEW);
+        client1New.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
+        client1New.getConnectionManager().setObserverScheduler(new Task.LooperThreadScheduler(clientThread));
 
         clientThread.start();
     }
@@ -186,10 +197,10 @@ public class ClientTest extends TestCase {
 
         @Override
         protected void perform(TestTask previousTask) throws Exception {
-            client.create(status.name, SERVER_URL, PASSWORD);
+            client.create(status.name, status.server, PASSWORD);
             client.commit();
 
-            client.createAccount(status.name, PASSWORD, SERVER_URL, new SimpleObserver(new Runnable() {
+            client.createAccount(status.name, PASSWORD, status.server, new SimpleObserver(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -263,7 +274,7 @@ public class ClientTest extends TestCase {
 
         @Override
         protected void perform(TestTask previousTask) throws Exception {
-            contactRequest.startRequest(USER_NAME_2, SERVER_URL, handler);
+            contactRequest.startRequest(USER_NAME_2, SERVER_URL_2, handler);
         }
     }
 
@@ -354,7 +365,7 @@ public class ClientTest extends TestCase {
             BranchAccessRight accessRight = new BranchAccessRight(accessTokenContact.getAccessEntryJson());
             final BranchAccessRight.Entry entry0 = accessRight.getEntries().get(0);
 
-            client1.pullContactBranch(USER_NAME_2, SERVER_URL, accessTokenContact, entry0,
+            client1.pullContactBranch(USER_NAME_2, SERVER_URL_2, accessTokenContact, entry0,
                     new SimpleObserver(new Runnable() {
                         @Override
                         public void run() {
@@ -366,6 +377,43 @@ public class ClientTest extends TestCase {
                             onTaskPerformed();
                         }
                     }));
+        }
+    }
+
+    class MigrateTask extends TestTask {
+        @Override
+        protected void perform(TestTask previousTask) throws Exception {
+            client1New.createAccount(USER_NAME_1_NEW, PASSWORD, client1.getUserData().getId(), SERVER_URL_1_NEW,
+                    new SimpleObserver(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        migrate();
+                    } catch (Exception e) {
+                        finishAndFail(e.getMessage());
+                    }
+                }
+            }));
+        }
+
+        private void migrate() throws Exception {
+            MigrationManager migrationManager = new MigrationManager(client1);
+            migrationManager.migrate(USER_NAME_1_NEW, SERVER_URL_1_NEW, new Task.IObserver<Void, RemoteJob.Result>() {
+                @Override
+                public void onProgress(Void aVoid) {
+
+                }
+
+                @Override
+                public void onResult(RemoteJob.Result result) {
+                    onTaskPerformed();
+                }
+
+                @Override
+                public void onException(Exception exception) {
+                    finishAndFail(exception.getMessage());
+                }
+            });
         }
     }
 
@@ -383,6 +431,7 @@ public class ClientTest extends TestCase {
                 new ContactRequestTask(),
                 new GrantAccessForClient1Task(),
                 new PullContactBranchFromClient2Task(),
+                new MigrateTask(),
                 new FinishTask());
 
         createAccountTask1.perform(null);

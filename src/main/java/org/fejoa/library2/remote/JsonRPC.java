@@ -49,6 +49,11 @@ public class JsonRPC {
             this.value = Boolean.toString(value);
         }
 
+        public Argument(String name, JSONObject value) {
+            this.name = name;
+            this.value = value.toString();
+        }
+
         public Argument(String name, int value) {
             this.name = name;
             this.value = Integer.toString(value);

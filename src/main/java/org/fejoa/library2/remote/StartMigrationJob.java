@@ -32,7 +32,7 @@ public class StartMigrationJob extends SimpleJsonRemoteJob {
     @Override
     public String getJsonHeader(JsonRPC jsonRPC) throws Exception {
         return jsonRPC.call(METHOD, new JsonRPC.Argument(Constants.SERVER_USER_KEY, serverUser),
-                new JsonRPC.Argument(SERVER_ACCESS_TOKEN_KEY, accessTokenServer.toJson().toString()));
+                new JsonRPC.Argument(SERVER_ACCESS_TOKEN_KEY, accessTokenServer.toJson()));
     }
 
     @Override

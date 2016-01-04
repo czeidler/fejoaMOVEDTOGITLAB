@@ -50,7 +50,7 @@ abstract class EnvelopeCommandHandler implements IncomingCommandManager.Handler 
         }
 
         JSONObject object = new JSONObject(new String(request));
-        System.out.println("COMMAND: " + object.toString());
+        LOG.info("COMMAND: " + object.toString());
 
         if (!object.has(Constants.COMMAND_NAME_KEY)
                 || !object.getString(Constants.COMMAND_NAME_KEY).equals(this.commandType))

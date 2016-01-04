@@ -74,6 +74,15 @@ public class Client {
                 observer);
     }
 
+    public void createAccount(String userName, String password, String userDataId, String server,
+                              Task.IObserver<Void, RemoteJob.Result> observer) {
+        connectionManager.submit(new CreateAccountJob(userName, password, userDataId,
+                        CryptoSettings.getDefault().masterPassword),
+                new ConnectionManager.ConnectionInfo(userName, server),
+                new ConnectionManager.AuthInfo(),
+                observer);
+    }
+
     public void startSyncing(Task.IObserver<TaskUpdate, Void> observer) {
         Remote defaultRemote = getUserData().getRemoteList().getDefault();
         syncManager = new SyncManager(context, getConnectionManager(), defaultRemote);
@@ -160,5 +169,9 @@ public class Client {
                         observer.onException(exception);
                     }
                 });
+    }
+
+    public void migrate(String newUserName, String newServer) {
+
     }
 }

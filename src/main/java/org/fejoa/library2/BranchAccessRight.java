@@ -74,6 +74,10 @@ public class BranchAccessRight {
             entries.add(new Entry(accessRights.getJSONObject(i)));
     }
 
+    public String getType() {
+        return type;
+    }
+
     public JSONObject toJson() throws JSONException {
         JSONObject object = new JSONObject();
         object.put(TYPE_KEY, type);

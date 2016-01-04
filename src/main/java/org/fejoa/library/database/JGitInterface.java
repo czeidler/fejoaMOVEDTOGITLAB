@@ -408,15 +408,18 @@ public class JGitInterface implements IDatabaseInterface {
         if (needsCommit())
             commit();
 
+        ObjectId theirs = ObjectId.fromString(theirCommitId);
+        RevCommit theirsCommit = new RevWalk(repository).parseCommit(theirs);
+
         Ref headRef = getHeadRef();
         if (headRef == null) {
-            ObjectId commitId = repository.resolve(theirCommitId);
+            rootTree = theirsCommit.getTree();
 
             // we have no commit; just set tip to their commit
             RefUpdate refUpdate = repository.updateRef("refs/heads/" + getBranch());
             refUpdate.setForceUpdate(true);
             refUpdate.setRefLogIdent(new PersonIdent("client", ""));
-            refUpdate.setNewObjectId(commitId);
+            refUpdate.setNewObjectId(theirsCommit);
             refUpdate.setExpectedOldObjectId(ObjectId.zeroId());
             refUpdate.setRefLogMessage("client commit", false);
             RefUpdate.Result result = refUpdate.update();
@@ -425,17 +428,15 @@ public class JGitInterface implements IDatabaseInterface {
             return;
         }
         ObjectId ours = getHeadRef().getObjectId();
-        ObjectId theirs = ObjectId.fromString(theirCommitId);
         if (ours.equals(theirs))
             return;
         RevCommit oursCommit = new RevWalk(repository).parseCommit(headRef.getObjectId());
-        RevCommit theirsCommit = new RevWalk(repository).parseCommit(theirs);
 
-        Merger ourMerger = MergeStrategy.SIMPLE_TWO_WAY_IN_CORE.newMerger(repository);
-        boolean merged = ourMerger.merge(ours, theirs);
+        Merger merger = MergeStrategy.SIMPLE_TWO_WAY_IN_CORE.newMerger(repository);
+        boolean merged = merger.merge(ours, theirs);
         if (!merged)
             throw new IOException("can't merge");
-        rootTree = ourMerger.getResultTreeId();
+        rootTree = merger.getResultTreeId();
         if (needsCommit()) {
             // create a normal commit if the merged tree is equal their's
             if (rootTree.equals(theirsCommit.getTree()))

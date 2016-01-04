@@ -129,7 +129,8 @@ public class ConnectionManager {
     private Task.IScheduler observerScheduler = new Task.CurrentThreadScheduler();
 
     public ConnectionManager() {
-        CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
+        if (CookieHandler.getDefault() == null)
+            CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
     }
 
     public void setStartScheduler(Task.IScheduler startScheduler) {

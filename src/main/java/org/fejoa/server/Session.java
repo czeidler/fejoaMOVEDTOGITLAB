@@ -18,7 +18,6 @@ import org.json.JSONObject;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 
 
 public class Session {
@@ -64,10 +63,17 @@ public class Session {
         return getRoles().containsKey(makeRole(serverUser, "migration"));
     }
 
+    private Object getSessionLock() {
+        // get an immutable lock
+        return session.getId().intern();
+    }
+
     public void addRole(String serverUser, String role, Integer rights) {
-        HashMap<String, Integer> roles = getRoles();
-        roles.put(makeRole(serverUser, role), rights);
-        session.setAttribute(ROLES_KEY, roles);
+        synchronized (getSessionLock()) {
+            HashMap<String, Integer> roles = getRoles();
+            roles.put(makeRole(serverUser, role), rights);
+            session.setAttribute(ROLES_KEY, roles);
+        }
     }
 
     public HashMap<String, Integer> getRoles() {
@@ -113,9 +119,9 @@ public class Session {
         FejoaContext context = getContext(serverUser);
         StorageDir userDataDir = context.getStorage(userDataBranch);
         String accessStoreId = userDataDir.readString(UserData.ACCESS_STORE_KEY);
-        StorageDir tokenDir = null;
+        StorageDir tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);
         try {
-            tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);
+            return new AccessTokenServer(context, tokenDir);
         } catch (IOException e) {
             // try to read token for the migration process
             JSONObject migrationToken = StartMigrationHandler.readMigrationAccessToken(this, serverUser);
@@ -125,8 +131,6 @@ public class Session {
             else
                 return null;
         }
-
-        return new AccessTokenServer(context, tokenDir);
     }
 
 }

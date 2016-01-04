@@ -31,6 +31,17 @@ public class Portal extends AbstractHandler {
     public static class Errors {
         final static public int OK = 0;
         final static public int ERROR = -1;
+        final static public int EXCEPTION = -2;
+
+        // json handler
+        final static public int NO_HANDLER_FOR_REQUEST = -10;
+        final static public int INVALID_JSON_REQUEST = -11;
+
+        // access
+        final static public int ACCESS_DENIED = -20;
+
+        // migration
+        final static public int MIGRATION_ALREADY_STARTED = -30;
     }
 
     public class ResponseHandler {
@@ -92,6 +103,8 @@ public class Portal extends AbstractHandler {
         addJsonHandler(new RootLoginRequestHandler());
         addJsonHandler(new CommandHandler());
         addJsonHandler(new AccessRequestHandler());
+        addJsonHandler(new StartMigrationHandler());
+        addJsonHandler(new RemotePullHandler());
     }
 
     public void handle(String s, Request request, HttpServletRequest httpServletRequest,
@@ -136,7 +149,7 @@ public class Portal extends AbstractHandler {
             jsonRPCHandler = new JsonRPCHandler(message);
         } catch (Exception e) {
             e.printStackTrace();
-            return JsonRPCHandler.makeResult(-1, JsonRequestHandler.Errors.INVALID_JSON_REQUEST,
+            return JsonRPCHandler.makeResult(-1, Errors.INVALID_JSON_REQUEST,
                     "can't parse json");
         }
 
@@ -149,12 +162,12 @@ public class Portal extends AbstractHandler {
                 handler.handle(responseHandler, jsonRPCHandler, data, session);
             } catch (Exception e) {
                 e.printStackTrace();
-                return jsonRPCHandler.makeResult(JsonRequestHandler.Errors.EXCEPTION, e.getMessage());
+                return jsonRPCHandler.makeResult(Errors.EXCEPTION, e.getMessage());
             }
             if (responseHandler.isHandled())
                 return null;
         }
 
-        return jsonRPCHandler.makeResult(JsonRequestHandler.Errors.NO_HANDLER_FOR_REQUEST, "can't handle request");
+        return jsonRPCHandler.makeResult(Errors.NO_HANDLER_FOR_REQUEST, "can't handle request");
     }
 }

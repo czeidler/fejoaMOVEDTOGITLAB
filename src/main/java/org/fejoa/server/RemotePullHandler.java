@@ -59,13 +59,8 @@ public class RemotePullHandler extends JsonRequestHandler {
 
                     @Override
                     public void onResult(GitPullJob.Result result) {
-                        if (result.status == Portal.Errors.DONE) {
-                            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR,
+                        responseHandler.setResponseHeader(jsonRPCHandler.makeResult(result.status,
                                     result.message));
-                        } else {
-                            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.OK,
-                                    result.message));
-                        }
                     }
 
                     @Override

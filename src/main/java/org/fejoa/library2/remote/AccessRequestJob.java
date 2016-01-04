@@ -9,6 +9,7 @@ package org.fejoa.library2.remote;
 
 import org.fejoa.library2.AccessTokenContact;
 import org.fejoa.library2.Constants;
+import org.fejoa.server.Portal;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -82,10 +83,10 @@ public class AccessRequestJob extends SimpleJsonRemoteJob {
         try {
             String authToken = returnValue.getString(AUTH_TOKEN_KEY);
             setFollowUpJob(new AuthJob(serverUser, accessTokenContact, authToken));
-            return new Result(Result.FOLLOW_UP_JOB, "parameters received");
+            return new Result(Portal.Errors.FOLLOW_UP_JOB, "parameters received");
         } catch (JSONException e) {
             e.printStackTrace();
-            return new Result(Result.ERROR, "parameter missing");
+            return new Result(Portal.Errors.ERROR, "parameter missing");
         }
     }
 }

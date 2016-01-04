@@ -7,14 +7,18 @@
  */
 package org.fejoa.library2.remote;
 
+import org.fejoa.server.Portal;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.logging.Logger;
 
 
 public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
+    final static private Logger LOG = Logger.getLogger(JsonRemoteJob.class.getName());
+
     final static public String ACCESS_DENIED_KEY = "access_denied";
 
     /**
@@ -38,7 +42,7 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
     }
 
     protected Result getResult(JSONObject returnValue) {
-        int status = Result.ERROR;
+        int status = Portal.Errors.ERROR;
         String message;
         try {
             status = returnValue.getInt("status");
@@ -74,8 +78,8 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
             throws Exception {
         job.setErrorCallback(errorHandler);
         T result = job.run(remoteRequest);
-        if (result.status == Result.FOLLOW_UP_JOB) {
-            System.out.println("Start follow up job (" + job.getFollowUpJob().getClass().getSimpleName() + ") after: "
+        if (result.status == Portal.Errors.FOLLOW_UP_JOB) {
+            LOG.info("Start follow up job (" + job.getFollowUpJob().getClass().getSimpleName() + ") after: "
                     + result.message);
             return run(job.getFollowUpJob(), remoteRequest, errorHandler);
         }

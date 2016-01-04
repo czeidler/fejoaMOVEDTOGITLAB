@@ -10,6 +10,7 @@ package org.fejoa.library2.command;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library2.database.StorageDir;
 import org.fejoa.library2.remote.*;
+import org.fejoa.server.Portal;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -84,7 +85,7 @@ public class OutgoingQueueManager {
 
                     @Override
                     public void onResult(RemoteJob.Result result) {
-                        if (result.status == RemoteJob.Result.DONE) {
+                        if (result.status == Portal.Errors.DONE) {
                             observer.onProgress(new TaskUpdate(TASK_NAME, totalCommands, currentCommand + 1,
                                     "command sent"));
                             queue.removeCommand(entry);

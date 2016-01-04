@@ -11,6 +11,7 @@ import org.fejoa.library2.Constants;
 import org.fejoa.library2.FejoaContext;
 import org.fejoa.library2.Storage;
 import org.fejoa.library2.database.StorageDir;
+import org.fejoa.server.Portal;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -72,8 +73,9 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
             branches.add(argumentSet);
         }
 
-        return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(PEEK_KEY, peek),
-                new JsonRPC.Argument(BRANCHES_KEY, branches));
+        if (peek)
+            return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(BRANCHES_KEY, branches));
+        return jsonRPC.call(METHOD, serverUserArg, new JsonRPC.Argument(PEEK_KEY, peek), new JsonRPC.Argument(BRANCHES_KEY, branches));
     }
 
     @Override
@@ -84,11 +86,11 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
             status = returnValue.getInt("status");
             message = returnValue.getString("message");
         } catch (Exception e) {
-            status = RemoteJob.Result.EXCEPTION;
+            status = Portal.Errors.EXCEPTION;
             e.printStackTrace();
             message = e.getMessage();
         }
-        if (status != RemoteJob.Result.DONE)
+        if (status != Portal.Errors.DONE)
             return new WatchJob.Result(status, message, null);
 
         List<String> updates = new ArrayList<>();
@@ -100,7 +102,7 @@ public class WatchJob extends SimpleJsonRemoteJob<WatchJob.Result> {
                 updates.add(branch);
             }
         } catch (JSONException e) {
-            return new WatchJob.Result(Result.EXCEPTION, e.getMessage(), null);
+            return new WatchJob.Result(Portal.Errors.EXCEPTION, e.getMessage(), null);
         }
 
         return new WatchJob.Result(status, message, updates);

@@ -59,7 +59,7 @@ public class RemotePullHandler extends JsonRequestHandler {
 
                     @Override
                     public void onResult(GitPullJob.Result result) {
-                        if (result.status == RemoteJob.Result.DONE) {
+                        if (result.status == Portal.Errors.DONE) {
                             responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ERROR,
                                     result.message));
                         } else {

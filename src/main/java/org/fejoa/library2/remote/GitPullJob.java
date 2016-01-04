@@ -9,6 +9,7 @@ package org.fejoa.library2.remote;
 
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.transport.RefSpec;
+import org.fejoa.server.Portal;
 
 import java.io.IOException;
 import java.util.*;
@@ -88,8 +89,8 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
         final String refName = "refs/heads/" + branch;
         ObjectId newRef = fetch(refName, remoteRequest);
         if (newRef == null)
-            return new Result(Result.DONE, "remote does not exist", "");
+            return new Result(Portal.Errors.DONE, "remote does not exist", "");
 
-        return new Result(Result.DONE, "remote head: " + newRef.getName(), newRef.getName());
+        return new Result(Portal.Errors.DONE, "remote head: " + newRef.getName(), newRef.getName());
     }
 }

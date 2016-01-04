@@ -14,6 +14,7 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.transport.Transport;
 import org.fejoa.library2.*;
+import org.fejoa.server.Portal;
 
 import java.io.*;
 import java.text.MessageFormat;
@@ -97,7 +98,7 @@ public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
 
         connection.push(progressMonitor, toPush);
 
-        return new Result(Result.DONE, "ok");
+        return new Result(Portal.Errors.DONE, "ok");
     }
 }
 

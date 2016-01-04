@@ -8,6 +8,7 @@
 package org.fejoa.library2.remote;
 
 import org.fejoa.library2.AccessTokenContact;
+import org.fejoa.server.Portal;
 import org.json.JSONObject;
 
 import java.io.InputStream;
@@ -192,7 +193,7 @@ public class ConnectionManager {
 
             @Override
             public void onResult(RemoteJob.Result result) {
-                if (result.status == RemoteJob.Result.DONE) {
+                if (result.status == Portal.Errors.DONE) {
                     returnValue[0] = getRemoteRequest(connectionInfo);
                 } else {
                     observer.onException(new Exception(result.message));

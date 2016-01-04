@@ -7,6 +7,7 @@
  */
 package org.fejoa.library2.remote;
 
+import org.fejoa.server.Portal;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -21,7 +22,7 @@ public class JsonPingJob extends SimpleJsonRemoteJob {
 
     @Override
     protected Result handleJson(JSONObject returnValue, InputStream binaryData) {
-        int status = Result.ERROR;
+        int status = Portal.Errors.ERROR;
         String message;
         try {
             status = returnValue.getInt("status");

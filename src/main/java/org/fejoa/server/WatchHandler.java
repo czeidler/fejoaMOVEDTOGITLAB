@@ -39,7 +39,9 @@ public class WatchHandler extends JsonRequestHandler {
                        Session session) throws Exception {
         JSONObject params = jsonRPCHandler.getParams();
         String user = params.getString(Constants.SERVER_USER_KEY);
-        Boolean peek = params.getBoolean(WatchJob.PEEK_KEY);
+        Boolean peek = false;
+        if (params.has(WatchJob.PEEK_KEY))
+            peek = params.getBoolean(WatchJob.PEEK_KEY);
         JSONArray branches = params.getJSONArray(WatchJob.BRANCHES_KEY);
 
         Map<String, String> branchMap = new HashMap<>();

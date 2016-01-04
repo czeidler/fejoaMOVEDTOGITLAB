@@ -29,6 +29,9 @@ import java.util.List;
 
 public class Portal extends AbstractHandler {
     public static class Errors {
+        final static public int FOLLOW_UP_JOB = 1;
+
+        final static public int DONE = 0;
         final static public int OK = 0;
         final static public int ERROR = -1;
         final static public int EXCEPTION = -2;

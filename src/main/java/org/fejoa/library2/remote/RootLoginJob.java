@@ -9,6 +9,7 @@ package org.fejoa.library2.remote;
 
 import org.bouncycastle.util.encoders.Base64;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.server.Portal;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -72,13 +73,13 @@ public class RootLoginJob extends SimpleJsonRemoteJob {
 
             String serverPassword = CreateAccountJob.makeServerPassword(password, salt, algorithm, keySize, iterations);
             setFollowUpJob(new SendPasswordJob(userName, serverPassword));
-            return new Result(Result.FOLLOW_UP_JOB, "parameters received");
+            return new Result(Portal.Errors.FOLLOW_UP_JOB, "parameters received");
         } catch (JSONException e) {
             e.printStackTrace();
-            return new Result(Result.ERROR, "parameter missing");
+            return new Result(Portal.Errors.ERROR, "parameter missing");
         } catch (CryptoException e) {
             e.printStackTrace();
-            return new Result(Result.ERROR, "parameter missing");
+            return new Result(Portal.Errors.ERROR, "parameter missing");
         }
     }
 }

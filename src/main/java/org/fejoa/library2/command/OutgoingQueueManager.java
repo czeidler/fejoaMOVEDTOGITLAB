@@ -76,7 +76,7 @@ public class OutgoingQueueManager {
         runningSendJobs.put(entry.hash(), null);
         Task.ICancelFunction job = manager.submit(new SendCommandJob(entry.getData(), entry.getUser()),
                 new ConnectionManager.ConnectionInfo(entry.getUser(),
-                entry.getServer()), new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                entry.getServer()), new ConnectionManager.AuthInfo(),
                 new Task.IObserver<Void, RemoteJob.Result>() {
                     @Override
                     public void onProgress(Void aVoid) {

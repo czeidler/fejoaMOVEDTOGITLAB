@@ -34,7 +34,7 @@ public class JettyTest extends TestCase {
         server.start();
 
         connectionInfo = new ConnectionManager.ConnectionInfo("", "http://localhost:8080/");
-        authInfo = new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null);
+        authInfo = new ConnectionManager.AuthInfo();
         observer = new Task.IObserver<Void, RemoteJob.Result>() {
             @Override
             public void onProgress(Void aVoid) {
@@ -52,7 +52,7 @@ public class JettyTest extends TestCase {
             }
         };
 
-        connectionManager = new ConnectionManager(null);
+        connectionManager = new ConnectionManager();
         connectionManager.setStartScheduler(new Task.CurrentThreadScheduler());
     }
 

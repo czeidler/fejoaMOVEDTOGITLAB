@@ -47,7 +47,7 @@ public class SyncManager {
     private void watch(Collection<Storage> storageList, Task.IObserver<Void, WatchJob.Result> observer) {
         watchFunction = connectionManager.submit(new WatchJob(context, remote.getUser(), storageList),
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
-                new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.ROOT, null),
+                context.getRootAuthInfo(remote.getUser(), remote.getServer()),
                 observer);
     }
 
@@ -134,8 +134,7 @@ public class SyncManager {
 
         final ConnectionManager.ConnectionInfo connectionInfo = new ConnectionManager.ConnectionInfo(remote.getUser(),
                 remote.getServer());
-        final ConnectionManager.AuthInfo authInfo = new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.ROOT,
-                null);
+        final ConnectionManager.AuthInfo authInfo = context.getRootAuthInfo(remote.getUser(), remote.getServer());
         final JGitInterface gitInterface = (JGitInterface)dir.getDatabase();
         // pull
         final Task.ICancelFunction job = connectionManager.submit(new GitPullJob(gitInterface.getRepository(),

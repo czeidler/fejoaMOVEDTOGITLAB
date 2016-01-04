@@ -13,6 +13,7 @@ import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.RefAdvertiser;
 import org.eclipse.jgit.transport.UploadPack;
 import org.fejoa.library.database.JGitInterface;
+import org.fejoa.library2.BranchAccessRight;
 import org.fejoa.library2.remote.GitPullJob;
 import org.fejoa.library2.remote.JsonRPCHandler;
 import org.json.JSONObject;
@@ -33,7 +34,13 @@ public class GitPullHandler extends JsonRequestHandler {
         String request = params.getString("request");
         String user = params.getString("serverUser");
         String branch = params.getString("branch");
-        JGitInterface gitInterface = AccessControl.getDatabase(session, user, branch);
+        AccessControl accessControl = new AccessControl(session, user);
+        JGitInterface gitInterface = accessControl.getDatabase(branch, BranchAccessRight.PULL);
+        if (gitInterface == null) {
+            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ACCESS_DENIED,
+                    "pull access denied"));
+            return;
+        }
         Repository repository = gitInterface.getRepository();
 
         if (request.equals(GitPullJob.METHOD_REQUEST_ADVERTISEMENT)) {

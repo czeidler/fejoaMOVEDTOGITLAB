@@ -83,6 +83,7 @@ public class WatchHandler extends JsonRequestHandler {
     private Map<String, Status> watch(Session session, String user, boolean peek, Map<String, String> branches) {
         Map<String, Status> status = new HashMap<>();
 
+        AccessControl accessControl = new AccessControl(session, user);
         //TODO: use a file monitor instead of polling
         final long TIME_OUT = 60 * 1000;
         long time = System.currentTimeMillis();
@@ -90,14 +91,16 @@ public class WatchHandler extends JsonRequestHandler {
             for (Map.Entry<String, String> entry : branches.entrySet()) {
                 String branch = entry.getKey();
                 String tip = entry.getValue();
-                JGitInterface gitInterface = null;
+                JGitInterface gitInterface;
                 try {
-                    gitInterface = AccessControl.getReadDatabase(session, user, branch);
+                    gitInterface = accessControl.getReadDatabase(branch);
                 } catch (IOException e) {
-                    status.put(branch, Status.ACCESS_DENIED);
-                }
-                if (gitInterface == null)
                     continue;
+                }
+                if (gitInterface == null) {
+                    status.put(branch, Status.ACCESS_DENIED);
+                    continue;
+                }
                 try {
                     if (!tip.equals(gitInterface.getTip()))
                         status.put(branch, Status.UPDATE);

@@ -74,9 +74,13 @@ public class Session {
         return settings.getString(CreateAccountJob.USER_DATA_BRANCH_KEY);
     }
 
+    public FejoaContext getContext(String serverUser) {
+        return new FejoaContext(getServerUserDir(serverUser));
+    }
+
     public IncomingCommandQueue getIncomingCommandQueue(String serverUser) throws Exception {
         String userDataBranch = getUserDataBranch(serverUser);
-        FejoaContext context = new FejoaContext(getServerUserDir(serverUser));
+        FejoaContext context = getContext(serverUser);
         StorageDir userDataDir = context.getStorage(userDataBranch);
         String incomingQueueBranch = userDataDir.readString(UserData.IN_COMMAND_QUEUE_ID_KEY);
         StorageDir incomingQueueDir = context.getStorage(incomingQueueBranch);
@@ -85,7 +89,7 @@ public class Session {
 
     public AccessTokenServer getAccessToken(String serverUser, String tokenId) throws Exception {
         String userDataBranch = getUserDataBranch(serverUser);
-        FejoaContext context = new FejoaContext(getServerUserDir(serverUser));
+        FejoaContext context = getContext(serverUser);
         StorageDir userDataDir = context.getStorage(userDataBranch);
         String accessStoreId = userDataDir.readString(UserData.ACCESS_STORE_KEY);
         StorageDir tokenDir = new StorageDir(context.getStorage(accessStoreId), tokenId);

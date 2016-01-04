@@ -7,7 +7,7 @@
  */
 package org.fejoa.library2.remote;
 
-import org.fejoa.library.ContactPrivate;
+import org.fejoa.library2.AccessTokenContact;
 import org.json.JSONObject;
 
 import java.io.InputStream;
@@ -16,7 +16,6 @@ import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
 
@@ -34,14 +33,36 @@ public class ConnectionManager {
     static public class AuthInfo {
         final static public int NONE = 0;
         final static public int ROOT = 1;
-        final static public int TOKENS = 2;
+        final static public int TOKEN = 2;
 
         final public int authType;
-        final public List<String> tokens;
+        final public String serverUser;
+        final public String server;
+        final public String password;
+        final public AccessTokenContact token;
 
-        public AuthInfo(int authType, List<String> tokens) {
-            this.authType = authType;
-            this.tokens = tokens;
+        public AuthInfo() {
+            this.authType = NONE;
+            this.token = null;
+            this.server = null;
+            this.serverUser = null;
+            this.password = null;
+        }
+
+        public AuthInfo(String serverUser, String server, String password) {
+            this.authType = ROOT;
+            this.token = null;
+            this.serverUser = serverUser;
+            this.server = server;
+            this.password = password;
+        }
+
+        public AuthInfo(String serverUser, AccessTokenContact token) {
+            this.authType = TOKEN;
+            this.token = token;
+            this.serverUser = serverUser;
+            this.server = null;
+            this.password = null;
         }
     }
 
@@ -57,8 +78,25 @@ public class ConnectionManager {
      *
      * The target user is identified by a string such as user@server.
      */
-    class TokenManager {
+    static class TokenManager {
+        final private HashSet<String> rootAccess = new HashSet<>();
         final private Map<String, HashSet<String>> authMap = new HashMap<>();
+
+        static private String makeKey(String serverUser, String server) {
+            return serverUser + "@" + server;
+        }
+
+        public boolean hasRootAccess(String serverUser, String server) {
+            return rootAccess.contains(makeKey(serverUser, server));
+        }
+
+        public boolean addRootAccess(String serverUser, String server) {
+            return rootAccess.add(makeKey(serverUser, server));
+        }
+
+        public boolean removeRootAccess(String serverUser, String server) {
+            return rootAccess.remove(makeKey(serverUser, server));
+        }
 
         public void addToken(String targetUser, String token) {
             HashSet<String> tokenMap = authMap.get(targetUser);
@@ -85,13 +123,11 @@ public class ConnectionManager {
     }
 
     //final private CookieStore cookieStore = new BasicCookieStore();
-    final private ContactPrivate myself;
     final private TokenManager tokenManager = new TokenManager();
     private Task.IScheduler startScheduler = new Task.NewThreadScheduler();
     private Task.IScheduler observerScheduler = new Task.CurrentThreadScheduler();
 
-    public ConnectionManager(ContactPrivate myself) {
-        this.myself = myself;
+    public ConnectionManager() {
         CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
     }
 
@@ -107,7 +143,12 @@ public class ConnectionManager {
                                                                     ConnectionInfo connectionInfo,
                                                                     final AuthInfo authInfo,
                                                                     final Task.IObserver<Void, T> observer) {
-        IRemoteRequest remoteRequest = getAuthRequest(getRemoteRequest(connectionInfo), authInfo);
+        IRemoteRequest remoteRequest = getRemoteRequest(connectionInfo);
+        if (remoteRequest == null)
+            return null;
+        remoteRequest = getAuthRequest(remoteRequest, connectionInfo, authInfo, observer);
+        if (remoteRequest == null)
+            return null;
         return runJob(remoteRequest, job).setStartScheduler(startScheduler).setObserverScheduler(observerScheduler)
                 .start(observer);
     }
@@ -136,8 +177,55 @@ public class ConnectionManager {
         });
     }
 
-    private IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest, final AuthInfo authInfo) {
-        return remoteRequest;
+    private <T extends RemoteJob.Result> IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest,
+                                                                       final ConnectionInfo connectionInfo,
+                                                                       final AuthInfo authInfo,
+                                                                       final Task.IObserver<Void, T> observer) {
+        if (authInfo.authType == AuthInfo.NONE)
+            return remoteRequest;
+        final IRemoteRequest[] returnValue = new IRemoteRequest[1];
+        Task.IObserver<Void, RemoteJob.Result> authJobObserver = new Task.IObserver<Void, RemoteJob.Result>() {
+            @Override
+            public void onProgress(Void v) {
+
+            }
+
+            @Override
+            public void onResult(RemoteJob.Result result) {
+                if (result.status == RemoteJob.Result.DONE) {
+                    returnValue[0] = getRemoteRequest(connectionInfo);
+                } else {
+                    observer.onException(new Exception(result.message));
+                }
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                observer.onException(exception);
+            }
+        };
+
+        if (authInfo.authType == AuthInfo.ROOT) {
+            if (tokenManager.hasRootAccess(authInfo.serverUser, authInfo.server))
+                return remoteRequest;
+            runJob(remoteRequest, new RootLoginJob(authInfo.serverUser, authInfo.password))
+                    .setStartScheduler(new Task.CurrentThreadScheduler())
+                    .setObserverScheduler(new Task.CurrentThreadScheduler())
+                    .start(authJobObserver);
+            if (returnValue[0] != null)
+                tokenManager.addRootAccess(authInfo.serverUser, authInfo.server);
+        } else if (authInfo.authType == AuthInfo.TOKEN) {
+            if (tokenManager.hasToken(authInfo.serverUser, authInfo.token.getId()))
+                return remoteRequest;
+            runJob(remoteRequest, new AccessRequestJob(authInfo.serverUser, authInfo.token))
+                    .setStartScheduler(new Task.CurrentThreadScheduler())
+                    .setObserverScheduler(new Task.CurrentThreadScheduler())
+                    .start(authJobObserver);
+            if (returnValue[0] != null)
+                tokenManager.addToken(authInfo.serverUser, authInfo.token.getId());
+        }
+
+        return returnValue[0];
     }
 
     private IRemoteRequest getRemoteRequest(ConnectionInfo connectionInfo) {

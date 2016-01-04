@@ -12,10 +12,13 @@ import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.crypto.ICryptoInterface;
 import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library2.database.StorageDir;
+import org.fejoa.library2.remote.ConnectionManager;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class FejoaContext {
@@ -25,6 +28,7 @@ public class FejoaContext {
     private CryptoSettings cryptoSettings = CryptoSettings.getDefault();
 
     private List<StorageDir> secureStorageDirs = new ArrayList<>();
+    private Map<String, String> rootPasswords = new HashMap<>();
 
     public FejoaContext(String homeDir) {
         this.homeDir = homeDir;
@@ -72,5 +76,29 @@ public class FejoaContext {
         File file = new File(homeDir, INFO_FILE);
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
         return bufferedReader.readLine();
+    }
+
+    public ConnectionManager.AuthInfo getTokenAuthInfo(String branch, int rights) {
+        // TODO implement
+        return new ConnectionManager.AuthInfo();
+    }
+
+    public ConnectionManager.AuthInfo getRootAuthInfo(String serverUser, String server) {
+        String password = getRootPassword(serverUser, server);
+        if (password == null)
+            password = "";
+        return new ConnectionManager.AuthInfo(serverUser, server, password);
+    }
+
+    private String makeName(String serverUser, String server) {
+        return serverUser + "@" + server;
+    }
+
+    private String getRootPassword(String serverUser, String server) {
+        return rootPasswords.get(makeName(serverUser, server));
+    }
+
+    public void registerRootPassword(String serverUser, String server, String password) {
+        rootPasswords.put(makeName(serverUser, server), password);
     }
 }

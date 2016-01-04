@@ -11,11 +11,9 @@ import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library2.command.*;
 import org.fejoa.library2.remote.*;
-import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 
 
@@ -31,10 +29,11 @@ public class Client {
 
     public Client(String home) {
         this.context = new FejoaContext(home);
-        this.connectionManager = new ConnectionManager(null);
+        this.connectionManager = new ConnectionManager();
     }
 
     public void create(String userName, String server, String password) throws IOException, CryptoException {
+        context.registerRootPassword(userName, server, password);
         userData = UserData.create(context, password);
         Remote remoteRemote = new Remote(userName, server);
         userData.getRemoteList().add(remoteRemote);
@@ -43,6 +42,9 @@ public class Client {
 
     public void open(String password) throws IOException, CryptoException {
         userData = UserData.open(context, password);
+
+        Remote defaultRemote = userData.getRemoteList().getDefault();
+        context.registerRootPassword(defaultRemote.getUser(), defaultRemote.getServer(), password);
     }
 
     public void commit() throws IOException {
@@ -66,7 +68,7 @@ public class Client {
         connectionManager.submit(new CreateAccountJob(userName, password, userData.getId(),
                 CryptoSettings.getDefault().masterPassword),
                 new ConnectionManager.ConnectionInfo(userName, server),
-                new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                new ConnectionManager.AuthInfo(),
                 observer);
     }
 
@@ -99,14 +101,11 @@ public class Client {
 
     public void grantAccess(String branch, int rights, ContactPublic contact) throws CryptoException, JSONException,
             IOException {
-        AccessRight accessRight = new AccessRight(branch);
-        accessRight.setGitAccessRights(rights);
-
-        JSONArray accessRights = new JSONArray();
-        accessRights.put(accessRight.toJson());
+        BranchAccessRight accessRight = new BranchAccessRight(BranchAccessRight.CONTACT_ACCESS);
+        accessRight.addBranchAccess(branch, rights);
 
         AccessToken accessToken = AccessToken.create(context);
-        accessToken.setAccessEntry(accessRights.toString());
+        accessToken.setAccessEntry(accessRight.toJson().toString());
 
         userData.getAccessStore().addAccessToken(accessToken);
 
@@ -122,7 +121,7 @@ public class Client {
         Remote remote = getUserData().getRemoteList().getDefault();
         connectionManager.submit(new WatchJob(context, remote.getUser(), Collections.singletonList(branch), true),
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
-                new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                context.getTokenAuthInfo(branchId, BranchAccessRight.PULL),
                 observer);
     }
 }

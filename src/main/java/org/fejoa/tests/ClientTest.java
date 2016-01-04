@@ -8,7 +8,6 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
-import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.*;
 import org.fejoa.library2.Client;
@@ -19,7 +18,6 @@ import org.fejoa.server.JettyServer;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -225,7 +223,7 @@ public class ClientTest extends TestCase {
                     client1.getUserData().getIdentityStore().getMyself().getId());
 
             // grant access to the access branch
-            client2.grantAccess(clientUserData.getAccessStore().getId(), AccessRight.PULL, client2Contact);
+            client2.grantAccess(clientUserData.getAccessStore().getId(), BranchAccessRight.PULL, client2Contact);
         }
 
         @Override
@@ -282,7 +280,7 @@ public class ClientTest extends TestCase {
 
             client1.getConnectionManager().submit(new AccessRequestJob(USER_NAME_2, accessTokenContact),
                     new ConnectionManager.ConnectionInfo(USER_NAME_2, SERVER_URL),
-                    new ConnectionManager.AuthInfo(ConnectionManager.AuthInfo.NONE, null),
+                    new ConnectionManager.AuthInfo(USER_NAME_2, accessTokenContact),
                     new SimpleObserver(new Runnable() {
                         @Override
                         public void run() {
@@ -319,7 +317,7 @@ public class ClientTest extends TestCase {
         }
 
         private void onAccountCreated(Client client, final ClientStatus status) throws Exception {
-            System.out.print("Account Created");
+            System.out.println("Account Created");
             // watch
             client.startSyncing(new Task.IObserver<TaskUpdate, Void>() {
                 @Override

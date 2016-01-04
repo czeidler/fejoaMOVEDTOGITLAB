@@ -8,7 +8,6 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
-import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library2.*;
 import org.fejoa.library2.database.StorageDir;
@@ -48,8 +47,8 @@ public class AccessStoreTest extends TestCase {
 
         // create token
         AccessToken accessToken = AccessToken.create(context);
-        AccessRight accessRight = new AccessRight("branch");
-        accessRight.setGitAccessRights(AccessRight.PULL);
+        BranchAccessRight accessRight = new BranchAccessRight(BranchAccessRight.CONTACT_ACCESS);
+        accessRight.addBranchAccess("branch", BranchAccessRight.PULL);
         JSONArray accessRights = new JSONArray();
         accessRights.put(accessRight.toJson());
         accessToken.setAccessEntry(accessRights.toString());

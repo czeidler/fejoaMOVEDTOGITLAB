@@ -31,8 +31,8 @@ public class AccessControl {
         if (session.hasRootRole(user))
             return true;
         int roleRights = session.getRoleRights(user, branch);
-        if ((roleRights & rights) != rights)
-            return false;
+        if ((roleRights & rights) == rights)
+            return true;
         return false;
     }
 

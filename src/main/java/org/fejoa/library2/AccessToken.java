@@ -23,13 +23,14 @@ import java.util.List;
 
 
 public class AccessToken implements IStorageDirBundle {
-    final static public String CONTACT_AUTH_KEY_JSON_SETTINGS_KEY = "contactAuthKeySettings";
+    final static public String CONTACT_AUTH_KEY_SETTINGS_JSON_KEY = "contactAuthKeySettings";
     final static public String CONTACT_AUTH_KEY_SETTINGS_KEY = "contactAuthKey";
     final static public String CONTACT_AUTH_PUBLIC_KEY_KEY = "contactAuthPublicKey";
     final static public String CONTACT_AUTH_PRIVATE_KEY_KEY = "contactAuthPrivateKey";
     final static public String SIGNATURE_KEY_SETTINGS_KEY = "accessSignatureKey";
-    final static public String SIGNATURE_VERIFICATION_KEY_KEY = "signatureVerificationKey";
-    final static private String SIGNATURE_SIGNING_KEY_KEY = "signatureSigningKey";
+    final static public String ACCESS_VERIFICATION_KEY_KEY = "accessVerificationKey";
+    final static private String ACCESS_SIGNING_KEY_KEY = "accessSigningKey";
+    final static public String ACCESS_KEY_SETTINGS_JSON_KEY = "accessKeySettings";
     final static public String ACCESS_ENTRY_KEY = "accessEntry";
     final static public String ACCESS_ENTRY_SIGNATURE_KEY = "accessEntrySignature";
 
@@ -87,12 +88,17 @@ public class AccessToken implements IStorageDirBundle {
         return CryptoHelper.sha1HashHex(contactAuthKey.getPublic().getEncoded());
     }
 
+    public AccessTokenServer toServerToken() {
+        return new AccessTokenServer(context, contactAuthKey.getPublic(), contactAuthKeySettings,
+                accessSignatureKey.getPublic(), accessSignatureKeySettings);
+    }
+
     public JSONObject getContactToken() throws JSONException, CryptoException {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(Constants.ID_KEY, getId());
         jsonObject.put(ACCESS_ENTRY_SIGNATURE_KEY, DatatypeConverter.printBase64Binary(getAccessEntrySignature()));
         jsonObject.put(ACCESS_ENTRY_KEY, accessEntry);
-        jsonObject.put(CONTACT_AUTH_KEY_JSON_SETTINGS_KEY, JsonCryptoSettings.toJson(contactAuthKeySettings));
+        jsonObject.put(CONTACT_AUTH_KEY_SETTINGS_JSON_KEY, JsonCryptoSettings.toJson(contactAuthKeySettings));
         jsonObject.put(CONTACT_AUTH_PRIVATE_KEY_KEY, DatatypeConverter.printBase64Binary(
                 contactAuthKey.getPrivate().getEncoded()));
         return jsonObject;
@@ -109,8 +115,8 @@ public class AccessToken implements IStorageDirBundle {
         dir.writeBytes(CONTACT_AUTH_PRIVATE_KEY_KEY, contactAuthKey.getPrivate().getEncoded());
 
         CryptoSettingsIO.write(accessSignatureKeySettings, plainDir, SIGNATURE_KEY_SETTINGS_KEY);
-        plainDir.writeBytes(SIGNATURE_VERIFICATION_KEY_KEY, accessSignatureKey.getPublic().getEncoded());
-        dir.writeBytes(SIGNATURE_SIGNING_KEY_KEY, accessSignatureKey.getPrivate().getEncoded());
+        plainDir.writeBytes(ACCESS_VERIFICATION_KEY_KEY, accessSignatureKey.getPublic().getEncoded());
+        dir.writeBytes(ACCESS_SIGNING_KEY_KEY, accessSignatureKey.getPrivate().getEncoded());
 
         dir.writeString(ACCESS_ENTRY_KEY, accessEntry);
 
@@ -143,9 +149,9 @@ public class AccessToken implements IStorageDirBundle {
 
         CryptoSettingsIO.read(accessSignatureKeySettings, plainDir, SIGNATURE_KEY_SETTINGS_KEY);
         try {
-            publicKey = CryptoHelper.publicKeyFromRaw(plainDir.readBytes(SIGNATURE_VERIFICATION_KEY_KEY),
+            publicKey = CryptoHelper.publicKeyFromRaw(plainDir.readBytes(ACCESS_VERIFICATION_KEY_KEY),
                     accessSignatureKeySettings.keyType);
-            privateKey = CryptoHelper.privateKeyFromRaw(dir.readBytes(SIGNATURE_SIGNING_KEY_KEY),
+            privateKey = CryptoHelper.privateKeyFromRaw(dir.readBytes(ACCESS_SIGNING_KEY_KEY),
                     accessSignatureKeySettings.keyType);
         } catch (Exception e) {
             throw new IOException(e.getMessage());

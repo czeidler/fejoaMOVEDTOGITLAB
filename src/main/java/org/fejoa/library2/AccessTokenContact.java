@@ -12,6 +12,7 @@ import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.crypto.JsonCryptoSettings;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.xml.bind.DatatypeConverter;
@@ -31,7 +32,8 @@ public class AccessTokenContact {
     final private PrivateKey contactAuthKey;
     final private byte[] accessEntrySignature;
     final private String accessEntry;
-    final private List<AccessRight> accessRights = new ArrayList<>();
+
+    final private BranchAccessRight accessRights;
 
     public AccessTokenContact(FejoaContext context, String rawAccessToken) throws Exception {
         this.context = context;
@@ -43,18 +45,13 @@ public class AccessTokenContact {
                 AccessToken.ACCESS_ENTRY_SIGNATURE_KEY));
         accessEntry = jsonObject.getString(AccessToken.ACCESS_ENTRY_KEY);
         contactAuthKeySettings = JsonCryptoSettings.signatureFromJson(jsonObject.getJSONObject(
-                AccessToken.CONTACT_AUTH_KEY_JSON_SETTINGS_KEY));
+                AccessToken.CONTACT_AUTH_KEY_SETTINGS_JSON_KEY));
         byte[] rawKey = DatatypeConverter.parseBase64Binary(
                 jsonObject.getString(AccessToken.CONTACT_AUTH_PRIVATE_KEY_KEY));
         contactAuthKey = CryptoHelper.privateKeyFromRaw(rawKey, contactAuthKeySettings.keyType);
 
         // access rights
-        JSONArray accessObject = new JSONArray(accessEntry);
-        for (int i = 0; i < accessObject.length(); i++) {
-            JSONObject accessRight = accessObject.getJSONObject(i);
-            AccessRight right = new AccessRight(accessRight);
-            accessRights.add(right);
-        }
+        accessRights = new BranchAccessRight(new JSONObject(accessEntry));
     }
 
     public String getId() {
@@ -63,6 +60,10 @@ public class AccessTokenContact {
 
     public String getRawAccessToken() {
         return rawAccessToken;
+    }
+
+    public JSONObject toJson() throws JSONException {
+        return new JSONObject(rawAccessToken);
     }
 
     public String getAccessEntry() {

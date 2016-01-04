@@ -327,6 +327,10 @@ public class ClientTest extends TestCase {
 
                 @Override
                 public void onResult(WatchJob.Result result) {
+                    if (result.status != Portal.Errors.DONE || result.updated == null) {
+                        finishAndFail(result.message);
+                        return;
+                    }
                     if (result.updated.size() == 0) {
                         System.out.println("Access store updated, retry counts: " + retryCount);
                         onTaskPerformed();
@@ -398,7 +402,8 @@ public class ClientTest extends TestCase {
 
         private void migrate() throws Exception {
             MigrationManager migrationManager = new MigrationManager(client1);
-            migrationManager.migrate(USER_NAME_1_NEW, SERVER_URL_1_NEW, new Task.IObserver<Void, RemoteJob.Result>() {
+            migrationManager.migrate(USER_NAME_1_NEW, SERVER_URL_1_NEW, PASSWORD,
+                    new Task.IObserver<Void, RemoteJob.Result>() {
                 @Override
                 public void onProgress(Void aVoid) {
 

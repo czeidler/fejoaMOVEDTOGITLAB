@@ -21,9 +21,11 @@ public class MigrationManager {
         this.client = client;
     }
 
-    public void migrate(final String newUserName, final String newServer,
+    public void migrate(final String newUserName, final String newServer, String password,
                         final Task.IObserver<Void, RemoteJob.Result> observer)
             throws Exception {
+        client.getContext().registerRootPassword(newUserName, newServer, password);
+
         final AccessToken accessToken = AccessToken.create(client.getContext());
 
         BranchAccessRight accessRight = new BranchAccessRight(BranchAccessRight.MIGRATION_ACCESS);
@@ -74,7 +76,8 @@ public class MigrationManager {
                         currentRemote.getUser(),
                         currentRemote.getServer()),
                 new ConnectionManager.ConnectionInfo(newUserName, newServer),
-                client.getContext().getRootAuthInfo(newUserName, newServer), new Task.IObserver<Void, RemoteJob.Result>() {
+                client.getContext().getRootAuthInfo(newUserName, newServer),
+                new Task.IObserver<Void, RemoteJob.Result>() {
                     @Override
                     public void onProgress(Void update) {
 

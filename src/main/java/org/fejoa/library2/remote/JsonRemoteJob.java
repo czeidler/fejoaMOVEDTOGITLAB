@@ -51,6 +51,9 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
             e.printStackTrace();
             message = e.getMessage();
         }
+        // don't allow the server to set follow up jobs
+        if (status == Portal.Errors.FOLLOW_UP_JOB)
+            status = Portal.Errors.ERROR;
         return new Result(status, message);
     }
 

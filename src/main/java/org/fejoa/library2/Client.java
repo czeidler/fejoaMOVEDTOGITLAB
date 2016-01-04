@@ -9,7 +9,9 @@ package org.fejoa.library2;
 
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoSettings;
+import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library2.command.*;
+import org.fejoa.library2.database.StorageDir;
 import org.fejoa.library2.remote.*;
 import org.json.JSONException;
 
@@ -123,5 +125,40 @@ public class Client {
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
                 context.getTokenAuthInfo(branchId, BranchAccessRight.PULL),
                 observer);
+    }
+
+    public void pullContactBranch(String user, String server, AccessTokenContact accessTokenContact,
+                                  BranchAccessRight.Entry entry, final Task.IObserver<Void, GitPullJob.Result> observer)
+            throws IOException {
+        if ((entry.getRights() & BranchAccessRight.PULL) == 0)
+            throw new IOException("missing rights!");
+
+        final StorageDir contactBranch = getContext().getStorage(entry.getBranch());
+
+        getConnectionManager().submit(new GitPullJob(((JGitInterface) contactBranch.getDatabase()).getRepository(),
+                        user, entry.getBranch()),
+                new ConnectionManager.ConnectionInfo(user, server),
+                new ConnectionManager.AuthInfo(user, accessTokenContact),
+                new Task.IObserver<Void, GitPullJob.Result>() {
+                    @Override
+                    public void onProgress(Void update) {
+                        observer.onProgress(update);
+                    }
+
+                    @Override
+                    public void onResult(GitPullJob.Result result) {
+                        try {
+                            contactBranch.merge(result.pulledRev);
+                        } catch (IOException exception) {
+                            observer.onException(exception);
+                        }
+                        observer.onResult(result);
+                    }
+
+                    @Override
+                    public void onException(Exception exception) {
+                        observer.onException(exception);
+                    }
+                });
     }
 }

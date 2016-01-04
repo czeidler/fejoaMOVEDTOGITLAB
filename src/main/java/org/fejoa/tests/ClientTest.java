@@ -15,8 +15,10 @@ import org.fejoa.library2.command.*;
 import org.fejoa.library2.remote.*;
 import org.fejoa.library2.util.LooperThread;
 import org.fejoa.server.JettyServer;
+import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
@@ -75,7 +77,7 @@ public class ClientTest extends TestCase {
     private boolean failure = false;
     private Semaphore finishedSemaphore;
 
-    class SimpleObserver implements Task.IObserver<Void, RemoteJob.Result> {
+    class SimpleObserver<T extends RemoteJob.Result> implements Task.IObserver<Void, T> {
         final private Runnable onSuccess;
 
         public SimpleObserver(Runnable onSuccess) {
@@ -89,7 +91,7 @@ public class ClientTest extends TestCase {
         }
 
         @Override
-        public void onResult(RemoteJob.Result result) {
+        public void onResult(T result) {
             if (result.status != RemoteJob.Result.DONE)
                 finishAndFail(result.message);
             System.out.println("onNext: " + result.message);
@@ -172,6 +174,79 @@ public class ClientTest extends TestCase {
         }
     }
 
+
+    class CreateAndSyncAccountTask extends TestTask {
+        final private Client client;
+        final private ClientStatus status;
+
+        CreateAndSyncAccountTask(Client client, ClientStatus status) {
+            this.client = client;
+            this.status = status;
+        }
+
+        @Override
+        protected void perform(TestTask previousTask) throws Exception {
+            client.create(status.name, SERVER_URL, PASSWORD);
+            client.commit();
+
+            client.createAccount(status.name, PASSWORD, SERVER_URL, new SimpleObserver(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        onAccountCreated(client, status);
+                    } catch (Exception e) {
+                        finishAndFail(e.getMessage());
+                    }
+                }
+            }));
+        }
+
+        private void onAccountCreated(Client client, final ClientStatus status) throws Exception {
+            System.out.println("Account Created");
+            // watch
+            client.startSyncing(new Task.IObserver<TaskUpdate, Void>() {
+                @Override
+                public void onProgress(TaskUpdate update) {
+                    System.out.println(update.toString());
+                    if (!status.firstSync && update.getTotalWork() > 0 && update.getProgress() == update.getTotalWork()) {
+                        status.firstSync = true;
+                        startCommandManagers();
+                        onTaskPerformed();
+                    }
+                }
+
+                @Override
+                public void onResult(Void aVoid) {
+                    System.out.println(status.name + ": sync ok");
+                }
+
+                @Override
+                public void onException(Exception exception) {
+                    finishAndFail(exception.getMessage());
+                }
+            });
+        }
+
+        private void startCommandManagers() {
+            client.startCommandManagers(new Task.IObserver<TaskUpdate, Void>() {
+                @Override
+                public void onProgress(TaskUpdate update) {
+                    System.out.println(status.name + ": " + update.toString());
+                }
+
+                @Override
+                public void onResult(Void aVoid) {
+                    System.out.println(status.name + ": Command sent");
+                }
+
+                @Override
+                public void onException(Exception exception) {
+                    finishAndFail(exception.getMessage());
+                }
+            });
+        }
+    }
+
     class ContactRequestTask extends TestTask {
         private ContactRequest contactRequest = new ContactRequest(client1);
         private ContactRequest.IHandler handler = new ContactRequest.AutoAcceptHandler() {
@@ -192,7 +267,7 @@ public class ClientTest extends TestCase {
         }
     }
 
-    class GrantAccessTask extends TestTask {
+    class GrantAccessForClient1Task extends TestTask {
         private IncomingCommandManager.IListener listener = new IncomingCommandManager.IListener() {
             @Override
             public void onCommandReceived(IncomingCommandManager.ReturnValue returnValue) {
@@ -267,8 +342,7 @@ public class ClientTest extends TestCase {
         }
     }
 
-    class AccessRequest extends TestTask {
-
+    class PullContactBranchFromClient2Task extends TestTask {
         @Override
         protected void perform(TestTask previousTask) throws Exception {
             UserData clientUserData = client1.getUserData();
@@ -277,88 +351,21 @@ public class ClientTest extends TestCase {
                     client2.getUserData().getIdentityStore().getMyself().getId());
 
             AccessTokenContact accessTokenContact = client2Contact.getAccessTokenList().getEntries().iterator().next();
+            BranchAccessRight accessRight = new BranchAccessRight(accessTokenContact.getAccessEntryJson());
+            final BranchAccessRight.Entry entry0 = accessRight.getEntries().get(0);
 
-            client1.getConnectionManager().submit(new AccessRequestJob(USER_NAME_2, accessTokenContact),
-                    new ConnectionManager.ConnectionInfo(USER_NAME_2, SERVER_URL),
-                    new ConnectionManager.AuthInfo(USER_NAME_2, accessTokenContact),
+            client1.pullContactBranch(USER_NAME_2, SERVER_URL, accessTokenContact, entry0,
                     new SimpleObserver(new Runnable() {
                         @Override
                         public void run() {
+                            try {
+                                assertFalse(client1.getContext().getStorage(entry0.getBranch()).getTip().equals(""));
+                            } catch (IOException e) {
+                                finishAndFail(e.getMessage());
+                            }
                             onTaskPerformed();
                         }
                     }));
-        }
-    }
-
-    class CreateAndSyncAccountTask extends TestTask {
-        final private Client client;
-        final private ClientStatus status;
-
-        CreateAndSyncAccountTask(Client client, ClientStatus status) {
-            this.client = client;
-            this.status = status;
-        }
-
-        @Override
-        protected void perform(TestTask previousTask) throws Exception {
-            client.create(status.name, SERVER_URL, PASSWORD);
-            client.commit();
-
-            client.createAccount(status.name, PASSWORD, SERVER_URL, new SimpleObserver(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        onAccountCreated(client, status);
-                    } catch (Exception e) {
-                        finishAndFail(e.getMessage());
-                    }
-                }
-            }));
-        }
-
-        private void onAccountCreated(Client client, final ClientStatus status) throws Exception {
-            System.out.println("Account Created");
-            // watch
-            client.startSyncing(new Task.IObserver<TaskUpdate, Void>() {
-                @Override
-                public void onProgress(TaskUpdate update) {
-                    System.out.println(update.toString());
-                    if (!status.firstSync && update.getTotalWork() > 0 && update.getProgress() == update.getTotalWork()) {
-                        status.firstSync = true;
-                        startCommandManagers();
-                        onTaskPerformed();
-                    }
-                }
-
-                @Override
-                public void onResult(Void aVoid) {
-                    System.out.println(status.name + ": sync ok");
-                }
-
-                @Override
-                public void onException(Exception exception) {
-                    finishAndFail(exception.getMessage());
-                }
-            });
-        }
-
-        private void startCommandManagers() {
-            client.startCommandManagers(new Task.IObserver<TaskUpdate, Void>() {
-                @Override
-                public void onProgress(TaskUpdate update) {
-                    System.out.println(status.name + ": " + update.toString());
-                }
-
-                @Override
-                public void onResult(Void aVoid) {
-                    System.out.println(status.name + ": Command sent");
-                }
-
-                @Override
-                public void onException(Exception exception) {
-                    finishAndFail(exception.getMessage());
-                }
-            });
         }
     }
 
@@ -374,8 +381,8 @@ public class ClientTest extends TestCase {
         // start it
         chainUpTasks(new MergeTask(createAccountTask1, createAccountTask2),
                 new ContactRequestTask(),
-                new GrantAccessTask(),
-                new AccessRequest(),
+                new GrantAccessForClient1Task(),
+                new PullContactBranchFromClient2Task(),
                 new FinishTask());
 
         createAccountTask1.perform(null);

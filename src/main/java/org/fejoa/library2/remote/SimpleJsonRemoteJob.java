@@ -38,10 +38,7 @@ abstract public class SimpleJsonRemoteJob<T extends RemoteJob.Result> extends Js
             throw new IOException(e.getMessage());
         }
 
-        T result = handleJson(returnValue, inputStream);
-        if (errorCallback != null)
-            errorCallback.onError(returnValue, inputStream);
-        return result;
+        return handleJson(returnValue, inputStream);
     }
 
     abstract public String getJsonHeader(JsonRPC jsonRPC) throws Exception;

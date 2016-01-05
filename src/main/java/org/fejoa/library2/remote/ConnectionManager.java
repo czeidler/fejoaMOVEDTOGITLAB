@@ -216,7 +216,7 @@ public class ConnectionManager {
 
         private T runJob(final IRemoteRequest remoteRequest, final JsonRemoteJob<T> job) throws Exception {
             try {
-                return JsonRemoteJob.run(job, remoteRequest, null);
+                return JsonRemoteJob.run(job, remoteRequest);
             } finally {
                 remoteRequest.close();
                 setCurrentRemoteRequest(null);

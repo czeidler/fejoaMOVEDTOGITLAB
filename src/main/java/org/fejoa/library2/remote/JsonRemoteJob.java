@@ -12,7 +12,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.logging.Logger;
 
 
@@ -21,16 +20,8 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
 
     final static public String ACCESS_DENIED_KEY = "access_denied";
 
-    /**
-     * Can be used for errors unrelated to the current job. For example, token expired or auth became invalid.
-     */
-    public interface IErrorCallback {
-         void onError(JSONObject returnValue, InputStream binaryData);
-    }
-
     protected JsonRPC jsonRPC;
     private JsonRemoteJob<T> followUpJob;
-    protected IErrorCallback errorCallback;
 
     protected JsonRPC startNewJsonRPC() {
         this.jsonRPC = new JsonRPC();
@@ -65,10 +56,6 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
         return followUpJob;
     }
 
-    public void setErrorCallback(IErrorCallback errorCallback) {
-        this.errorCallback = errorCallback;
-    }
-
     @Override
     public T run(IRemoteRequest remoteRequest) throws Exception {
         super.run(remoteRequest);
@@ -76,15 +63,13 @@ public class JsonRemoteJob<T extends RemoteJob.Result> extends RemoteJob<T> {
         return null;
     }
 
-    static public <T extends Result> T run(JsonRemoteJob<T> job, IRemoteRequest remoteRequest,
-                                           IErrorCallback errorHandler)
+    static public <T extends Result> T run(JsonRemoteJob<T> job, IRemoteRequest remoteRequest)
             throws Exception {
-        job.setErrorCallback(errorHandler);
         T result = job.run(remoteRequest);
         if (result.status == Portal.Errors.FOLLOW_UP_JOB) {
             LOG.info("Start follow up job (" + job.getFollowUpJob().getClass().getSimpleName() + ") after: "
                     + result.message);
-            return run(job.getFollowUpJob(), remoteRequest, errorHandler);
+            return run(job.getFollowUpJob(), remoteRequest);
         }
         return result;
     }

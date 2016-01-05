@@ -67,17 +67,12 @@ public class ConnectionManager {
         }
     }
 
-    private JsonRemoteJob.IErrorCallback generalErrorHandler = new JsonRemoteJob.IErrorCallback() {
-        @Override
-        public void onError(JSONObject returnValue, InputStream binaryData) {
-
-        }
-    };
-
     /**
      * Maintains the access tokens gained for different target users.
      *
      * The target user is identified by a string such as user@server.
+     *
+     * Must be thread safe to be accessed from a task job.
      */
     static class TokenManager {
         final private HashSet<String> rootAccess = new HashSet<>();
@@ -88,38 +83,50 @@ public class ConnectionManager {
         }
 
         public boolean hasRootAccess(String serverUser, String server) {
-            return rootAccess.contains(makeKey(serverUser, server));
+            synchronized (this) {
+                return rootAccess.contains(makeKey(serverUser, server));
+            }
         }
 
         public boolean addRootAccess(String serverUser, String server) {
-            return rootAccess.add(makeKey(serverUser, server));
+            synchronized (this) {
+                return rootAccess.add(makeKey(serverUser, server));
+            }
         }
 
         public boolean removeRootAccess(String serverUser, String server) {
-            return rootAccess.remove(makeKey(serverUser, server));
+            synchronized (this) {
+                return rootAccess.remove(makeKey(serverUser, server));
+            }
         }
 
         public void addToken(String targetUser, String token) {
-            HashSet<String> tokenMap = authMap.get(targetUser);
-            if (tokenMap == null) {
-                tokenMap = new HashSet<>();
-                authMap.put(targetUser, tokenMap);
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null) {
+                    tokenMap = new HashSet<>();
+                    authMap.put(targetUser, tokenMap);
+                }
+                tokenMap.add(token);
             }
-            tokenMap.add(token);
         }
 
         public boolean removeToken(String targetUser, String token) {
-            HashSet<String> tokenMap = authMap.get(targetUser);
-            if (tokenMap == null)
-                return false;
-            return tokenMap.remove(token);
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null)
+                    return false;
+                return tokenMap.remove(token);
+            }
         }
 
         public boolean hasToken(String targetUser, String token) {
-            HashSet<String> tokenMap = authMap.get(targetUser);
-            if (tokenMap == null)
-                return false;
-            return tokenMap.contains(token);
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null)
+                    return false;
+                return tokenMap.contains(token);
+            }
         }
     }
 
@@ -145,92 +152,127 @@ public class ConnectionManager {
                                                                     ConnectionInfo connectionInfo,
                                                                     final AuthInfo authInfo,
                                                                     final Task.IObserver<Void, T> observer) {
-        IRemoteRequest remoteRequest = getRemoteRequest(connectionInfo);
-        if (remoteRequest == null)
-            return null;
-        remoteRequest = getAuthRequest(remoteRequest, connectionInfo, authInfo, observer);
-        if (remoteRequest == null)
-            return null;
-        return runJob(remoteRequest, job).setStartScheduler(startScheduler).setObserverScheduler(observerScheduler)
-                .start(observer);
+        JobTask<T> jobTask = new JobTask<>(tokenManager, job, connectionInfo, authInfo);
+        return jobTask.setStartScheduler(startScheduler).setObserverScheduler(observerScheduler).start(observer);
     }
 
-    private <T extends RemoteJob.Result> Task<Void, T> runJob(final IRemoteRequest remoteRequest,
-                                                              final JsonRemoteJob<T> job) {
+    static private class JobTask<T extends RemoteJob.Result> extends Task<Void, T>{
+        final private TokenManager tokenManager;
+        final private JsonRemoteJob<T> job;
+        final private ConnectionInfo connectionInfo;
+        final private AuthInfo authInfo;
 
-        return new Task<>(new Task.ITaskFunction<Void, T>() {
-            @Override
-            public void run(Task<Void, T> task) throws Exception {
-                try {
-                    T result = JsonRemoteJob.run(job, remoteRequest, generalErrorHandler);
-                    task.onResult(result);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    task.onException(e);
-                } finally {
-                    remoteRequest.close();
+        private IRemoteRequest remoteRequest;
+
+        public JobTask(TokenManager tokenManager, final JsonRemoteJob<T> job, ConnectionInfo connectionInfo,
+                       final AuthInfo authInfo) {
+            super();
+
+            this.tokenManager = tokenManager;
+            this.job = job;
+            this.connectionInfo = connectionInfo;
+            this.authInfo = authInfo;
+
+            setTaskFunction(new ITaskFunction<Void, T>() {
+                @Override
+                public void run(Task<Void, T> task) throws Exception {
+                    JobTask.this.run(0);
                 }
-            }
 
-            @Override
-            public void cancel() {
-                remoteRequest.cancel();
-            }
-        });
-    }
-
-    private <T extends RemoteJob.Result> IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest,
-                                                                       final ConnectionInfo connectionInfo,
-                                                                       final AuthInfo authInfo,
-                                                                       final Task.IObserver<Void, T> observer) {
-        if (authInfo.authType == AuthInfo.NONE)
-            return remoteRequest;
-        final IRemoteRequest[] returnValue = new IRemoteRequest[1];
-        Task.IObserver<Void, RemoteJob.Result> authJobObserver = new Task.IObserver<Void, RemoteJob.Result>() {
-            @Override
-            public void onProgress(Void v) {
-
-            }
-
-            @Override
-            public void onResult(RemoteJob.Result result) {
-                if (result.status == Portal.Errors.DONE) {
-                    returnValue[0] = getRemoteRequest(connectionInfo);
-                } else {
-                    observer.onException(new Exception(result.message));
+                @Override
+                public void cancel() {
+                    cancelJob();
                 }
-            }
-
-            @Override
-            public void onException(Exception exception) {
-                observer.onException(exception);
-            }
-        };
-
-        if (authInfo.authType == AuthInfo.ROOT) {
-            if (tokenManager.hasRootAccess(authInfo.serverUser, authInfo.server))
-                return remoteRequest;
-            runJob(remoteRequest, new RootLoginJob(authInfo.serverUser, authInfo.password))
-                    .setStartScheduler(new Task.CurrentThreadScheduler())
-                    .setObserverScheduler(new Task.CurrentThreadScheduler())
-                    .start(authJobObserver);
-            if (returnValue[0] != null)
-                tokenManager.addRootAccess(authInfo.serverUser, authInfo.server);
-        } else if (authInfo.authType == AuthInfo.TOKEN) {
-            if (tokenManager.hasToken(authInfo.serverUser, authInfo.token.getId()))
-                return remoteRequest;
-            runJob(remoteRequest, new AccessRequestJob(authInfo.serverUser, authInfo.token))
-                    .setStartScheduler(new Task.CurrentThreadScheduler())
-                    .setObserverScheduler(new Task.CurrentThreadScheduler())
-                    .start(authJobObserver);
-            if (returnValue[0] != null)
-                tokenManager.addToken(authInfo.serverUser, authInfo.token.getId());
+            });
         }
 
-        return returnValue[0];
-    }
+        final static private int MAX_RETRIES = 2;
+        private void run(int retryCount) throws Exception {
+            if (retryCount > MAX_RETRIES)
+                throw new Exception("too many retries");
+            IRemoteRequest remoteRequest = getRemoteRequest(connectionInfo);
+            setCurrentRemoteRequest(remoteRequest);
 
-    private IRemoteRequest getRemoteRequest(ConnectionInfo connectionInfo) {
-        return new HTMLRequest(connectionInfo.url);
+            boolean hasAccess = hasAccess(authInfo);
+            if (!hasAccess) {
+                remoteRequest = getAuthRequest(remoteRequest, connectionInfo, authInfo);
+                setCurrentRemoteRequest(remoteRequest);
+            }
+
+            T result = runJob(remoteRequest, job);
+            if (result.status == Portal.Errors.ACCESS_DENIED) {
+                if (authInfo.authType == AuthInfo.ROOT)
+                    tokenManager.removeRootAccess(authInfo.serverUser, authInfo.server);
+                if (authInfo.authType == AuthInfo.TOKEN)
+                    tokenManager.removeToken(authInfo.serverUser, authInfo.token.getId());
+                // if we had access try again
+                if (hasAccess) {
+                    run(retryCount + 1);
+                    return;
+                }
+            }
+            onResult(result);
+        }
+
+        private T runJob(final IRemoteRequest remoteRequest, final JsonRemoteJob<T> job) throws Exception {
+            try {
+                return JsonRemoteJob.run(job, remoteRequest, null);
+            } finally {
+                remoteRequest.close();
+                setCurrentRemoteRequest(null);
+            }
+        }
+
+        private void cancelJob() {
+            synchronized (this) {
+                if (remoteRequest != null)
+                    remoteRequest.cancel();
+            }
+        }
+
+        private void setCurrentRemoteRequest(IRemoteRequest remoteRequest) throws Exception {
+            synchronized (this) {
+                if (isCanceled()) {
+                    this.remoteRequest = null;
+                    throw new Exception("canceled");
+                }
+
+                this.remoteRequest = remoteRequest;
+            }
+        }
+
+        private boolean hasAccess(AuthInfo authInfo) {
+            if (authInfo.authType == AuthInfo.NONE)
+                return true;
+            if (authInfo.authType == AuthInfo.ROOT)
+                return tokenManager.hasRootAccess(authInfo.serverUser, authInfo.server);
+            if (authInfo.authType == AuthInfo.TOKEN)
+                return tokenManager.hasToken(authInfo.serverUser, authInfo.token.getId());
+            return false;
+        }
+
+        private IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest, final ConnectionInfo connectionInfo,
+                                              final AuthInfo authInfo) throws Exception {
+            RemoteJob.Result result;
+            if (authInfo.authType == AuthInfo.ROOT) {
+                result = runJob(remoteRequest, new RootLoginJob(authInfo.serverUser,
+                        authInfo.password));
+                tokenManager.addRootAccess(authInfo.serverUser, authInfo.server);
+            } else if (authInfo.authType == AuthInfo.TOKEN) {
+                result = runJob(remoteRequest, new AccessRequestJob(authInfo.serverUser,
+                        authInfo.token));
+                tokenManager.addToken(authInfo.serverUser, authInfo.token.getId());
+            } else
+                throw new Exception("unknown auth type");
+
+            if (result.status == Portal.Errors.DONE)
+                return getRemoteRequest(connectionInfo);
+
+            throw new Exception(result.message);
+        }
+
+        private IRemoteRequest getRemoteRequest(ConnectionInfo connectionInfo) {
+            return new HTMLRequest(connectionInfo.url);
+        }
     }
 }

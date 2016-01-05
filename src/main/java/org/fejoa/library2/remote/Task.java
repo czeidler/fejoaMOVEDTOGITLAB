@@ -57,12 +57,20 @@ public class Task<Update, Result> {
     }
 
     private boolean canceled = false;
-    final private ITaskFunction<Update, Result> taskFunction;
+    private ITaskFunction<Update, Result> taskFunction;
     private IObserver<Update, Result> observable;
     private IScheduler startScheduler = new NewThreadScheduler();
     private IScheduler observerScheduler = new CurrentThreadScheduler();
 
     public Task(ITaskFunction<Update, Result> taskFunction) {
+        this.taskFunction = taskFunction;
+    }
+
+    protected Task() {
+
+    }
+
+    protected void setTaskFunction(ITaskFunction<Update, Result> taskFunction) {
         this.taskFunction = taskFunction;
     }
 

@@ -86,11 +86,12 @@ public class StorageDirList<T> {
         return map.values();
     }
 
-    public void add(T entry) throws IOException {
+    public String add(T entry) throws IOException {
         String id = entryIO.getId(entry);
         StorageDir subDir = new StorageDir(storageDir, id);
         entryIO.write(entry, subDir);
         map.put(id, entry);
+        return id;
     }
 
     public void update(T entry) throws IOException {
@@ -100,6 +101,7 @@ public class StorageDirList<T> {
 
     public void remove(String key) {
         storageDir.remove(key);
+        map.remove(key);
     }
 
     public T get(String id) {

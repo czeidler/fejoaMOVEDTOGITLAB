@@ -127,12 +127,13 @@ public class Client {
         userData.getOutgoingCommandQueue().post(accessCommand, contact.getRemotes().getDefault(), true);
     }
 
+    // Requires to be root user. TODO: implement peek for contact branches?
     public void peekRemoteStatus(String branchId, Task.IObserver<Void, WatchJob.Result> observer) {
         Storage branch = getUserData().getStorageRefList().get(branchId);
         Remote remote = getUserData().getRemoteList().getDefault();
         connectionManager.submit(new WatchJob(context, remote.getUser(), Collections.singletonList(branch), true),
                 new ConnectionManager.ConnectionInfo(remote.getUser(), remote.getServer()),
-                context.getTokenAuthInfo(branchId, BranchAccessRight.PULL),
+                context.getRootAuthInfo(remote),
                 observer);
     }
 

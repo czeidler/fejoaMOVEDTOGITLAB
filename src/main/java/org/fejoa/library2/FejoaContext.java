@@ -78,9 +78,13 @@ public class FejoaContext {
         return bufferedReader.readLine();
     }
 
-    public ConnectionManager.AuthInfo getTokenAuthInfo(String branch, int rights) {
+    public ConnectionManager.AuthInfo getTokenAuthInfo(Remote remote, String branch, int rights) {
         // TODO implement
-        return new ConnectionManager.AuthInfo();
+        return getRootAuthInfo(remote.getUser(), remote.getServer());
+    }
+
+    public ConnectionManager.AuthInfo getRootAuthInfo(Remote remote) {
+        return getRootAuthInfo(remote.getUser(), remote.getServer());
     }
 
     public ConnectionManager.AuthInfo getRootAuthInfo(String serverUser, String server) {

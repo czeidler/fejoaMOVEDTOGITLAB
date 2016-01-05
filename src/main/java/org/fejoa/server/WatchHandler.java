@@ -76,9 +76,13 @@ public class WatchHandler extends JsonRequestHandler {
                 statusReturn.add(argumentSet);
             }
         }
+        if (deniedReturn.size() != 0) {
+            responseHandler.setResponseHeader(jsonRPCHandler.makeResult(Portal.Errors.ACCESS_DENIED, "watch results"));
+            return;
+        }
         String response = jsonRPCHandler.makeResult(Portal.Errors.OK, "watch results",
                 new JsonRPC.Argument(WatchJob.WATCH_RESULT_KEY, statusReturn),
-                new JsonRPC.Argument(JsonRemoteJob.ACCESS_DENIED_KEY, statusReturn));
+                new JsonRPC.Argument(JsonRemoteJob.ACCESS_DENIED_KEY, deniedReturn));
         responseHandler.setResponseHeader(response);
     }
 

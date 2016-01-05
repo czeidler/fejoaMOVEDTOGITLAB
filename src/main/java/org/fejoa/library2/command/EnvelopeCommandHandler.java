@@ -45,7 +45,7 @@ abstract class EnvelopeCommandHandler implements IncomingCommandManager.Handler 
                     userData.getIdentityStore().getMyself(),
                     userData.getContactStore().getContactFinder(), context));
         } catch (Exception e) {
-            LOG.warning("Can't open envelop or not an enveloped command");
+            LOG.warning("Can't open envelop or not an enveloped command: " + e.getMessage());
             LOG.info("Command as string: " + new String(command.getData()));
             return null;
         }
@@ -60,9 +60,9 @@ abstract class EnvelopeCommandHandler implements IncomingCommandManager.Handler 
         // verify that the sender id matches the sender id in the unpacked message
         String senderId = envelope.getSenderId();
         if (senderId != null) {
-            if (!senderId.equals(object.getString(AccessCommand.SENDER_ID_KEY))) {
+            if (!senderId.equals(object.getString(Constants.SENDER_ID_KEY))) {
                 LOG.warning("Command with mismatching sender id. Signature sender id: " + senderId +
-                        " command sender id: " + object.getString(AccessCommand.SENDER_ID_KEY));
+                        " command sender id: " + object.getString(Constants.SENDER_ID_KEY));
                 return null;
             }
         }

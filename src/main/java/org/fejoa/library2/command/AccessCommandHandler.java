@@ -34,7 +34,7 @@ public class AccessCommandHandler extends EnvelopeCommandHandler {
     protected IncomingCommandManager.ReturnValue handle(JSONObject command) throws Exception {
         if (!command.getString(Constants.COMMAND_NAME_KEY).equals(AccessCommand.COMMAND_NAME))
             return null;
-        String senderId = command.getString(AccessCommand.SENDER_ID_KEY);
+        String senderId = command.getString(Constants.SENDER_ID_KEY);
         String accessToken = command.getString(AccessCommand.TOKEN_KEY);
 
         AccessTokenContact accessTokenContact = new AccessTokenContact(context, accessToken);

@@ -25,8 +25,6 @@ public class ContactRequestCommand {
     static final String PUBLIC_KEY_SETTINGS_KEY = "publicKeySettings";
     static final String SIGNATURE_KEY = "signature";
     static final String SIGNATURE_SETTINGS_KEY = "signatureSettings";
-    static final String USER_KEY = "user";
-    static final String USER_SERVER_KEY = "server";
     static final String STATE = "state";
 
     static final public String INITIAL_STATE = "init";
@@ -46,9 +44,9 @@ public class ContactRequestCommand {
         JSONObject object = new JSONObject();
 
         object.put(Constants.COMMAND_NAME_KEY, COMMAND_NAME);
-        object.put(USER_KEY, myServer.getUser());
-        object.put(USER_SERVER_KEY, myServer.getServer());
-        object.put(Constants.ID_KEY, myself.getId());
+        object.put(Constants.USER_KEY, myServer.getUser());
+        object.put(Constants.SERVER_KEY, myServer.getServer());
+        object.put(Constants.SENDER_ID_KEY, myself.getId());
         object.put(SIGNING_KEY_KEY, base64SignKey);
         object.put(SIGNING_KEY_SETTINGS_KEY, JsonCryptoSettings.toJson(
                 myself.getSignatureKey(signKeyId).getKeyTypeSettings()));
@@ -75,7 +73,7 @@ public class ContactRequestCommand {
         JSONObject object = new JSONObject();
         object.put(Constants.COMMAND_NAME_KEY, COMMAND_NAME);
         object.put(STATE, FINISH_STATE);
-        object.put(Constants.ID_KEY, myself.getId());
+        object.put(Constants.SENDER_ID_KEY, myself.getId());
         return object.toString();
     }
 

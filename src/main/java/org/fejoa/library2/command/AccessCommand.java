@@ -17,13 +17,12 @@ import java.io.IOException;
 
 public class AccessCommand extends EncryptedZipSignedCommand {
     static final public String COMMAND_NAME = "grantAccess";
-    static final public String SENDER_ID_KEY = "sender";
     static final public String TOKEN_KEY = "token";
 
     static private String makeCommand(ContactPrivate sender, AccessToken token) throws JSONException, CryptoException {
         JSONObject command = new JSONObject();
         command.put(Constants.COMMAND_NAME_KEY, COMMAND_NAME);
-        command.put(SENDER_ID_KEY, sender.getId());
+        command.put(Constants.SENDER_ID_KEY, sender.getId());
         command.put(TOKEN_KEY, token.getContactToken());
         return command.toString();
     }

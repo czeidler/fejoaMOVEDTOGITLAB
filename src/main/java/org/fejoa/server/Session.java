@@ -86,7 +86,7 @@ public class Session {
     public int getRoleRights(String serverUser, String role) {
         Integer rights = getRoles().get(makeRole(serverUser, role));
         if (rights == null)
-            return -1;
+            return 0;
         return rights;
     }
 

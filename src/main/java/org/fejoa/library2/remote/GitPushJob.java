@@ -15,6 +15,7 @@ import org.eclipse.jgit.transport.RemoteRefUpdate;
 import org.eclipse.jgit.transport.Transport;
 import org.fejoa.library2.*;
 import org.fejoa.server.Portal;
+import org.json.JSONObject;
 
 import java.io.*;
 import java.text.MessageFormat;
@@ -72,6 +73,13 @@ public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
 
         String advertisementHeader = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
+
+        // read advertisement
+        remoteRequest.open(advertisementHeader, false);
+        RemoteJob.Result result = getResult(getReturnValue(remoteRequest.receiveHeader()));
+        if (result.status != Portal.Errors.DONE)
+            return result;
+        // start new json RPC after we received and verified the return message
         startNewJsonRPC();
         String header = jsonRPC.call(GitPushJob.METHOD, new JsonRPC.Argument("request", METHOD_REQUEST_PUSH_DATA),
                 serverUserArg, branchArg);
@@ -79,9 +87,6 @@ public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
         GitTransportFejoa transport = new GitTransportFejoa(repository, remoteRequest, header);
         GitTransportFejoa.SmartFejoaPushConnection connection
                 = (GitTransportFejoa.SmartFejoaPushConnection)transport.openPush();
-
-        // read advertisement
-        remoteRequest.open(advertisementHeader, false);
         connection.readAdvertisedRefs(remoteRequest.receiveData());
         remoteRequest.close();
 
@@ -89,14 +94,21 @@ public class GitPushJob extends JsonRemoteJob<RemoteJob.Result> {
         List<RefSpec> specs = new ArrayList<>();
         specs.add(new RefSpec("refs/heads/" + branch));
         Collection<RemoteRefUpdate> remoteRefUpdates = Transport.findRemoteRefUpdatesFor(repository, specs, null);
-        HashMap<String, RemoteRefUpdate> toPush = new HashMap<String, RemoteRefUpdate>();
+        HashMap<String, RemoteRefUpdate> toPush = new HashMap<>();
         for (final RemoteRefUpdate rru : remoteRefUpdates) {
             if (toPush.put(rru.getRemoteName(), rru) != null)
                 throw new TransportException(MessageFormat.format(
                         JGitText.get().duplicateRemoteRefUpdateIsIllegal, rru.getRemoteName()));
         }
 
-        connection.push(progressMonitor, toPush);
+        try {
+            connection.push(progressMonitor, toPush);
+        } catch (Exception e) {
+            result = getResult(getReturnValue(remoteRequest.receiveHeader()));
+            if (result.status != Portal.Errors.DONE)
+                return result;
+            return new Result(Portal.Errors.EXCEPTION, e.getMessage());
+        }
 
         return new Result(Portal.Errors.DONE, "ok");
     }

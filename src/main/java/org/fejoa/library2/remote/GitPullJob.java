@@ -10,6 +10,7 @@ package org.fejoa.library2.remote;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.transport.RefSpec;
 import org.fejoa.server.Portal;
+import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.*;
@@ -35,6 +36,7 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
     final private Repository repository;
     final private String serverUser;
     final private String branch;
+    private ObjectId fetchedHead;
 
     public GitPullJob(Repository repository, String serverUser, String branch) {
         this.repository = repository;
@@ -50,12 +52,19 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
      * @return object id of the fetched ref
      * @throws IOException
      */
-    private ObjectId fetch(String refName, IRemoteRequest remoteRequest) throws IOException {
+    private RemoteJob.Result fetch(String refName, IRemoteRequest remoteRequest) throws IOException, JSONException {
         JsonRPC.Argument serverUserArg = new JsonRPC.Argument(SERVER_USER_KEY, serverUser);
         JsonRPC.Argument branchArg = new JsonRPC.Argument(BRANCH_KEY, branch);
 
         String advertisementHeader = jsonRPC.call(METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_ADVERTISEMENT), serverUserArg, branchArg);
+
+        // read advertisement
+        remoteRequest.open(advertisementHeader, false);
+        RemoteJob.Result result = getResult(getReturnValue(remoteRequest.receiveHeader()));
+        if (result.status != Portal.Errors.DONE)
+            return result;
+        // start new json RPC after we received and verified the return message
         startNewJsonRPC();
         String header = jsonRPC.call(METHOD, new JsonRPC.Argument("request",
                 METHOD_REQUEST_PULL_DATA), serverUserArg, branchArg);
@@ -63,9 +72,6 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
         GitTransportFejoa transport = new GitTransportFejoa(repository, remoteRequest, header);
         GitTransportFejoa.SmartHttpFetchConnection connection
                 = (GitTransportFejoa.SmartHttpFetchConnection)transport.openFetch();
-
-        // read advertisement
-        remoteRequest.open(advertisementHeader, false);
         connection.readAdvertisedRefs(remoteRequest.receiveData());
         remoteRequest.close();
 
@@ -74,12 +80,19 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
         List<Ref> want = new ArrayList<>();
         Ref remoteRef = connection.getRef(refSpec.getSource());
         if (remoteRef == null)
-            return null;
+            return result;
         want.add(remoteRef);
         Set<ObjectId> have = new HashSet<>();
-        connection.fetch(GitPushJob.progressMonitor, want, have);
+        try {
+            connection.fetch(GitPushJob.progressMonitor, want, have);
+        } catch (Exception e) {
+            result = getResult(getReturnValue(remoteRequest.receiveHeader()));
+            if (result.status != Portal.Errors.DONE)
+                return result;
+        }
 
-        return want.get(0).getObjectId();
+        fetchedHead = want.get(0).getObjectId();
+        return result;
     }
 
     @Override
@@ -87,10 +100,13 @@ public class GitPullJob extends JsonRemoteJob<GitPullJob.Result> {
         super.run(remoteRequest);
 
         final String refName = "refs/heads/" + branch;
-        ObjectId newRef = fetch(refName, remoteRequest);
-        if (newRef == null)
+        RemoteJob.Result result = fetch(refName, remoteRequest);
+        if (result.status != Portal.Errors.DONE)
+            return new Result(result.status, result.message, "");
+
+        if (fetchedHead == null)
             return new Result(Portal.Errors.DONE, "remote does not exist", "");
 
-        return new Result(Portal.Errors.DONE, "remote head: " + newRef.getName(), newRef.getName());
+        return new Result(Portal.Errors.DONE, "remote head: " + fetchedHead.getName(), fetchedHead.getName());
     }
 }

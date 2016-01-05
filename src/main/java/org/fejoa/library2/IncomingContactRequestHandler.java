@@ -8,7 +8,7 @@
 package org.fejoa.library2;
 
 import org.fejoa.library2.command.ContactRequestCommand;
-import org.fejoa.library2.command.ContactRequestHandler;
+import org.fejoa.library2.command.ContactRequestCommandHandler;
 import org.fejoa.library2.command.IncomingCommandManager;
 
 import java.util.logging.Logger;
@@ -38,10 +38,10 @@ public class IncomingContactRequestHandler {
         @Override
         public void onCommandReceived(IncomingCommandManager.ReturnValue returnValue) {
             if (returnValue.command.equals(ContactRequestCommand.COMMAND_NAME)) {
-                String state = ((ContactRequestHandler.ReturnValue)returnValue).state;
+                String state = ((ContactRequestCommandHandler.ReturnValue)returnValue).state;
 
                 if (state.equals(ContactRequestCommand.INITIAL_STATE)) {
-                    onInitialRequest((ContactRequestHandler.ReturnValue)returnValue);
+                    onInitialRequest((ContactRequestCommandHandler.ReturnValue)returnValue);
                 } else if (state.equals(ContactRequestCommand.REPLY_STATE)) {
                     return;
                 } else if (state.equals(ContactRequestCommand.FINISH_STATE)) {
@@ -78,7 +78,7 @@ public class IncomingContactRequestHandler {
         client.getIncomingCommandManager().removeListener(listener);
     }
 
-    private void onInitialRequest(ContactRequestHandler.ReturnValue returnValue) {
+    private void onInitialRequest(ContactRequestCommandHandler.ReturnValue returnValue) {
         String contactId = returnValue.contactId;
         ContactPublic contactPublic = client.getUserData().getContactStore().getContactList().get(
                 contactId);

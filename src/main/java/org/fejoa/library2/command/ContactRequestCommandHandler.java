@@ -18,7 +18,7 @@ import javax.xml.bind.DatatypeConverter;
 import java.security.PublicKey;
 
 
-public class ContactRequestHandler extends EnvelopeCommandHandler {
+public class ContactRequestCommandHandler extends EnvelopeCommandHandler {
     final private ContactStore contactStore;
 
     static public class ReturnValue extends IncomingCommandManager.ReturnValue {
@@ -32,7 +32,7 @@ public class ContactRequestHandler extends EnvelopeCommandHandler {
         }
     }
 
-    public ContactRequestHandler(UserData userData) {
+    public ContactRequestCommandHandler(UserData userData) {
         super(userData, ContactRequestCommand.COMMAND_NAME);
         this.contactStore = userData.getContactStore();
     }
@@ -40,7 +40,7 @@ public class ContactRequestHandler extends EnvelopeCommandHandler {
     @Override
     protected IncomingCommandManager.ReturnValue handle(JSONObject command) throws Exception {
         String state = command.getString(ContactRequestCommand.STATE);
-        String id = command.getString(Constants.ID_KEY);
+        String id = command.getString(Constants.SENDER_ID_KEY);
         if (state.equals(ContactRequestCommand.FINISH_STATE))
             return new ReturnValue(IncomingCommandManager.ReturnValue.HANDLED, id, state);
 
@@ -56,8 +56,8 @@ public class ContactRequestHandler extends EnvelopeCommandHandler {
         byte[] publicKeyRaw = DatatypeConverter.parseBase64Binary(publicKeyBase64);
         PublicKey publicKey = CryptoHelper.publicKeyFromRaw(publicKeyRaw, publicKeySettings.keyType);
 
-        String serverUser = command.getString(ContactRequestCommand.USER_KEY);
-        String server = command.getString(ContactRequestCommand.USER_SERVER_KEY);
+        String serverUser = command.getString(Constants.USER_KEY);
+        String server = command.getString(Constants.SERVER_KEY);
         Remote remote = new Remote(serverUser, server);
 
         PublicKeyItem signingKeyItem = new PublicKeyItem(signingKey, signingKeySettings);

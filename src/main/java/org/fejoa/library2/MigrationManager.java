@@ -30,8 +30,8 @@ public class MigrationManager {
             throws Exception {
         client.getContext().registerRootPassword(newUserName, newServer, password);
 
+        // create access token for the new server
         final AccessToken accessToken = AccessToken.create(client.getContext());
-
         BranchAccessRight accessRight = new BranchAccessRight(BranchAccessRight.MIGRATION_ACCESS);
         final List<Storage> branchesToCopy = new ArrayList<>();
         for (Storage storage : client.getUserData().getStorageRefList().getEntries()) {
@@ -40,7 +40,6 @@ public class MigrationManager {
         }
         if (branchesToCopy.size() == 0)
             throw new Exception("no branches to migrate");
-
         accessToken.setAccessEntry(accessRight.toJson().toString());
         final AccessTokenContact accessTokenContact = accessToken.toContactToken();
 

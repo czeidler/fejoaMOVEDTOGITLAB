@@ -29,6 +29,16 @@ public class SignatureEnvelope {
     static final private String KEY_ID_KEY = "keyId";
     static final private String SETTINGS_KEY = "settings";
 
+    static public class ReturnValue {
+        final public InputStream inputStream;
+        final public String senderId;
+
+        private ReturnValue(InputStream inputStream, String senderId) {
+            this.inputStream = inputStream;
+            this.senderId = senderId;
+        }
+    }
+
     static public InputStream signStream(byte[] data, boolean isRawData, IContactPrivate contactPrivate, KeyId keyId,
                                     CryptoSettings.Signature settings) throws IOException, CryptoException,
                                     JSONException {
@@ -58,7 +68,7 @@ public class SignatureEnvelope {
      * @throws JSONException
      * @throws CryptoException
      */
-    static InputStream verifyStream(JSONObject header, InputStream inputStream,
+    static ReturnValue verifyStream(JSONObject header, InputStream inputStream,
                                     IContactFinder<IContactPublic> contactFinder)
             throws IOException, JSONException, CryptoException {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -77,7 +87,7 @@ public class SignatureEnvelope {
         if (!contact.verify(keyId, hash, signature, settings))
             throw new IOException("can't verify signature!");
 
-        return new ByteArrayInputStream(data);
+        return new ReturnValue(new ByteArrayInputStream(data), senderId);
     }
 
 

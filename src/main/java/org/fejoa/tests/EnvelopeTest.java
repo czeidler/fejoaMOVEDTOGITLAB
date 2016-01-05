@@ -63,9 +63,11 @@ public class EnvelopeTest extends TestCase {
 
         assertEquals(message, new String(verifiedData));
 
+        Envelope envelope = new Envelope();
+
         // zip
         byte[] zippedData = ZipEnvelope.zip(message.getBytes(), true);
-        byte[] unzippedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(zippedData), myself,
+        byte[] unzippedData = IOUtils.toByteArray(envelope.unpack(new ByteArrayInputStream(zippedData), myself,
                 finder, context));
 
         assertEquals(message, new String(unzippedData));
@@ -74,7 +76,7 @@ public class EnvelopeTest extends TestCase {
         KeyPairItem key = myself.getEncryptionKeys().getDefault();
         byte[] encryptedData = PublicCryptoEnvelope.encrypt(message.getBytes(), true, key.getKeyId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] decryptedData = IOUtils.toByteArray(Envelope.unpack(new ByteArrayInputStream(encryptedData), myself,
+        byte[] decryptedData = IOUtils.toByteArray(envelope.unpack(new ByteArrayInputStream(encryptedData), myself,
                 finder, context));
 
         assertEquals(message, new String(decryptedData));
@@ -85,8 +87,9 @@ public class EnvelopeTest extends TestCase {
         InputStream zipStream = ZipEnvelope.zip(signStream, false);
         InputStream encryptStream = PublicCryptoEnvelope.encrypt(zipStream, false, key.getKeyId(),
                 key.getKeyPair().getPublic(), context);
-        byte[] rawData = IOUtils.toByteArray(Envelope.unpack(encryptStream, myself, finder, context));
+        byte[] rawData = IOUtils.toByteArray(envelope.unpack(encryptStream, myself, finder, context));
 
+        assertEquals(myself.getId(), envelope.getSenderId());
         assertEquals(message, new String(rawData));
     }
 }

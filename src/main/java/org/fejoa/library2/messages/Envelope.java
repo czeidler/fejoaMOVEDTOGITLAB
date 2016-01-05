@@ -19,7 +19,9 @@ public class Envelope {
     static final public String PACK_TYPE_KEY = "type";
     static final public String CONTAINS_DATA_KEY = "data";
 
-    static public InputStream unpack(InputStream pack, ContactPrivate contact,
+    private String senderId;
+
+    public InputStream unpack(InputStream pack, ContactPrivate contact,
                                      IContactFinder<IContactPublic> contactFinder, FejoaContext context)
             throws IOException, JSONException, CryptoException {
         int newLinePos = 0;
@@ -43,7 +45,9 @@ public class Envelope {
                 result = PlainEnvelope.unpack(pack);
                 break;
             case SignatureEnvelope.SIGNATURE_TYPE:
-                result = SignatureEnvelope.verifyStream(object, pack, contactFinder);
+                SignatureEnvelope.ReturnValue sigReturn = SignatureEnvelope.verifyStream(object, pack, contactFinder);
+                result = sigReturn.inputStream;
+                senderId = sigReturn.senderId;
                 break;
             case ZipEnvelope.ZIP_TYPE:
                 result = ZipEnvelope.unzipStream(object, pack);
@@ -57,6 +61,10 @@ public class Envelope {
         if (object.has(CONTAINS_DATA_KEY) && object.getInt(CONTAINS_DATA_KEY) > 0)
             return result;
         return unpack(result, contact, contactFinder, context);
+    }
+
+    public String getSenderId() {
+        return senderId;
     }
 
     static public byte[] unpack(byte[] pack, ContactPrivate contact, IContactFinder<IContactPublic> contactFinder,

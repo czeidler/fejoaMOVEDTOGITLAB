@@ -7,7 +7,6 @@
  */
 package org.fejoa.server;
 
-
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.session.HashSessionIdManager;
@@ -19,7 +18,11 @@ public class JettyServer {
     final Server server;
 
     public JettyServer(String baseDir) {
-        server = new Server(8080);
+        this(baseDir, 8080);
+    }
+
+    public JettyServer(String baseDir, int port) {
+        server = new Server(port);
 
         server.setSessionIdManager(new HashSessionIdManager());
 

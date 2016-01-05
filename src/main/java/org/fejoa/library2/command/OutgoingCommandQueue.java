@@ -11,6 +11,7 @@ import org.fejoa.library2.Remote;
 import org.fejoa.library2.database.StorageDir;
 
 import java.io.IOException;
+import java.util.List;
 
 
 public class OutgoingCommandQueue extends CommandQueue<OutgoingCommandQueue.Entry> {
@@ -59,6 +60,16 @@ public class OutgoingCommandQueue extends CommandQueue<OutgoingCommandQueue.Entr
 
     public OutgoingCommandQueue(StorageDir dir) throws IOException {
         super(dir);
+    }
+
+    public void updateReceiver(String oldUser, String oldServer, String newUser, String newServer) throws IOException {
+        List<Entry> commands = getCommands();
+        for (Entry entry : commands) {
+            if (!entry.getUser().equals(oldUser) && !entry.getServer().equals(oldServer))
+                continue;
+            removeCommand(entry);
+            addCommand(new Entry(entry.getData(), newUser, newServer));
+        }
     }
 
     public void post(ICommand command, Remote receiver, boolean commit) throws IOException {

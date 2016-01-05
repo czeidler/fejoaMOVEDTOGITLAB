@@ -385,6 +385,30 @@ public class ClientTest extends TestCase {
     }
 
     class MigrateTask extends TestTask {
+        private IncomingCommandManager.IListener listener = new IncomingCommandManager.IListener() {
+            @Override
+            public void onCommandReceived(IncomingCommandManager.ReturnValue returnValue) {
+                if (returnValue.command.equals(MigrationCommand.COMMAND_NAME)) {
+                    MigrationCommandHandler.ReturnValue ret = (MigrationCommandHandler.ReturnValue)returnValue;
+                    System.out.println("Contact migrated: " + ret.contactId);
+
+                    ContactPublic contactPublic = (ContactPublic)client2.getUserData().getContactStore()
+                            .getContactFinder().get(ret.contactId);
+                    Remote newRemote = contactPublic.getRemotes().getDefault();
+                    assertEquals(USER_NAME_1_NEW, newRemote.getUser());
+                    assertEquals(SERVER_URL_1_NEW, newRemote.getServer());
+
+                    client2.getIncomingCommandManager().removeListener(listener);
+                    onTaskPerformed();
+                }
+            }
+
+            @Override
+            public void onException(Exception exception) {
+                finishAndFail(exception.getMessage());
+            }
+        };
+
         @Override
         protected void perform(TestTask previousTask) throws Exception {
             client1New.createAccount(USER_NAME_1_NEW, PASSWORD, client1.getUserData().getId(), SERVER_URL_1_NEW,
@@ -401,6 +425,8 @@ public class ClientTest extends TestCase {
         }
 
         private void migrate() throws Exception {
+            client2.getIncomingCommandManager().addListener(listener);
+
             MigrationManager migrationManager = new MigrationManager(client1);
             migrationManager.migrate(USER_NAME_1_NEW, SERVER_URL_1_NEW, PASSWORD,
                     new Task.IObserver<Void, RemoteJob.Result>() {
@@ -411,11 +437,12 @@ public class ClientTest extends TestCase {
 
                 @Override
                 public void onResult(RemoteJob.Result result) {
-                    onTaskPerformed();
+
                 }
 
                 @Override
                 public void onException(Exception exception) {
+                    client2.getIncomingCommandManager().removeListener(listener);
                     finishAndFail(exception.getMessage());
                 }
             });

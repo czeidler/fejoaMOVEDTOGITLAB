@@ -7,9 +7,13 @@
  */
 package org.fejoa.library2;
 
+import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library2.command.MigrationCommand;
 import org.fejoa.library2.remote.*;
 import org.fejoa.server.Portal;
+import org.json.JSONException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -93,7 +97,7 @@ public class MigrationManager {
                         if (branchesToCopy.size() > 0)
                             copyBranches(branchesToCopy, newUserName, newServer, accessTokenContact, observer);
                         else
-                            observer.onResult(result);
+                            notifyContacts(newUserName, newServer, observer);
                     }
 
                     @Override
@@ -101,5 +105,19 @@ public class MigrationManager {
                         observer.onException(exception);
                     }
                 });
+    }
+
+    private void notifyContacts(final String newUserName, final String newServer,
+                                final Task.IObserver<Void, RemoteJob.Result> observer) {
+        ContactPrivate myself = client.getUserData().getIdentityStore().getMyself();
+        for (ContactPublic contactPublic : client.getUserData().getContactStore().getContactList().getEntries()) {
+            try {
+                client.getUserData().getOutgoingCommandQueue().post(new MigrationCommand(client.getContext(),
+                        newUserName, newServer, myself, contactPublic), contactPublic.getRemotes().getDefault(), true);
+            } catch (Exception e) {
+                observer.onException(e);
+            }
+        }
+        observer.onResult(new RemoteJob.Result(Portal.Errors.DONE, "migration done"));
     }
 }

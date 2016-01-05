@@ -9,7 +9,6 @@ package org.fejoa.library2.command;
 
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library.support.WeakListenable;
-import org.fejoa.library2.FejoaContext;
 import org.fejoa.library2.UserData;
 import org.fejoa.library2.database.StorageDir;
 
@@ -68,8 +67,9 @@ public class IncomingCommandManager extends WeakListenable<IncomingCommandManage
     public IncomingCommandManager(UserData userData) {
         this.queue = userData.getIncomingCommandQueue();
 
-        addHandler(new ContactRequestHandler(userData));
+        addHandler(new ContactRequestCommandHandler(userData));
         addHandler(new AccessCommandHandler(userData));
+        addHandler(new MigrationCommandHandler(userData));
     }
 
     public void addHandler(Handler handler) {

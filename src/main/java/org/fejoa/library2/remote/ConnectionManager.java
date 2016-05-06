@@ -8,10 +8,9 @@
 package org.fejoa.library2.remote;
 
 import org.fejoa.library2.AccessTokenContact;
+import org.fejoa.library2.util.Task;
 import org.fejoa.server.Portal;
-import org.json.JSONObject;
 
-import java.io.InputStream;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;

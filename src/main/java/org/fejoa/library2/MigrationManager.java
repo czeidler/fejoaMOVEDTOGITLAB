@@ -7,13 +7,11 @@
  */
 package org.fejoa.library2;
 
-import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library2.command.MigrationCommand;
 import org.fejoa.library2.remote.*;
+import org.fejoa.library2.util.Task;
 import org.fejoa.server.Portal;
-import org.json.JSONException;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 

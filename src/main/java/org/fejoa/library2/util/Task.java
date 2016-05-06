@@ -5,10 +5,8 @@
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
-package org.fejoa.library2.remote;
+package org.fejoa.library2.util;
 
-
-import org.fejoa.library2.util.LooperThread;
 
 public class Task<Update, Result> {
     public interface ICancelFunction {

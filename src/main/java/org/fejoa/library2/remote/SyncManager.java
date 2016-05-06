@@ -12,6 +12,7 @@ import org.fejoa.library2.FejoaContext;
 import org.fejoa.library2.Remote;
 import org.fejoa.library2.Storage;
 import org.fejoa.library2.database.StorageDir;
+import org.fejoa.library2.util.Task;
 
 import java.io.IOException;
 import java.util.*;

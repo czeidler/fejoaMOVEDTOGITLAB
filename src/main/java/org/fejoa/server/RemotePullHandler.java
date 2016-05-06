@@ -13,6 +13,7 @@ import org.fejoa.library2.Constants;
 import org.fejoa.library2.FejoaContext;
 import org.fejoa.library2.database.StorageDir;
 import org.fejoa.library2.remote.*;
+import org.fejoa.library2.util.Task;
 import org.json.JSONObject;
 
 import java.io.InputStream;

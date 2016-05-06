@@ -10,6 +10,7 @@ package org.fejoa.library2.command;
 import org.fejoa.library.database.DatabaseDiff;
 import org.fejoa.library2.database.StorageDir;
 import org.fejoa.library2.remote.*;
+import org.fejoa.library2.util.Task;
 import org.fejoa.server.Portal;
 
 import java.io.IOException;

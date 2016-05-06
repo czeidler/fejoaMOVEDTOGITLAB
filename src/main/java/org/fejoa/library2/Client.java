@@ -13,6 +13,7 @@ import org.fejoa.library.database.JGitInterface;
 import org.fejoa.library2.command.*;
 import org.fejoa.library2.database.StorageDir;
 import org.fejoa.library2.remote.*;
+import org.fejoa.library2.util.Task;
 import org.json.JSONException;
 
 import java.io.IOException;

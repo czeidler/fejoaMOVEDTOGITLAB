@@ -8,7 +8,7 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
-import org.fejoa.library2.remote.Task;
+import org.fejoa.library2.util.Task;
 
 
 public class TaskTest extends TestCase {

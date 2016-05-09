@@ -82,6 +82,29 @@ public class ExtensibleHashMapTest extends TestCase {
         assertEquals(null, hashMap.get("00080000"));
     }
 
+    public void testRemoval() throws Exception {
+        String fileName = "test.idx";
+        cleanUpFiles.add(fileName);
+
+        //create
+        RandomAccessFile file = new RandomAccessFile(fileName, "rw");
+        ExtensibleHashMap hashMap = new ExtensibleHashMap();
+        hashMap.create(file, 0, (short)4, (short)1);
+        hashMap.put("00000000", 0l);
+        hashMap.put("00010000", 1l);
+        hashMap.put("00020000", 2l);
+        hashMap.put("00030000", 3l);
+
+        hashMap.remove("00020000");
+
+        hashMap.print();
+
+        assertEquals(0l, hashMap.get("00000000").longValue());
+        assertEquals(1l, hashMap.get("00010000").longValue());
+        assertEquals(3l, hashMap.get("00030000").longValue());
+        assertEquals(null, hashMap.get("00020000"));
+    }
+
     public void testMultiSplit() throws Exception {
         String fileName = "testMultiSplit.idx";
         cleanUpFiles.add(fileName);

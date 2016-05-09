@@ -364,9 +364,13 @@ public class AbstractExtensibleHashMap<IndexType extends Number, DataType extend
         return get(CryptoHelper.fromHex(hash));
     }
 
+    public boolean remove(String hash) throws IOException {
+        return remove(CryptoHelper.fromHex(hash));
+    }
+
     private IndexType shortHash(byte[] hash, int depth) {
         Integer shortHash = ((hash[0] << 8) | (hash[1]));
-        shortHash = (shortHash & ~(0xFFFF << depth));
+        shortHash = (shortHash & ~(0xFFFFFFFF << depth));
         return (IndexType)shortHash;
     }
 
@@ -445,5 +449,35 @@ public class AbstractExtensibleHashMap<IndexType extends Number, DataType extend
                 return bucket.elements.get(i);
         }
         return null;
+    }
+
+    public boolean remove(byte[] hash) throws IOException {
+        assert hash.length == hashSize;
+
+        int depth = getDepth();
+        int index = (Integer)shortHash(hash, depth);
+
+        int bucketIndex = (Integer)readDirectoryEntry(index);
+        Bucket bucket = new Bucket(bucketIndex);
+        bucket.readBucket();
+
+        for (int i = 0; i < bucket.size(); i++) {
+            byte[] current = bucket.hashs.get(i);
+            if (Arrays.equals(current, hash)) {
+                bucket.remove(i);
+                // We only need to write the bucket if there are still elements or we at depth 1 otherwise we point to
+                // the bucket at depth - 1.
+                if (bucket.size() == 0 && bucket.depth > 1) {
+                    // point to the bucket in depth - 1
+                    IndexType prevBucket = readDirectoryEntry((Integer)shortHash(hash, depth - 1));
+                    writeDirectoryEntry(index, prevBucket);
+                    // todo shrink idx file if possible
+                } else {
+                    bucket.writeBucket();
+                }
+                return true;
+            }
+        }
+        return false;
     }
 }

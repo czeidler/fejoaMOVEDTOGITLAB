@@ -20,9 +20,13 @@ import java.util.List;
 public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
     public interface IDataType<Type> {
         short size();
+
         Type fromLong(Long value);
+
         Long toLong(Type value);
+
         void write(DataOutput file, Type value) throws IOException;
+
         Type read(DataInput file) throws IOException;
     }
 
@@ -135,6 +139,11 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             this.tile = tile;
         }
 
+
+        public Long getIndex() {
+            return tile.index;
+        }
+
         public void onNodeRead() {
             // When we read the node from disk we can modify it anymore
             writeable = false;
@@ -156,22 +165,39 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
     }
 
     class Node extends TileNode {
+        final int nodeDepth;
         protected Node parent;
         // index of the node in the parent node
-        final private int indexInParent;
+        final private int pointerIndexInParent;
         final int maxNumberOfKeys;
         long deletedPointer;
         final List<byte[]> keys;
         final List<IndexType> pointers;
 
-        public Node(Node parent, int indexInParent, Tile tile) {
+        public Node(Node parent, int pointerIndexInParent, Tile tile) {
             super(tile);
+            if (parent == null)
+                this.nodeDepth = 1;
+            else
+                this.nodeDepth = parent.nodeDepth + 1;
             this.parent = parent;
-            this.indexInParent = indexInParent;
+            this.pointerIndexInParent = pointerIndexInParent;
 
             maxNumberOfKeys = nKeysPerTile();
             keys = new ArrayList<>(maxNumberOfKeys);
             pointers = new ArrayList<>(maxNumberOfKeys + 1);
+        }
+
+        public Node getParent() {
+            return parent;
+        }
+
+        public int getPointerIndexInParent() {
+            return pointerIndexInParent;
+        }
+
+        public int getRightmostPointerIndex() {
+            return keys.size();
         }
 
         public Node rootNode() {
@@ -180,9 +206,30 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             return parent.rootNode();
         }
 
-        public void add(IndexType p1, byte[] key) {
+        public boolean hasTooManyKeys() {
+            return keys.size() > maxNumberOfKeys;
+        }
+
+        public int minNumberOfKeys() {
+            return maxNumberOfKeys / 2;
+        }
+
+        public boolean hasMinNumberOfKeys() {
+            return keys.size() >= minNumberOfKeys();
+        }
+
+        public boolean hasKeySurplus() {
+            return keys.size() > minNumberOfKeys();
+        }
+
+        public void addRaw(IndexType p1, byte[] key) {
             pointers.add(p1);
             keys.add(key);
+        }
+
+        public void replacePointer(int index, IndexType p) {
+            pointers.remove(index);
+            pointers.add(index, p);
         }
 
         public void add(int insertPosition, IndexType p1, byte[] key, IndexType p2) {
@@ -193,6 +240,23 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             keys.add(insertPosition, key);
 
             pointers.add(insertPosition + 1, p2);
+        }
+
+        public void addNode(IndexType p1, byte[] key, IndexType p2, Node node) {
+            if (indexType.toLong(p1) != 0l) {
+                if (pointers.size() > 0)
+                    pointers.remove(pointers.size() - 1);
+                pointers.add(p1);
+            }
+            if (key != null) {
+                keys.add(key);
+                pointers.add(p2);
+            }
+
+            for (int i = 0; i < node.keys.size(); i++) {
+                keys.add(node.keys.get(i));
+                pointers.add(node.pointers.get(i + 1));
+            }
         }
 
         public void write() throws IOException {
@@ -272,16 +336,26 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
                 result.keyComparison = current.compareTo(key);
                 if (result.keyComparison > 0) {
                     result.foundKey = current;
-                    result.position = i;
+                    result.keyPosition = i;
                     break;
                 } else if (result.keyComparison == 0) {
                     result.foundKey = current;
-                    result.position = i + 1;
+                    result.keyPosition = i + 1;
+                    result.leftAnchor = this;
+                    result.leftAnchorPointer = i;
                     break;
                 }
             }
             if (result.foundKey == null)
-                result.position  = keys.size();
+                result.keyPosition = keys.size();
+        }
+
+        public Node readChildNode(int pointerIndex) throws IOException {
+            int nodeDepth = getDepth();
+            long pointer = indexType.toLong(pointers.get(pointerIndex));
+            if (nodeDepth + 1 == depth)
+                return readLeafNode(pointer, this, pointerIndex);
+            return readNode(pointer, this, pointerIndex);
         }
 
         class SplitResult {
@@ -292,12 +366,12 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         public SplitResult split() throws IOException {
             SplitResult result = new SplitResult();
             // split
-            result.newNode = new Node(parent, 0, tileAllocator.alloc());
+            result.newNode = new Node(parent, -1, tileAllocator.alloc());
 
             int splitPoint = keys.size() / 2;
             // insert item to new node
             for (int i = splitPoint + 1; i < keys.size(); i++)
-                result.newNode.add(pointers.get(i), keys.get(i));
+                result.newNode.addRaw(pointers.get(i), keys.get(i));
             result.newNode.pointers.add(pointers.get(keys.size()));
             result.key = keys.get(splitPoint);
             // remove items from old node
@@ -306,6 +380,10 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
                 pointers.remove(splitPoint + 1);
             }
             return result;
+        }
+
+        public int getDepth() {
+            return nodeDepth;
         }
     }
 
@@ -334,15 +412,50 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             super(parent, indexInParent, tile);
         }
 
+        public long getNextPointer() {
+            return indexType.toLong(pointers.get(pointers.size() - 1));
+        }
+
+        public void add(int index, IndexType p1, byte[] key) {
+            pointers.add(index, p1);
+            keys.add(index, key);
+        }
+
+        public void remove(int index) {
+            pointers.remove(index);
+            keys.remove(index);
+        }
+
         @Override
         public void add(int insertPosition, IndexType p1, byte[] key, IndexType p2) {
             assert indexType.toLong(p2) == 0l;
 
             pointers.add(insertPosition, p1);
             keys.add(insertPosition, key);
-            // add next node
+            // add next node when
             if (pointers.size() == 1)
                 pointers.add(p2);
+        }
+
+        @Override
+        public void addNode(IndexType p1, byte[] key, IndexType p2, Node node) {
+            assert indexType.toLong(p2) == 0l;
+            if (pointers.size() > 0)
+                pointers.remove(pointers.size() - 1);
+
+            if (indexType.toLong(p1) != 0l) {
+                pointers.add(p1);
+                keys.add(key);
+            }
+
+            for (int i = 0; i < node.keys.size(); i++) {
+                pointers.add(node.pointers.get(i));
+                keys.add(node.keys.get(i));
+            }
+
+            // next pointer
+            if (node.pointers.size() > 0)
+                pointers.add(node.pointers.get(node.pointers.size() - 1));
         }
 
         @Override
@@ -353,12 +466,12 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
                 result.keyComparison = current.compareTo(key);
                 if (result.keyComparison >= 0) {
                     result.foundKey = current;
-                    result.position = i;
+                    result.keyPosition = i;
                     break;
                 }
             }
             if (result.foundKey == null)
-                result.position  = keys.size();
+                result.keyPosition = keys.size();
         }
 
         @Override
@@ -370,7 +483,7 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             int splitPoint = keys.size() / 2;
             // insert item to new node
             for (int i = splitPoint; i < keys.size(); i++)
-                result.newNode.add(pointers.get(i), keys.get(i));
+                result.newNode.addRaw(pointers.get(i), keys.get(i));
             result.newNode.pointers.add(pointers.get(keys.size()));
 
             result.key = keys.get(splitPoint);
@@ -386,10 +499,14 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             pointers.add(indexType.fromLong(result.newNode.tile.index));
             return result;
         }
+
+        @Override
+        public Node readChildNode(int pointerIndex) throws IOException {
+            return null;
+        }
     }
 
-    //private int tileSize = 1024;
-    private int tileSize = 52;
+    private int tileSize = 1024;
     private short version = 1;
     private short hashSize;
     private short depth = 1;
@@ -409,12 +526,25 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         this.tileAllocator = new TileAllocator();
     }
 
-    private int nKeysPerTile() {
-        return (tileSize - 3 * indexType.size()) / (indexType.size() + hashSize);
+    public short getDepth() {
+        return depth;
     }
 
-    public void create(short hashSize) throws IOException {
+    public IDataType<IndexType> getIndexType() {
+        return indexType;
+    }
+
+    public IDataType<DataType> getDataType() {
+        return dataType;
+    }
+
+    private int nKeysPerTile() {
+        return (tileSize - 2 * indexType.size()) / (indexType.size() + hashSize);
+    }
+
+    public void create(short hashSize, int tileSize) throws IOException {
         this.hashSize = hashSize;
+        this.tileSize = tileSize;
 
         file.setLength(0);
         writeHeader();
@@ -451,19 +581,19 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
 
     public void printHeader() {
         System.out.println("Version: " + version + ", Hash size: " + hashSize + ", Tile size: " + tileSize
-            + ", Root index: " + rootTileIndex + ", Depth: " + depth + ", Free Tiles: " + freeTileList);
+                + ", Root index: " + rootTileIndex + ", Depth: " + depth + ", Free Tiles: " + freeTileList);
     }
 
     private void printNode(Node node, boolean compact) {
-        System.out.print(node.tile.index + ":");
         if (!compact)
             System.out.print(" d:" + node.deletedPointer);
-        if (node.keys.size() > 0)
-            System.out.print("|");
+
         for (int i = 0; i < node.keys.size(); i++)
             System.out.print(node.pointers.get(i) + "|" + CryptoHelper.toHex(node.keys.get(i)) + "|");
         if (node.pointers.size() > node.keys.size())
-            System.out.print(node.pointers.get(node.pointers.size() - 1) + "|");
+            System.out.print(node.pointers.get(node.pointers.size() - 1));
+
+        System.out.print("@" + node.tile.index);
     }
 
     private void printTree(List<Node> level, int currentDepth, boolean compact) throws IOException {
@@ -471,9 +601,8 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             return;
         List<Node> nextLevel = new ArrayList<>();
         for (Node node : level) {
-            System.out.print("[");
             printNode(node, compact);
-            System.out.print("]");
+            System.out.print(" ");
 
             if (currentDepth == depth)
                 continue;
@@ -492,6 +621,10 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         printTree(Collections.singletonList(rootNode), 1, compact);
     }
 
+    public void print() throws IOException {
+        print(true);
+    }
+
     public void print(boolean compact) throws IOException {
         printHeader();
         printTree(compact);
@@ -502,7 +635,11 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
     }
 
     private void commit(Node rootNode) throws IOException {
-        this.rootTileIndex = rootNode.tile.index;
+        commit(rootNode.getIndex());
+    }
+
+    private void commit(long rootNodeIndex) throws IOException {
+        this.rootTileIndex = rootNodeIndex;
 
         writeHeader();
     }
@@ -533,20 +670,44 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             SearchResult inNodePosition = new SearchResult();
             inNodePosition.node = parent;
             parent.findPosition(key, inNodePosition);
-            insert(parent, inNodePosition.position, new BigInteger(result.key),
+            insert(parent, inNodePosition.keyPosition, new BigInteger(result.key),
                     indexType.fromLong(insertNode.tile.index), result.key,
                     indexType.fromLong(result.newNode.tile.index));
         } else {
             insertNode.write();
             // update parent nodes
-            Node current = insertNode;
-            while (current.parent != null) {
-                Node parent = current.parent;
-                parent.pointers.remove(current.indexInParent);
-                parent.pointers.add(current.indexInParent, indexType.fromLong(current.tile.index));
-                current = parent;
-                parent.write();
-            }
+            updateParentNodes(insertNode);
+        }
+    }
+
+    private void updateParentNodes(Node left, Node right) throws IOException {
+        while (left.parent != right.parent) {
+            Node leftParent = left.parent;
+            Node rightParent = right.parent;
+            leftParent.replacePointer(left.pointerIndexInParent, indexType.fromLong(left.tile.index));
+            rightParent.replacePointer(right.pointerIndexInParent, indexType.fromLong(right.tile.index));
+            leftParent.write();
+            rightParent.write();
+            left = leftParent;
+            right = rightParent;
+        }
+        // update anchor
+        assert left.parent == right.parent;
+        Node anchor = left.parent;
+        anchor.replacePointer(left.pointerIndexInParent, indexType.fromLong(left.tile.index));
+        anchor.replacePointer(right.pointerIndexInParent, indexType.fromLong(right.tile.index));
+        anchor.write();
+
+        updateParentNodes(anchor);
+    }
+
+    private void updateParentNodes(Node node) throws IOException {
+        Node current = node;
+        while (current.parent != null) {
+            Node parent = current.parent;
+            parent.replacePointer(current.pointerIndexInParent, indexType.fromLong(current.tile.index));
+            parent.write();
+            current = parent;
         }
     }
 
@@ -559,7 +720,7 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             // TODO replace
             throw new IOException("replacing not supported yet");
         }
-        insert(result.node, result.position, key, indexType.fromLong(dataType.toLong(address)), hash,
+        insert(result.node, result.keyPosition, key, indexType.fromLong(dataType.toLong(address)), hash,
                 indexType.fromLong(0l));
 
         commit(result.node.rootNode());
@@ -571,9 +732,16 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
 
     class SearchResult {
         public Node node;
-        public int position;
+        public int keyPosition;
         public BigInteger foundKey;
         public int keyComparison;
+        // Fields if key occurs in a non-leaf node:
+        public Node leftAnchor;
+        public int leftAnchorPointer;
+
+        public boolean isExactMatch() {
+            return foundKey != null && keyComparison == 0;
+        }
     }
 
     private SearchResult find(BigInteger key) throws IOException {
@@ -589,13 +757,13 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             result.node.findPosition(key, result);
             // if not on leaf level, read the next node
             if (a < depth - 1) {
-                long nextNode = indexType.toLong(result.node.pointers.get(result.position));
+                long nextNode = indexType.toLong(result.node.pointers.get(result.keyPosition));
                 if (nextNode == 0l)
                     throw new IOException("Invalid pointer");
                 if (a == depth - 2)
-                    result.node = readLeafNode(nextNode, result.node, result.position);
+                    result.node = readLeafNode(nextNode, result.node, result.keyPosition);
                 else
-                    result.node = readNode(nextNode, result.node, result.position);
+                    result.node = readNode(nextNode, result.node, result.keyPosition);
             }
         }
         return result;
@@ -606,11 +774,11 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
 
         BigInteger key = new BigInteger(hash);
         SearchResult result = find(key);
-        if (result.foundKey ==  null)
+        if (result.foundKey == null)
             return null;
         if (result.keyComparison != 0)
             return null;
-        return dataType.fromLong(indexType.toLong(result.node.pointers.get(result.position)));
+        return dataType.fromLong(indexType.toLong(result.node.pointers.get(result.keyPosition)));
     }
 
     private Node readNode(long index, Node parent, int inParentIndex) throws IOException {
@@ -638,5 +806,237 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             rootNode = readNode(rootTileIndex, null, 0);
 
         return rootNode;
+    }
+
+    class FindNeighbourResult {
+        public LeafNode node;
+        public Node anchor;
+        public int anchorKeyIndex;
+    }
+
+    private FindNeighbourResult findNeighbour(final Node node, final boolean clockwise) throws IOException {
+        FindNeighbourResult result = new FindNeighbourResult();
+
+        int rootDistance = 1;
+        Node current = node;
+        Node parent = node.getParent();
+        while ((clockwise && current.getPointerIndexInParent() == parent.getRightmostPointerIndex())
+                || (!clockwise && current.getPointerIndexInParent() == 0)) {
+            current = parent;
+            parent = parent.parent;
+            // no neighbour?
+            if (parent == null)
+                return null;
+            rootDistance++;
+        }
+        int downwardsIndex = current.getPointerIndexInParent();
+        result.anchor = parent;
+        Node leaf = parent;
+        for (int i = 0; i < rootDistance; i++) {
+            if (!clockwise) {
+                // anti clockwise: first go one node left and then always right
+                if (i == 0) {
+                    result.anchorKeyIndex = downwardsIndex - 1;
+                    downwardsIndex -= 1;
+                } else
+                    downwardsIndex = leaf.getRightmostPointerIndex();
+            } else {
+                if (i == 0) {
+                    result.anchorKeyIndex = downwardsIndex;
+                    downwardsIndex += 1;
+                } else
+                    downwardsIndex = 0;
+            }
+
+            leaf = leaf.readChildNode(downwardsIndex);
+        }
+
+        if (clockwise)
+            leaf = findLeftLeafNode(leaf);
+        else
+            leaf = findRightLeafNode(leaf);
+
+        result.node = (LeafNode)leaf;
+        return result;
+    }
+
+    private LeafNode findLeafNode(Node node, boolean left) throws IOException {
+        // go to the leaf node
+        for (int i = 0; i < depth; i++) {
+            int index = 0;
+            if (!left)
+                index = node.getRightmostPointerIndex();
+            Node child = node.readChildNode(index);
+            if (child == null)
+                break;
+            node = child;
+        }
+        return (LeafNode)node;
+    }
+
+    private LeafNode findLeftLeafNode(Node node) throws IOException {
+        return findLeafNode(node, true);
+    }
+
+    private LeafNode findRightLeafNode(Node node) throws IOException {
+        return findLeafNode(node, false);
+    }
+
+    private FindNeighbourResult findLeftNeighbour(Node node) throws IOException {
+        return findNeighbour(node, false);
+    }
+
+    private FindNeighbourResult findRightNeighbour(Node node) throws IOException {
+        return findNeighbour(node, true);
+    }
+
+    private void remove(Node node, int keyIndex, IndexType nodeChild) throws IOException {
+        // remove key
+        node.keys.remove(keyIndex);
+        node.pointers.remove(keyIndex);
+        if (indexType.toLong(nodeChild) != 0l) {
+            node.pointers.remove(keyIndex);
+            node.pointers.add(keyIndex, nodeChild);
+        }
+
+        if (node.hasMinNumberOfKeys() || (node.getParent() == null && node.keys.size() > 1)) {
+            node.write();
+            updateParentNodes(node);
+            commit(node.rootNode());
+            return;
+        }
+        // empty root node?
+        if (node.keys.size() == 0 && node.getParent() == null) {
+            if (depth == 1) {
+                // root node
+                node.write();
+                commit(node);
+                return;
+            } else {
+                depth--;
+                assert indexType.toLong(nodeChild) != 0l;
+                commit(indexType.toLong(nodeChild));
+                return;
+            }
+        }
+
+        FindNeighbourResult leftNeighbour = findLeftNeighbour(node);
+        FindNeighbourResult rightNeighbour = findRightNeighbour(node);
+        if ((leftNeighbour != null && leftNeighbour.node.hasKeySurplus())
+                || (rightNeighbour != null && rightNeighbour.node.hasKeySurplus())) {
+            LeafNode left;
+            LeafNode right;
+            FindNeighbourResult neighbour;
+            if ((rightNeighbour == null && leftNeighbour != null)
+                    || leftNeighbour.node.keys.size() >= rightNeighbour.node.keys.size()) {
+                // get keys from the the left
+                left = leftNeighbour.node;
+                right = findRightLeafNode(node);
+                neighbour = leftNeighbour;
+                int numberOfKeys = left.keys.size() + right.keys.size();
+                while (left.keys.size() > numberOfKeys / 2) {
+                    int lastLeft = left.keys.size() - 1;
+                    right.add(0, left.pointers.get(lastLeft), left.keys.get(lastLeft));
+                    left.remove(lastLeft);
+                }
+            } else {
+                // get keys from the the right
+                left = findRightLeafNode(node);
+                right = rightNeighbour.node;
+                neighbour = rightNeighbour;
+                int numberOfKeys = left.keys.size() + right.keys.size();
+                while (right.keys.size() > numberOfKeys / 2) {
+                    left.add(left.keys.size(), right.pointers.get(0), right.keys.get(0));
+                    right.remove(0);
+                }
+            }
+            Node anchor = neighbour.anchor;
+            anchor.keys.remove(neighbour.anchorKeyIndex);
+            anchor.keys.add(neighbour.anchorKeyIndex, right.keys.get(0));
+
+            left.write();
+            right.write();
+            updateParentNodes(left, right);
+            commit(anchor.rootNode());
+            return;
+        } else {
+            // mergeSimple
+            LeafNode left;
+            LeafNode right;
+            FindNeighbourResult neighbour;
+            if (leftNeighbour != null && leftNeighbour.node.getParent() == node.getParent()) {
+                left = leftNeighbour.node;
+                right = findLeftLeafNode(node);
+                neighbour = leftNeighbour;
+            } else {
+                left = findRightLeafNode(node);
+                right = rightNeighbour.node;
+                neighbour = rightNeighbour;
+            }
+
+
+            MergeResult result = mergeToAnchor(left, right);
+            assert result.key == null && result.right == null;
+            Node anchor = result.left.getParent();
+            // remove next
+            remove(anchor, neighbour.anchorKeyIndex, indexType.fromLong(result.left.getIndex()));
+        }
+    }
+
+    class MergeResult {
+        Node left;
+        byte[] key = null;
+        Node right;
+    }
+
+    private MergeResult mergeToAnchor(LeafNode leftLeaf, LeafNode rightLeaf) throws IOException {
+        MergeResult result = new MergeResult();
+
+        Node left = leftLeaf;
+        Node right = rightLeaf;
+        IndexType p1 = indexType.fromLong(0l);
+        IndexType p2 = indexType.fromLong(0l);
+        do {
+            left.addNode(p1, result.key, p2, right);
+            tileAllocator.free(right.tile);
+            if (!left.hasTooManyKeys()) {
+                left.write();
+                p1 = indexType.fromLong(left.getIndex());
+                result.key = null;
+                p2 = indexType.fromLong(0l);
+                result.left = left;
+                result.right = null;
+            } else {
+                Node.SplitResult splitResult = left.split();
+                assert result.key != null;
+                left.write();
+                right = splitResult.newNode;
+                right.write();
+
+                p1 = indexType.fromLong(left.getIndex());
+                result.key = splitResult.key;
+                p2 = indexType.fromLong(right.getIndex());
+                result.left = left;
+                result.right = right;
+            }
+            left = left.getParent();
+            right = right.getParent();
+        } while (left != right);
+
+        return result;
+    }
+
+    public boolean remove(String key) throws IOException {
+        return remove(CryptoHelper.fromHex(key));
+    }
+
+    public boolean remove(byte[] key) throws IOException {
+        BigInteger keyNumber = new BigInteger(key);
+        SearchResult result = find(keyNumber);
+        if (!result.isExactMatch())
+            return false;
+
+        remove(result.node, result.keyPosition, indexType.fromLong(0l));
+        return true;
     }
 }

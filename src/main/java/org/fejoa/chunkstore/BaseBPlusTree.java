@@ -113,6 +113,8 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
     }
 
     class TileAllocator {
+        long currentFreedTail = 0L;
+        long currentFreedHead = 0L;
         Tile alloc() throws IOException {
             if (freeTileList != 0) {
                 DeletedNode deletedNode = new DeletedNode(freeTileList);
@@ -126,8 +128,32 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         }
 
         void free(Tile tile) throws IOException {
-            new DeletedNode(tile).writeDeletedPointer(freeTileList);
-            freeTileList = tile.index;
+            new DeletedNode(tile).writeDeletedPointer(currentFreedHead);
+            currentFreedHead = tile.index;
+            if (currentFreedTail == 0L)
+                currentFreedTail = currentFreedHead;
+        }
+
+        void commit() throws IOException {
+            if (currentFreedTail != 0L)
+                new DeletedNode(currentFreedTail).writeDeletedPointer(freeTileList);
+
+            freeTileList = currentFreedHead;
+
+            currentFreedHead = 0L;
+            currentFreedTail = 0L;
+        }
+
+        int countDeletedTiles() throws IOException {
+            int i = 0;
+            long current = freeTileList;
+            while (current != 0) {
+                i++;
+                DeletedNode deletedNode = new DeletedNode(current);
+                current = deletedNode.readDeletedPointer();
+            }
+
+            return i;
         }
     }
 
@@ -542,8 +568,8 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         return (tileSize - 2 * indexType.size()) / (indexType.size() + hashSize);
     }
 
-    public void create(short hashSize, int tileSize) throws IOException {
-        this.hashSize = hashSize;
+    public void create(int hashSize, int tileSize) throws IOException {
+        this.hashSize = (short)hashSize;
         this.tileSize = tileSize;
 
         file.setLength(0);
@@ -639,9 +665,14 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
     }
 
     private void commit(long rootNodeIndex) throws IOException {
+        this.tileAllocator.commit();
         this.rootTileIndex = rootNodeIndex;
 
         writeHeader();
+    }
+
+    public int countDeletedTiles() throws IOException {
+        return tileAllocator.countDeletedTiles();
     }
 
     public void put(String hash, DataType address) throws IOException {
@@ -964,7 +995,8 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
             LeafNode left;
             LeafNode right;
             FindNeighbourResult neighbour;
-            if (leftNeighbour != null && leftNeighbour.node.getParent() == node.getParent()) {
+            if (rightNeighbour == null
+                    || (leftNeighbour != null && leftNeighbour.node.getParent() == node.getParent())) {
                 left = leftNeighbour.node;
                 right = findLeftLeafNode(node);
                 neighbour = leftNeighbour;

@@ -11,6 +11,7 @@ import org.fejoa.library.crypto.CryptoHelper;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -44,6 +45,41 @@ public class ChunkContainer extends ChunkContainerNode {
             this.chunk = chunk;
             this.position = position;
         }
+    }
+
+    public Iterator<DataChunkPosition> getChunkIterator(final long startPosition) {
+        return new Iterator<DataChunkPosition>() {
+            private long position = startPosition;
+
+            @Override
+            public boolean hasNext() {
+                try {
+                    if (position >= getDataLength())
+                        return false;
+                    return true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return false;
+                }
+            }
+
+            @Override
+            public DataChunkPosition next() {
+                try {
+                    DataChunkPosition dataChunkPosition = get(position);
+                    position += dataChunkPosition.position + dataChunkPosition.chunk.getDataLength();
+                    return dataChunkPosition;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+
+            @Override
+            public void remove() {
+
+            }
+        };
     }
 
     public DataChunkPosition get(long position) throws IOException {
@@ -116,9 +152,7 @@ public class ChunkContainer extends ChunkContainerNode {
                 }
             } else if (parent != null) {
                 // update parent
-                int oldIndex = parent.indexOf(current.that);
-                parent.removeBlobPointer(oldIndex);
-                parent.addBlobPointer(oldIndex, current.that);
+                parent.invalidate();
             }
             current = parent;
         } while (parent != null);
@@ -224,13 +258,17 @@ class ChunkContainerNode implements IChunk {
             return cachedBlob;
         }
 
+        public boolean isDataPointer() {
+            return level == BASE_LEVEL;
+        }
+
         public IChunk getBlob(IBlobAccessor accessor) throws IOException {
             if (cachedBlob != null)
                 return cachedBlob;
 
             DataInputStream inputStream = accessor.getBlob(blobHash);
             IChunk node;
-            if (level == BASE_LEVEL)
+            if (isDataPointer())
                 node = new DataChunk();
             else
                 node = new ChunkContainerNode(blobAccessor, ChunkContainerNode.this, this);
@@ -251,7 +289,7 @@ class ChunkContainerNode implements IChunk {
             if (packed)
                 value |= 0X01;
             outputStream.writeInt(value);
-            outputStream.write(blobHash.getBytes());
+            outputStream.write(getBlobHash().getBytes());
         }
 
         @Override
@@ -267,11 +305,10 @@ class ChunkContainerNode implements IChunk {
 
     final protected BlobPointer that;
     protected boolean onDisk = false;
-    final protected ChunkContainerNode parent;
+    protected ChunkContainerNode parent;
     final protected IBlobAccessor blobAccessor;
     private byte[] data;
     final private List<BlobPointer> slots = new ArrayList<>();
-    protected int dataLength;
     private int maxNodeLength = 1024;
 
     public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, BlobPointer that) {
@@ -288,6 +325,10 @@ class ChunkContainerNode implements IChunk {
         if (parent != null)
             this.maxNodeLength = parent.maxNodeLength;
         this.that = new BlobPointer(null, -1, this, level);
+    }
+
+    public void setParent(ChunkContainerNode parent) {
+        this.parent = parent;
     }
 
     public ChunkContainerNode getParent() {
@@ -311,8 +352,15 @@ class ChunkContainerNode implements IChunk {
     }
 
     @Override
-    public int getDataLength() {
-        return dataLength;
+    public int getDataLength() throws IOException {
+        return calculateDataLength();
+    }
+
+    protected int calculateDataLength() throws IOException {
+        int length = 0;
+        for (BlobPointer pointer : slots)
+            length += pointer.getDataLength();
+        return length;
     }
 
     public int getBlobLength() {
@@ -365,8 +413,10 @@ class ChunkContainerNode implements IChunk {
         int pointerIndex = getMaxSlots();
         assert pointerIndex < slots.size();
 
-        ChunkContainerNode left = new ChunkContainerNode(blobAccessor, this, that.level);
-        ChunkContainerNode right = new ChunkContainerNode(blobAccessor, this, that.level);
+        ChunkContainerNode left = new ChunkContainerNode(blobAccessor, parent, that.level);
+        ChunkContainerNode right = new ChunkContainerNode(blobAccessor, parent, that.level);
+        left.setMaxNodeLength(getMaxNodeLength());
+        right.setMaxNodeLength(getMaxNodeLength());
         for (int i = 0 ; i < pointerIndex; i++)
             left.addBlobPointer(slots.get(i));
         for (int i = pointerIndex; i < slots.size(); i++)
@@ -381,7 +431,6 @@ class ChunkContainerNode implements IChunk {
     @Override
     public void read(DataInputStream inputStream) throws IOException {
         slots.clear();
-        dataLength = 0;
         int nSlots = inputStream.readInt();
         for (int i = 0; i < nSlots; i++) {
             BlobPointer pointer = new BlobPointer(HashValue.HASH_SIZE, that.level - 1);
@@ -465,7 +514,8 @@ class ChunkContainerNode implements IChunk {
 
     protected void addBlobPointer(int index, BlobPointer pointer) throws IOException {
         slots.add(index, pointer);
-        dataLength += pointer.getDataLength();
+        if (!pointer.isDataPointer() && pointer.getCachedBlob() != null)
+            ((ChunkContainerNode)pointer.getCachedBlob()).setParent(this);
         invalidate();
     }
 
@@ -474,8 +524,7 @@ class ChunkContainerNode implements IChunk {
     }
 
     protected void removeBlobPointer(int i) throws IOException {
-        BlobPointer pointer = slots.remove(i);
-        dataLength -= pointer.getDataLength();
+        slots.remove(i);
         invalidate();
     }
 
@@ -493,7 +542,6 @@ class ChunkContainerNode implements IChunk {
 
     protected void clear() {
         slots.clear();
-        dataLength = 0;
         invalidate();
     }
 }

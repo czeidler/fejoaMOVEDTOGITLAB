@@ -30,7 +30,10 @@ public class ChunkContainerOutputStream extends OutputStream {
     @Override
     public void flush() throws IOException {
         super.flush();
-        container.append(new DataChunk(outputStream.toByteArray()));
+        byte[] data = outputStream.toByteArray();
+        if (data.length == 0)
+            return;
+        container.append(new DataChunk(data));
         outputStream = new ByteArrayOutputStream();
     }
 

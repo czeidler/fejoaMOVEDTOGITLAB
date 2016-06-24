@@ -25,7 +25,7 @@ public class ChunkContainerInputStream extends InputStream {
         if (position >= container.getDataLength())
             return -1;
         DataChunk current = validateCurrentChunk();
-        int b = current.getData()[(int)(position - chunkPosition.position)];
+        int b = current.getData()[(int)(position - chunkPosition.position)] & 0xff;
         position++;
         return b;
     }

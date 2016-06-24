@@ -115,12 +115,16 @@ class ChunkPointer implements IChunkPointer {
 
 public class ChunkContainer extends ChunkContainerNode {
     public ChunkContainer(IBlobAccessor blobAccessor, HashValue hash) throws IOException {
-        super(blobAccessor, null, -1, BASE_LEVEL + 1);
-        read(blobAccessor.getBlob(hash));
+        this(blobAccessor, blobAccessor.getBlob(hash));
+    }
+
+    public ChunkContainer(IBlobAccessor blobAccessor, DataInputStream inputStream) throws IOException {
+        super(blobAccessor, null, LEAF_LEVEL);
+        read(inputStream);
     }
 
     public ChunkContainer(IBlobAccessor blobAccessor) {
-        super(blobAccessor, null, -1, BASE_LEVEL + 1);
+        super(blobAccessor, null, LEAF_LEVEL);
     }
 
     @Override
@@ -225,7 +229,7 @@ public class ChunkContainer extends ChunkContainerNode {
         blobAccessor.putBlock(hash, rawBlob);
 
         SearchResult insertPosition = findLevel0Node(getDataLength());
-        IChunkPointer pointer = new ChunkPointer(hash, rawBlob.length, blob, BASE_LEVEL);
+        IChunkPointer pointer = new ChunkPointer(hash, rawBlob.length, blob, DATA_LEVEL);
         ChunkContainerNode node = (ChunkContainerNode)getBlob(insertPosition.nodePointer);
         node.addBlobPointer(pointer);
 
@@ -293,13 +297,15 @@ public class ChunkContainer extends ChunkContainerNode {
         outputStream.writeByte(that.getLevel());
     }
 
-    public void flush() throws IOException {
-        flush(that.getLevel());
+    public void flush(boolean childOnly) throws IOException {
+        flush(that.getLevel(), childOnly);
     }
 }
 
 class ChunkContainerNode implements IChunk {
-    static final protected int BASE_LEVEL = 0;
+    static final protected int DATA_LEVEL = 0;
+    static final protected int LEAF_LEVEL = DATA_LEVEL + 1;
+    static final public int DEFAULT_MAX_NODE_LENGTH = 1024;
 
     final protected IChunkPointer that;
     protected boolean onDisk = false;
@@ -307,22 +313,19 @@ class ChunkContainerNode implements IChunk {
     final protected IBlobAccessor blobAccessor;
     private byte[] data;
     final private List<IChunkPointer> slots = new ArrayList<>();
-    private int maxNodeLength = 1024;
+    private int maxNodeLength = DEFAULT_MAX_NODE_LENGTH;
+    // max node length that get assigned to new child nodes
+    private int childMaxNodeLength = DEFAULT_MAX_NODE_LENGTH;
 
-    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, int maxNodeLength,
-                              IChunkPointer that) {
+    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, IChunkPointer that) {
         this.blobAccessor = blobAccessor;
         this.parent = parent;
-        if (parent != null)
-            this.maxNodeLength = maxNodeLength;
         this.that = that;
     }
 
-    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, int maxNodeLength, int level) {
+    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, int level) {
         this.blobAccessor = blobAccessor;
         this.parent = parent;
-        if (parent != null)
-            this.maxNodeLength = maxNodeLength;
         this.that = new ChunkPointer(null, -1, this, level);
     }
 
@@ -335,7 +338,7 @@ class ChunkContainerNode implements IChunk {
     }
 
     protected boolean isDataPointer(IChunkPointer pointer) {
-        return pointer.getLevel() == ChunkContainer.BASE_LEVEL;
+        return pointer.getLevel() == ChunkContainer.DATA_LEVEL;
     }
 
     public void setMaxNodeLength(int maxNodeLength) {
@@ -367,8 +370,11 @@ class ChunkContainerNode implements IChunk {
         DataInputStream inputStream = blobAccessor.getBlob(pointer.getChunkHash());
         if (isDataPointer(pointer))
             cachedChunk = new DataChunk();
-        else
-            cachedChunk = new ChunkContainerNode(blobAccessor, this, maxNodeLength, pointer);
+        else {
+            ChunkContainerNode node = new ChunkContainerNode(blobAccessor, this, pointer);
+            node.setMaxNodeLength(childMaxNodeLength);
+            cachedChunk = node;
+        }
         cachedChunk.read(inputStream);
         pointer.setCachedChunk(cachedChunk);
         return cachedChunk;
@@ -431,8 +437,10 @@ class ChunkContainerNode implements IChunk {
         int pointerIndex = getMaxSlots();
         assert pointerIndex < slots.size();
 
-        ChunkContainerNode left = new ChunkContainerNode(blobAccessor, parent, maxNodeLength, that.getLevel());
-        ChunkContainerNode right = new ChunkContainerNode(blobAccessor, parent, maxNodeLength, that.getLevel());
+        ChunkContainerNode left = new ChunkContainerNode(blobAccessor, parent, that.getLevel());
+        ChunkContainerNode right = new ChunkContainerNode(blobAccessor, parent, that.getLevel());
+        left.setMaxNodeLength(childMaxNodeLength);
+        right.setMaxNodeLength(childMaxNodeLength);
         left.setMaxNodeLength(getMaxNodeLength());
         right.setMaxNodeLength(getMaxNodeLength());
         for (int i = 0 ; i < pointerIndex; i++)
@@ -467,16 +475,24 @@ class ChunkContainerNode implements IChunk {
         }
     }
 
-    public void flush(int level) throws IOException {
-        byte[] data = getData();
-        blobAccessor.putBlock(hash(data), data);
-        if (level == BASE_LEVEL + 1)
+    /**
+     *
+     * @param level
+     * @param childOnly only child nodes are flushed
+     * @throws IOException
+     */
+    public void flush(int level, boolean childOnly) throws IOException {
+        if (!childOnly) {
+            byte[] data = getData();
+            blobAccessor.putBlock(hash(data), data);
+        }
+        if (level <= LEAF_LEVEL)
             return;
         for (IChunkPointer pointer : slots) {
             ChunkContainerNode blob = (ChunkContainerNode)pointer.getCachedChunk();
             if (blob == null || blob.onDisk)
                 continue;
-            blob.flush(level - 1);
+            blob.flush(level - 1, false);
         }
 
         onDisk = true;
@@ -503,7 +519,7 @@ class ChunkContainerNode implements IChunk {
     protected String printAll() throws IOException {
         String string = toString();
 
-        if (that.getLevel() == BASE_LEVEL + 1)
+        if (that.getLevel() == LEAF_LEVEL)
             return string;
         for (IChunkPointer pointer : slots)
             string += ((ChunkContainerNode)getBlob(pointer)).printAll();

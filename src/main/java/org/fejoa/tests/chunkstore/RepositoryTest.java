@@ -26,6 +26,8 @@ public class RepositoryTest  extends TestCase {
 
     private IBlobAccessor getAccessor(final ChunkStore chunkStore) {
         return new IBlobAccessor() {
+            ChunkStore.Transaction transaction;
+
             @Override
             public DataInputStream getBlob(HashValue hash) throws IOException {
                 return new DataInputStream(new ByteArrayInputStream(chunkStore.getChunk(hash.getBytes())));
@@ -33,7 +35,7 @@ public class RepositoryTest  extends TestCase {
 
             @Override
             public void putBlock(HashValue hash, byte[] data) throws IOException {
-                chunkStore.put(hash.getBytes(), data);
+                transaction.put(hash, data);
             }
 
             @Override
@@ -42,19 +44,25 @@ public class RepositoryTest  extends TestCase {
                 putBlock(hash, hash.getBytes());
                 return hash;
             }
+
+            @Override
+            public void startTransaction(String name) throws IOException {
+                transaction = chunkStore.openTransaction(name);
+            }
+
+            @Override
+            public void finishTransaction(HashValue tip) throws IOException {
+                transaction.commit(tip);
+                transaction = null;
+            }
         };
     }
 
-    private ChunkStore createChunkStore(String name) throws IOException {
-        cleanUpFiles.add(name + ".idx");
-        cleanUpFiles.add(name + ".pack");
+    private ChunkStore createChunkStore(File directory, String name) throws IOException {
+        assertTrue(!directory.getName().equals("") && !directory.getName().equals("."));
+        cleanUpFiles.add(directory.getName());
 
-        return ChunkStore.create(name);
-    }
-
-    private ChunkContainer openContainer(String name, HashValue hash) throws IOException {
-        final ChunkStore chunkStore = ChunkStore.open(name);
-        return new ChunkContainer(getAccessor(chunkStore), hash);
+        return ChunkStore.create(directory, name);
     }
 
     static class TestFile {
@@ -78,7 +86,7 @@ public class RepositoryTest  extends TestCase {
         HashValue boxHash;
     }
 
-    private TestCommit writeToRepositiory(Repository repository, TestDirectory root, String commitMessage)
+    private TestCommit writeToRepositiory(Repository.Transaction repository, TestDirectory root, String commitMessage)
             throws IOException {
         BoxPointer tree = writeDir(repository, root);
         CommitBox commitBox = CommitBox.create();
@@ -93,7 +101,7 @@ public class RepositoryTest  extends TestCase {
         return testCommit;
     }
 
-    private BoxPointer writeDir(Repository repository, TestDirectory dir) throws IOException {
+    private BoxPointer writeDir(Repository.Transaction repository, TestDirectory dir) throws IOException {
         DirectoryBox directoryBox = DirectoryBox.create();
         // first write child dirs recursively
         for (Map.Entry<String, TestDirectory> entry : dir.dirs.entrySet()) {
@@ -160,7 +168,10 @@ public class RepositoryTest  extends TestCase {
 
     public void testBasics() throws IOException {
         String name = "repoTest";
-        ChunkStore chunkStore = createChunkStore(name);
+        File directory = new File("RepoTest");
+        directory.mkdirs();
+
+        ChunkStore chunkStore = createChunkStore(directory, name);
         IBlobAccessor accessor = getAccessor(chunkStore);
         Repository repository = new Repository(accessor);
 
@@ -182,8 +193,15 @@ public class RepositoryTest  extends TestCase {
         root.dirs.put("sub1", sub1);
         root.dirs.put("sub2", sub2);
 
+        String branch = "repoBranch";
+        Repository.Transaction transaction = repository.openTransaction(branch);
+        TestCommit testCommit = writeToRepositiory(transaction, root, "Commit Message");
+        transaction.commit(testCommit.boxHash);
 
-        TestCommit testCommit = writeToRepositiory(repository, root, "Commit Message");
+        ChunkStoreBranchLog branchLog = chunkStore.getBranchLog(branch);
+        ChunkStoreBranchLog.Entry tip = branchLog.getTip();
+        assertNotNull(tip);
+        assertEquals(testCommit.boxHash, tip.getTip());
 
         verifyCommitInRepository(repository, testCommit);
     }

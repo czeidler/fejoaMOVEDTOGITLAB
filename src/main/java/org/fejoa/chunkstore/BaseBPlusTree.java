@@ -675,10 +675,6 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         return tileAllocator.countDeletedTiles();
     }
 
-    public void put(String hash, DataType address) throws IOException {
-        put(CryptoHelper.fromHex(hash), address);
-    }
-
     private void insert(Node insertNode, int insertPosition, BigInteger key, IndexType p1, byte[] rawKey, IndexType p2)
             throws IOException {
         insertNode.add(insertPosition, p1, rawKey, p2);
@@ -742,19 +738,21 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         }
     }
 
-    public void put(byte[] hash, DataType address) throws IOException {
-        assert hash.length == hashSize;
+    public boolean put(HashValue hash, DataType address) throws IOException {
+        assert hash.size() == hashSize;
 
-        BigInteger key = new BigInteger(hash);
+        BigInteger key = new BigInteger(hash.getBytes());
         SearchResult result = find(key);
         if (result.foundKey != null && result.keyComparison == 0) {
             // TODO replace
             throw new IOException("replacing not supported yet");
+            //return false;
         }
-        insert(result.node, result.keyPosition, key, indexType.fromLong(dataType.toLong(address)), hash,
+        insert(result.node, result.keyPosition, key, indexType.fromLong(dataType.toLong(address)), hash.getBytes(),
                 indexType.fromLong(0l));
 
         commit(result.node.rootNode());
+        return true;
     }
 
     public DataType get(String hash) throws IOException {

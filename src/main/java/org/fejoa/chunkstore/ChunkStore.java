@@ -9,29 +9,59 @@ package org.fejoa.chunkstore;
 
 import org.fejoa.library.crypto.CryptoHelper;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class ChunkStore {
-    final private BPlusTree tree;
-    final private PackFile packFile;
+    /**
+     * TODO: make the transaction actually do something, i.e. make a transaction atomic
+     */
+    public class Transaction {
+        final private List<HashValue> objectsWritten = new ArrayList<>();
+        final private ChunkStoreBranchLog log;
 
-    protected ChunkStore(String name) throws FileNotFoundException {
-        this.tree = new BPlusTree(new RandomAccessFile(name + "idx", "rw"));
-        this.packFile = new PackFile(new RandomAccessFile(name + "pack", "rw"));
+        public Transaction(File branchLogFile) throws IOException {
+            this.log = new ChunkStoreBranchLog(branchLogFile);
+        }
+
+        public void put(HashValue hash, byte[] data) throws IOException {
+            if (ChunkStore.this.put(hash, data))
+                objectsWritten.add(hash);
+        }
+
+        public void commit(HashValue tip) throws IOException {
+            synchronized (ChunkStore.this) {
+                log.add(tip, objectsWritten);
+                currentTransaction = null;
+            }
+        }
     }
 
-    static public ChunkStore create(String name) throws IOException {
-        ChunkStore chunkStore = new ChunkStore(name);
+    final private File dir;
+    final private BPlusTree tree;
+    final private PackFile packFile;
+    private Transaction currentTransaction;
+
+    protected ChunkStore(File dir, String name) throws FileNotFoundException {
+        this.dir = dir;
+        this.tree = new BPlusTree(new RandomAccessFile(new File(dir, name + ".idx"), "rw"));
+        this.packFile = new PackFile(new RandomAccessFile(new File(dir, name + ".pack"), "rw"));
+    }
+
+    static public ChunkStore create(File dir, String name) throws IOException {
+        ChunkStore chunkStore = new ChunkStore(dir, name);
         chunkStore.tree.create(hashSize(), 1024);
         chunkStore.packFile.create(hashSize());
         return chunkStore;
     }
 
     static public ChunkStore open(String name) throws IOException {
-        ChunkStore chunkStore = new ChunkStore(name);
+        ChunkStore chunkStore = new ChunkStore(new File("."), name);
         chunkStore.tree.open();
         chunkStore.packFile.open();
         return chunkStore;
@@ -48,15 +78,28 @@ public class ChunkStore {
         return packFile.get(position.intValue(), hash);
     }
 
-    public void put(String hash, byte[] data) throws IOException {
-        put(CryptoHelper.fromHex(hash), data);
+    private File getBranchDir() {
+        return new File(dir, "branches");
     }
 
-    public void put(byte[] hash, byte[] data) throws IOException {
-        if (hash.length != hashSize())
+    public Transaction openTransaction(String name) throws IOException {
+        synchronized (this) {
+            if (currentTransaction != null)
+                throw new RuntimeException("Currently only one transaction at a time is supported");
+            currentTransaction = new Transaction(new File(getBranchDir(), name));
+            return currentTransaction;
+        }
+    }
+
+    public ChunkStoreBranchLog getBranchLog(String name) throws IOException {
+        return new ChunkStoreBranchLog(new File(getBranchDir(), name));
+    }
+
+    private boolean put(HashValue hash, byte[] data) throws IOException {
+        if (hash.size() != hashSize())
             throw new IOException("Hash size miss match");
         long position = packFile.put(hash, data);
-        tree.put(hash, position);
+        return tree.put(hash, position);
     }
 
     static private int hashSize() {

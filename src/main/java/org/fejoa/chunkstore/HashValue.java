@@ -28,6 +28,10 @@ public class HashValue {
         this.hash = Arrays.copyOf(hash.getBytes(), hash.size());
     }
 
+    static public HashValue fromHex(String hash) {
+        return new HashValue(CryptoHelper.fromHex(hash));
+    }
+
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof HashValue))

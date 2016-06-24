@@ -28,6 +28,13 @@ public class HashValue {
         this.hash = Arrays.copyOf(hash.getBytes(), hash.size());
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof HashValue))
+            return false;
+        return Arrays.equals(hash, ((HashValue) o).hash);
+    }
+
     public byte[] getBytes() {
         return hash;
     }

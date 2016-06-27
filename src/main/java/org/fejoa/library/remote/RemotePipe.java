@@ -15,7 +15,7 @@ import java.io.OutputStream;
 /**
  * Provides an OutputStream to send data and an InputStream to receive the reply.
  *
- * Once starting reading from the InputStream no data can be send anymore.
+ * Once a request is sent by writing data to the output stream the previous input stream is closed.
  */
 public class RemotePipe {
     private class RemoteInputStream extends InputStream {
@@ -58,6 +58,13 @@ public class RemotePipe {
     final private RemoteOutputStream outputStream = new RemoteOutputStream();
     final private Runnable onDataSentCallback;
 
+    /**
+     * RemotePipe constructor.
+     *
+     * @param header is prepended to data written to the output stream.
+     * @param remoteRequest the remote request to be used
+     * @param onDataSentCallback is called when a request has been sent, i.e. when the user starts reading the reply
+     */
     public RemotePipe(String header, IRemoteRequest remoteRequest, Runnable onDataSentCallback) {
         this.header = header;
         this.remoteRequest = remoteRequest;

@@ -114,16 +114,16 @@ class ChunkPointer implements IChunkPointer {
 
 
 public class ChunkContainer extends ChunkContainerNode {
-    public ChunkContainer(IBlobAccessor blobAccessor, HashValue hash) throws IOException {
+    public ChunkContainer(IChunkAccessor blobAccessor, HashValue hash) throws IOException {
         this(blobAccessor, blobAccessor.getBlob(hash));
     }
 
-    public ChunkContainer(IBlobAccessor blobAccessor, DataInputStream inputStream) throws IOException {
+    public ChunkContainer(IChunkAccessor blobAccessor, DataInputStream inputStream) throws IOException {
         super(blobAccessor, null, LEAF_LEVEL);
         read(inputStream);
     }
 
-    public ChunkContainer(IBlobAccessor blobAccessor) {
+    public ChunkContainer(IChunkAccessor blobAccessor) {
         super(blobAccessor, null, LEAF_LEVEL);
     }
 
@@ -226,7 +226,7 @@ public class ChunkContainer extends ChunkContainerNode {
     public void append(DataChunk blob) throws IOException {
         byte[] rawBlob = blob.getData();
         HashValue hash = blob.hash();
-        blobAccessor.putBlock(hash, rawBlob);
+        blobAccessor.putChunk(hash, rawBlob);
 
         SearchResult insertPosition = findLevel0Node(getDataLength());
         IChunkPointer pointer = new ChunkPointer(hash, rawBlob.length, blob, DATA_LEVEL);
@@ -310,20 +310,20 @@ class ChunkContainerNode implements IChunk {
     final protected IChunkPointer that;
     protected boolean onDisk = false;
     protected ChunkContainerNode parent;
-    final protected IBlobAccessor blobAccessor;
+    final protected IChunkAccessor blobAccessor;
     private byte[] data;
     final private List<IChunkPointer> slots = new ArrayList<>();
     private int maxNodeLength = DEFAULT_MAX_NODE_LENGTH;
     // max node length that get assigned to new child nodes
     private int childMaxNodeLength = DEFAULT_MAX_NODE_LENGTH;
 
-    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, IChunkPointer that) {
+    public ChunkContainerNode(IChunkAccessor blobAccessor, ChunkContainerNode parent, IChunkPointer that) {
         this.blobAccessor = blobAccessor;
         this.parent = parent;
         this.that = that;
     }
 
-    public ChunkContainerNode(IBlobAccessor blobAccessor, ChunkContainerNode parent, int level) {
+    public ChunkContainerNode(IChunkAccessor blobAccessor, ChunkContainerNode parent, int level) {
         this.blobAccessor = blobAccessor;
         this.parent = parent;
         this.that = new ChunkPointer(null, -1, this, level);
@@ -484,7 +484,7 @@ class ChunkContainerNode implements IChunk {
     public void flush(int level, boolean childOnly) throws IOException {
         if (!childOnly) {
             byte[] data = getData();
-            blobAccessor.putBlock(hash(data), data);
+            blobAccessor.putChunk(hash(data), data);
         }
         if (level <= LEAF_LEVEL)
             return;

@@ -31,7 +31,7 @@ public class BlobReader {
         return type;
     }
 
-    public TypedBlob read(IBlobAccessor blobAccessor) throws IOException {
+    public TypedBlob read(IChunkAccessor blobAccessor) throws IOException {
         if (type == COMMIT)
             return readCommit();
         else if (type == DIRECTORY)
@@ -53,7 +53,7 @@ public class BlobReader {
         return DirectoryBox.read(type, inputStream);
     }
 
-    public FileBox readFile(IBlobAccessor blobAccessor) throws IOException {
+    public FileBox readFile(IChunkAccessor blobAccessor) throws IOException {
         if (type != FILE)
             throw new IOException("Data is of type: " + type);
         return FileBox.read(type, inputStream, blobAccessor);

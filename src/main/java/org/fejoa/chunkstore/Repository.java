@@ -9,54 +9,34 @@ package org.fejoa.chunkstore;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class Repository {
-    public class Transaction {
-        private Transaction(String name) throws IOException {
-            blobAccessor.startTransaction(name);
-        }
+    final private String branch;
+    private IChunkAccessor blobAccessor;
+    private boolean transactionStarted = false;
 
-        public HashValue put(TypedBlob blob) throws IOException {
-            ChunkContainer chunkContainer = new ChunkContainer(blobAccessor);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            blob.write(new DataOutputStream(outputStream));
-            chunkContainer.append(new DataChunk(outputStream.toByteArray()));
-            chunkContainer.flush(false);
-
-            return chunkContainer.hash();
-        }
-
-        public void commit(HashValue tip) throws IOException {
-            synchronized (Repository.this) {
-                blobAccessor.finishTransaction(tip);
-                currentTransaction = null;
-            }
-        }
-
-        public IBlobAccessor getBlobAccessor() {
-            return blobAccessor;
-        }
-    }
-
-    private IBlobAccessor blobAccessor;
-    private Transaction currentTransaction;
-
-    public Repository(IBlobAccessor blobAccessor) {
+    public Repository(String branch, IChunkAccessor blobAccessor) throws IOException {
+        this.branch = branch;
         this.blobAccessor = blobAccessor;
+
+        ensureTransaction();
     }
 
-    public IBlobAccessor getBlobAccessor() {
+    public IChunkAccessor getBlobAccessor() {
         return blobAccessor;
     }
 
-    public Transaction openTransaction(String name) throws IOException {
+    private void ensureTransaction() throws IOException {
         synchronized (this) {
-            if (currentTransaction != null)
-                throw new RuntimeException("Currently only one transaction at a time is supported");
-            currentTransaction = new Transaction(name);
-            return currentTransaction;
+            if (transactionStarted)
+                return;
+            blobAccessor.startTransaction(branch);
+            transactionStarted = true;
         }
     }
 
@@ -64,5 +44,24 @@ public class Repository {
         ChunkContainer chunkContainer = new ChunkContainer(blobAccessor, hashValue);
         BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
         return blobReader.read(blobAccessor);
+    }
+
+    public HashValue put(TypedBlob blob) throws IOException {
+        ensureTransaction();
+
+        ChunkContainer chunkContainer = new ChunkContainer(blobAccessor);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        blob.write(new DataOutputStream(outputStream));
+        chunkContainer.append(new DataChunk(outputStream.toByteArray()));
+        chunkContainer.flush(false);
+
+        return chunkContainer.hash();
+    }
+
+    public void commit(HashValue tip) throws IOException {
+        synchronized (Repository.this) {
+            blobAccessor.finishTransaction(tip);
+            transactionStarted = false;
+        }
     }
 }

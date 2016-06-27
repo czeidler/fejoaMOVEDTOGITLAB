@@ -11,10 +11,10 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 
-public interface IBlobAccessor {
+public interface IChunkAccessor {
     DataInputStream getBlob(HashValue hash) throws IOException;
-    void putBlock(HashValue hash, byte[] data) throws IOException;
-    HashValue putBlock(IChunk blob) throws IOException;
+    void putChunk(HashValue hash, byte[] data) throws IOException;
+    HashValue putChunk(IChunk blob) throws IOException;
 
     void startTransaction(String name) throws IOException;
     void finishTransaction(HashValue tip) throws IOException;

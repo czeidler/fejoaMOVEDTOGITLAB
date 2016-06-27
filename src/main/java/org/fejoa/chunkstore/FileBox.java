@@ -20,7 +20,7 @@ import java.util.Iterator;
 
 
 public class FileBox extends TypedBlob {
-    private IBlobAccessor accessor;
+    private IChunkAccessor accessor;
     private ChunkContainer chunkContainer;
 
     private BoxPointer fileAttrs;
@@ -30,14 +30,14 @@ public class FileBox extends TypedBlob {
         super(BlobReader.FILE);
     }
 
-    static public FileBox create(IBlobAccessor accessor) {
+    static public FileBox create(IChunkAccessor accessor) {
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;
         fileBox.chunkContainer = new ChunkContainer(accessor);
         return fileBox;
     }
 
-    static public FileBox read(short type, DataInputStream inputStream, IBlobAccessor accessor) throws IOException {
+    static public FileBox read(short type, DataInputStream inputStream, IChunkAccessor accessor) throws IOException {
         assert type == BlobReader.FILE;
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;

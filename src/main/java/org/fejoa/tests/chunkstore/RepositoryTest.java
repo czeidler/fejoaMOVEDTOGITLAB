@@ -23,8 +23,8 @@ public class RepositoryTest  extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
-    private IBlobAccessor getAccessor(final ChunkStore chunkStore) {
-        return new IBlobAccessor() {
+    private IChunkAccessor getAccessor(final ChunkStore chunkStore) {
+        return new IChunkAccessor() {
             ChunkStore.Transaction transaction;
 
             @Override
@@ -33,14 +33,14 @@ public class RepositoryTest  extends TestCase {
             }
 
             @Override
-            public void putBlock(HashValue hash, byte[] data) throws IOException {
+            public void putChunk(HashValue hash, byte[] data) throws IOException {
                 transaction.put(hash, data);
             }
 
             @Override
-            public HashValue putBlock(IChunk blob) throws IOException {
+            public HashValue putChunk(IChunk blob) throws IOException {
                 HashValue hash = blob.hash();
-                putBlock(hash, hash.getBytes());
+                putChunk(hash, hash.getBytes());
                 return hash;
             }
 
@@ -85,7 +85,7 @@ public class RepositoryTest  extends TestCase {
         HashValue boxHash;
     }
 
-    private TestCommit writeToRepositiory(Repository.Transaction repository, TestDirectory root, String commitMessage)
+    private TestCommit writeToRepositiory(Repository repository, TestDirectory root, String commitMessage)
             throws IOException {
         BoxPointer tree = writeDir(repository, root);
         CommitBox commitBox = CommitBox.create();
@@ -100,7 +100,7 @@ public class RepositoryTest  extends TestCase {
         return testCommit;
     }
 
-    private BoxPointer writeDir(Repository.Transaction repository, TestDirectory dir) throws IOException {
+    private BoxPointer writeDir(Repository repository, TestDirectory dir) throws IOException {
         DirectoryBox directoryBox = DirectoryBox.create();
         // first write child dirs recursively
         for (Map.Entry<String, TestDirectory> entry : dir.dirs.entrySet()) {
@@ -166,13 +166,14 @@ public class RepositoryTest  extends TestCase {
     }
 
     public void testBasics() throws IOException {
+        String branch = "repoBranch";
         String name = "repoTest";
         File directory = new File("RepoTest");
         directory.mkdirs();
 
         ChunkStore chunkStore = createChunkStore(directory, name);
-        IBlobAccessor accessor = getAccessor(chunkStore);
-        Repository repository = new Repository(accessor);
+        IChunkAccessor accessor = getAccessor(chunkStore);
+        Repository repository = new Repository(branch, accessor);
 
         TestFile testFile1 = new TestFile("file1Content");
         TestFile testFile2 = new TestFile("file2Content");
@@ -192,10 +193,8 @@ public class RepositoryTest  extends TestCase {
         root.dirs.put("sub1", sub1);
         root.dirs.put("sub2", sub2);
 
-        String branch = "repoBranch";
-        Repository.Transaction transaction = repository.openTransaction(branch);
-        TestCommit testCommit = writeToRepositiory(transaction, root, "Commit Message");
-        transaction.commit(testCommit.boxHash);
+        TestCommit testCommit = writeToRepositiory(repository, root, "Commit Message");
+        repository.commit(testCommit.boxHash);
 
         ChunkStoreBranchLog branchLog = chunkStore.getBranchLog(branch);
         ChunkStoreBranchLog.Entry tip = branchLog.getTip();

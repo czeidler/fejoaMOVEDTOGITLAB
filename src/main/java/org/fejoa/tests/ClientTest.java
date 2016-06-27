@@ -9,17 +9,19 @@ package org.fejoa.tests;
 
 import junit.framework.TestCase;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.*;
-import org.fejoa.library2.Client;
-import org.fejoa.library2.command.*;
-import org.fejoa.library2.remote.*;
-import org.fejoa.library2.util.LooperThread;
+import org.fejoa.library.*;
+import org.fejoa.library.Client;
+import org.fejoa.library.command.*;
+import org.fejoa.library.remote.*;
+import org.fejoa.library.support.LooperThread;
+import org.fejoa.library.support.Task;
 import org.fejoa.server.JettyServer;
 import org.fejoa.server.Portal;
-import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.CookieHandler;
+import java.net.CookiePolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
@@ -63,21 +65,27 @@ public class ClientTest extends TestCase {
     }
 
     final static String TEST_DIR = "jettyTest";
-    final static String SERVER_TEST_DIR = TEST_DIR + "/Server";
+    final static String SERVER_TEST_DIR_1 = TEST_DIR + "/Server1";
+    final static String SERVER_TEST_DIR_2 = TEST_DIR + "/Server2";
+    final static String SERVER_TEST_DIR_3 = TEST_DIR + "/Server3";
     final static String SERVER_URL_1 = "http://localhost:8080/";
-    final static String SERVER_URL_2 = "http://localhost:8080/";
+    final static String SERVER_URL_2 = "http://localhost:8081/";
     final static String USER_NAME_1 = "testUser1";
     final static String USER_NAME_1_NEW = "testUser1New";
-    final static String SERVER_URL_1_NEW = "http://localhost:8080/";
+    final static String SERVER_URL_1_NEW = "http://localhost:8082/";
     final static String USER_NAME_2 = "testUser2";
     final static String PASSWORD = "password";
 
     final private List<String> cleanUpDirs = new ArrayList<>();
-    private JettyServer server;
+    private JettyServer server1;
     private Client client1;
     private ClientStatus clientStatus1;
+
+    private JettyServer server2;
     private Client client2;
     private ClientStatus clientStatus2;
+
+    private JettyServer serverNew;
     private Client client1New;
     private LooperThread clientThread = new LooperThread(10);
 
@@ -121,8 +129,17 @@ public class ClientTest extends TestCase {
         for (String dir : cleanUpDirs)
             StorageLib.recursiveDeleteFile(new File(dir));
 
-        server = new JettyServer(SERVER_TEST_DIR);
-        server.start();
+        // allow cookies per port number in order so run multiple servers on localhost
+        CookieHandler.setDefault(new CookiePerPortManager(null, CookiePolicy.ACCEPT_ALL));
+
+        server1 = new JettyServer(SERVER_TEST_DIR_1, 8080);
+        server1.start();
+
+        server2 = new JettyServer(SERVER_TEST_DIR_2, 8081);
+        server2.start();
+
+        serverNew = new JettyServer(SERVER_TEST_DIR_3, 8082);
+        serverNew.start();
 
         client1 = new Client(TEST_DIR + "/" + USER_NAME_1);
         client1.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
@@ -132,7 +149,7 @@ public class ClientTest extends TestCase {
         client2 = new Client(TEST_DIR + "/" + USER_NAME_2);
         client2.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
         client2.getConnectionManager().setObserverScheduler(new Task.LooperThreadScheduler(clientThread));
-        clientStatus2 = new ClientStatus(USER_NAME_2, SERVER_URL_1);
+        clientStatus2 = new ClientStatus(USER_NAME_2, SERVER_URL_2);
 
         client1New = new Client(TEST_DIR + "/" + USER_NAME_1_NEW);
         client1New.getConnectionManager().setStartScheduler(new Task.NewThreadScheduler());
@@ -145,7 +162,7 @@ public class ClientTest extends TestCase {
     public void tearDown() throws Exception {
         super.tearDown();
 
-        server.stop();
+        server1.stop();
 
         for (String dir : cleanUpDirs)
             StorageLib.recursiveDeleteFile(new File(dir));

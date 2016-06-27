@@ -13,8 +13,8 @@ import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.fejoa.library2.remote.HTMLRequest;
-import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library.remote.HTMLRequest;
+import org.fejoa.library.remote.JsonRPCHandler;
 import org.fejoa.library.support.StreamHelper;
 
 import javax.servlet.MultipartConfigElement;

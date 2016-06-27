@@ -11,11 +11,11 @@ import junit.framework.TestCase;
 import org.apache.commons.io.IOUtils;
 import org.fejoa.library.crypto.CryptoSettings;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.*;
-import org.fejoa.library2.messages.Envelope;
-import org.fejoa.library2.messages.PublicCryptoEnvelope;
-import org.fejoa.library2.messages.SignatureEnvelope;
-import org.fejoa.library2.messages.ZipEnvelope;
+import org.fejoa.library.*;
+import org.fejoa.library.messages.Envelope;
+import org.fejoa.library.messages.PublicCryptoEnvelope;
+import org.fejoa.library.messages.SignatureEnvelope;
+import org.fejoa.library.messages.ZipEnvelope;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;

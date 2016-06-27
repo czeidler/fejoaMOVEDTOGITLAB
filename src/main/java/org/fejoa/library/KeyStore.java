@@ -1,12 +1,11 @@
 /*
- * Copyright 2014.
+ * Copyright 2014-2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
  *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
  */
 package org.fejoa.library;
-
 
 import org.fejoa.library.crypto.*;
 import org.fejoa.library.database.StorageDir;
@@ -17,7 +16,8 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-public class KeyStore implements IStorageUid {
+
+public class KeyStore {
     final String PATH_MASTER_KEY = "masterKey";
     final String PATH_MASTER_KEY_IV = "masterKeyIV";
     final String PATH_MASTER_PASSWORD_ALGORITHM = "masterPasswordAlgo";
@@ -32,16 +32,12 @@ public class KeyStore implements IStorageUid {
     final String PATH_PRIVATE_KEY = "privateKey";
     final String PATH_PUBLIC_KEY = "publicKey";
 
-    String uid;
-    StorageDir storageDir;
+    final private StorageDir storageDir;
 
-    ICryptoInterface crypto;
-    CryptoSettings settings;
-    SecretKey masterKey;
-    byte masterKeyIV[];
-
-    byte[] encryptedMasterKey;
-    byte[] salt;
+    private ICryptoInterface crypto;
+    private CryptoSettings settings;
+    private SecretKey masterKey;
+    private byte masterKeyIV[];
 
     public static class SymmetricKeyData {
         public SecretKey key;
@@ -57,49 +53,42 @@ public class KeyStore implements IStorageUid {
         }
     }
 
-    public KeyStore(StorageDir storageDir) throws IOException {
+    static public KeyStore create(FejoaContext context, String id, String password) throws IOException,
+            CryptoException {
+        StorageDir dir = context.getStorage(id);
+        KeyStore keyStore = new KeyStore(context, dir);
+        keyStore.create(password);
+        return keyStore;
+    }
+
+    static public KeyStore open(FejoaContext context, StorageDir dir, String password) throws IOException,
+            CryptoException {
+        KeyStore keyStore = new KeyStore(context, dir);
+        keyStore.open(password);
+        return keyStore;
+    }
+
+    private KeyStore(FejoaContext context, StorageDir storageDir) throws IOException {
         this.storageDir = storageDir;
-        crypto = Crypto.get();
+        crypto = context.getCrypto();
 
-        uid = storageDir.readString("uid");
-        settings = CryptoSettings.empty();
+        settings = context.getCryptoSettings();
     }
 
-    public KeyStore(String password, CryptoSettings settings) throws CryptoException {
-        this.settings = settings;
-
-        crypto = Crypto.get();
-
-        salt = crypto.generateSalt();
-
-        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.masterPassword.kdfAlgorithm,
-                settings.masterPassword.kdfIterations, settings.masterPassword.keySize);
-
-        masterKeyIV = crypto.generateInitializationVector(settings.masterPassword.ivSize);
-        masterKey = crypto.generateSymmetricKey(settings.masterPassword);
-        encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV,
-                settings.symmetric);
-
-        makeUidFromEncryptedMasterKey(encryptedMasterKey);
+    public String getId() {
+        return storageDir.getBranch();
     }
 
-    @Override
-    public String getUid() {
-        return uid;
-    }
-
-    @Override
     public StorageDir getStorageDir() {
         return storageDir;
     }
 
-    private void makeUidFromEncryptedMasterKey(byte encryptedMasterKey[]) {
-        uid = CryptoHelper.toHex(CryptoHelper.sha1Hash(encryptedMasterKey));
+    public void commit() throws IOException {
+        storageDir.commit();
     }
 
-    public boolean open(String password) {
+    private boolean open(String password) {
         try {
-
             byte encryptedMasterKey[] = storageDir.readBytes(PATH_MASTER_KEY);
             masterKeyIV = storageDir.readBytes(PATH_MASTER_KEY_IV);
             String algorithmName = storageDir.readString(PATH_MASTER_PASSWORD_ALGORITHM);
@@ -122,13 +111,18 @@ public class KeyStore implements IStorageUid {
         return true;
     }
 
-    public void create(StorageDir storageDir) throws IOException,
+    private void create(String password) throws IOException,
             CryptoException {
         // create
-        this.storageDir = storageDir;
+        byte[] salt = crypto.generateSalt();
 
-        storageDir.writeString("uid", uid);
+        SecretKey passwordKey = crypto.deriveKey(password, salt, settings.masterPassword.kdfAlgorithm,
+                settings.masterPassword.kdfIterations, settings.masterPassword.keySize);
 
+        masterKeyIV = crypto.generateInitializationVector(settings.masterPassword.ivSize);
+        masterKey = crypto.generateSymmetricKey(settings.masterPassword);
+        byte[] encryptedMasterKey = crypto.encryptSymmetric(masterKey.getEncoded(), passwordKey, masterKeyIV,
+                settings.symmetric);
         // create master password (master password is encrypted
         storageDir.writeBytes(PATH_MASTER_KEY, encryptedMasterKey);
         storageDir.writeBytes(PATH_MASTER_KEY_IV, masterKeyIV);
@@ -138,9 +132,6 @@ public class KeyStore implements IStorageUid {
         storageDir.writeInt(PATH_MASTER_PASSWORD_ITERATIONS, settings.masterPassword.kdfIterations);
         storageDir.writeString(PATH_SYMMETRIC_ALGORITHM, settings.symmetric.algorithm);
         storageDir.writeString(PATH_SYMMETRIC_KEY_TYPE, settings.symmetric.keyType);
-
-        encryptedMasterKey = null;
-        salt = null;
     }
 
     /**
@@ -195,7 +186,7 @@ public class KeyStore implements IStorageUid {
         return new KeyId(keyId);
     }
 
-    AsymmetricKeyData readAsymmetricKey(String keyId) throws IOException, CryptoException {
+    private AsymmetricKeyData readAsymmetricKey(String keyId) throws IOException, CryptoException {
         String privateKeyPem = new String(readSecure(keyId + "/" + PATH_PRIVATE_KEY));
         String publicKeyPem = storageDir.readString(keyId + "/" + PATH_PUBLIC_KEY);
 

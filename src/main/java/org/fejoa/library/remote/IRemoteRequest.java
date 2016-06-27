@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -7,60 +7,17 @@
  */
 package org.fejoa.library.remote;
 
-import org.fejoa.library.support.ProtocolOutStream;
-import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-
-import javax.xml.transform.TransformerException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 
 public interface IRemoteRequest {
-    String getUrl();
-    byte[] send(byte data[]) throws IOException;
+    OutputStream open(String header, boolean outgoingData) throws IOException;
+
+    String receiveHeader() throws IOException;
+    InputStream receiveData() throws IOException;
+
+    void close();
     void cancel();
-}
-
-class RemoteRequestHelper {
-    static public Observable<byte[]> send(final IRemoteRequest remoteRequest, ProtocolOutStream outStream)
-            throws TransformerException, IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrintWriter writer = new PrintWriter(out);
-        outStream.write(writer);
-
-        return send(remoteRequest, out.toByteArray());
-    }
-
-    static public Observable<byte[]> send(final IRemoteRequest remoteRequest, final byte[] bytes) {
-        return Observable.create(new Observable.OnSubscribeFunc<byte[]>() {
-            @Override
-            public Subscription onSubscribe(final Observer<? super byte[]> receiver) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        byte receivedData[];
-                        try {
-                            receivedData = remoteRequest.send(bytes);
-                        } catch (IOException e) {
-                            receiver.onError(e);
-                            return;
-                        }
-
-                        receiver.onNext(receivedData);
-                        receiver.onCompleted();
-                    }
-                }).start();
-
-                return new Subscription() {
-                    @Override
-                    public void unsubscribe() {
-                        remoteRequest.cancel();
-                    }
-                };
-            }
-        });
-    }
 }

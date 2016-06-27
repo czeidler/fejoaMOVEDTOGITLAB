@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -7,86 +7,92 @@
  */
 package org.fejoa.library;
 
-
-import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.crypto.CryptoSettings;
-import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.crypto.*;
+import org.fejoa.library.database.StorageDir;
 
 import java.io.IOException;
 import java.security.PublicKey;
 
 
-abstract public class Contact {
-    protected String uid = "";
-    protected String server = "";
-    protected String serverUser = "";
-    protected KeyId mainKeyId;
+abstract class Contact<T> implements IContactPublic {
+    final static private String SIGNATURE_KEYS_DIR = "signatureKeys";
+    final static private String ENCRYPTION_KEYS_DIR = "encryptionKeys";
 
-    final protected SecureStorageDir storageDir;
+    final protected FejoaContext context;
+    final protected StorageDirList.IEntryIO<T> entryIO;
+    protected StorageDir storageDir;
 
-    public Contact(SecureStorageDir storageDir) {
-        this.storageDir = storageDir;
+    protected String id = "";
+
+    protected StorageDirList<T> signatureKeys;
+    protected StorageDirList<T> encryptionKeys;
+
+    protected Contact(FejoaContext context, StorageDirList.IEntryIO<T> entryIO, StorageDir dir) {
+        this.context = context;
+        this.entryIO = entryIO;
+
+        if (dir != null)
+            setStorageDir(dir);
     }
 
-    public String getUid() {
-        return uid;
+    protected void setStorageDir(StorageDir dir) {
+        this.storageDir = dir;
+
+        try {
+            id = storageDir.readString(Constants.ID_KEY);
+        } catch (IOException e) {
+            //e.printStackTrace();
+        }
+
+        signatureKeys = new StorageDirList<>(new StorageDir(dir, SIGNATURE_KEYS_DIR), entryIO);
+        encryptionKeys = new StorageDirList<>(new StorageDir(dir, ENCRYPTION_KEYS_DIR), entryIO);
     }
 
-    public void setUid(String uid) {
-        this.uid = uid;
+    abstract public PublicKey getVerificationKey(KeyId keyId);
+
+    @Override
+    public boolean verify(KeyId keyId, byte[] data, byte[] signature, CryptoSettings.Signature signatureSettings)
+            throws CryptoException {
+        ICryptoInterface crypto = context.getCrypto();
+        PublicKey publicKey = getVerificationKey(keyId);
+        return crypto.verifySignature(data, signature, publicKey, signatureSettings);
     }
 
-    public void write() throws IOException, CryptoException {
-        storageDir.writeString("uid", uid);
-        storageDir.writeString("server", server);
-        storageDir.writeString("serverUser", serverUser);
-        storageDir.writeString("mainKeyId", mainKeyId.getKeyId());
+    public void setId(String id) throws IOException {
+        this.id = id;
     }
 
-    public void open() throws IOException, CryptoException {
-        uid = storageDir.readString("uid");
-        server = storageDir.readString("server");
-        serverUser = storageDir.readString("serverUser");
-        mainKeyId = new KeyId(storageDir.readString("mainKeyId"));
+    public String getId() {
+        return id;
     }
 
-    abstract public boolean verify(KeyId keyId, byte data[], byte signature[],
-                                   CryptoSettings.Signature signatureSettings) throws CryptoException;
-    abstract public PublicKey getPublicKey(KeyId keyId);
-
-    public String getAddress() {
-        return serverUser + "@" + server;
+    public StorageDirList<T> getSignatureKeys() {
+        return signatureKeys;
     }
 
-    public boolean setAddress(String address) {
-        String[] parts = address.split("@");
-        if (parts.length != 2)
-            return false;
-        server = parts[1];
-        serverUser = parts[0];
-        return true;
+    public StorageDirList<T> getEncryptionKeys() {
+        return encryptionKeys;
     }
 
-    public void setServerUser(String serverUser) {
-        this.serverUser = serverUser;
+    public void addSignatureKey(T key) throws IOException {
+        signatureKeys.add(key);
     }
 
-    public void setServer(String server) {
-        this.server = server;
+    public T getSignatureKey(KeyId id) {
+        return signatureKeys.get(id.toString());
     }
 
-    public String getServer() {
-        return server;
+    public void addEncryptionKey(T key) throws IOException {
+        encryptionKeys.add(key);
     }
 
-    public String getServerUser() {
-        return serverUser;
+    public T getEncryptionKey(KeyId id) {
+        return getEncryptionKey(id.toString());
     }
 
-    public void setMainKey(KeyId keyId) {
-        mainKeyId = keyId;
-    }
-    public KeyId getMainKeyId() {
-        return mainKeyId;
+    public T getEncryptionKey(String id) {
+        return encryptionKeys.get(id);
     }
 }
+
+

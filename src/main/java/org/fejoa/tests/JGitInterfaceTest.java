@@ -218,61 +218,6 @@ public class JGitInterfaceTest extends TestCase {
         return true;
     }
 
-    public void testExportImport() throws Exception {
-        List<DatabaseStingEntry> content = new ArrayList<>();
-
-        String gitDir = "gitExport";
-        cleanUpDirs.add(gitDir);
-
-        JGitInterface gitExport = new JGitInterface();
-        gitExport.init(gitDir, "testBranch", true);
-
-        add(gitExport, content, new DatabaseStingEntry("test1", "data1"));
-        String commit1 = gitExport.commit();
-        assertEquals(commit1, gitExport.getTip());
-
-        add(gitExport, content, new DatabaseStingEntry("folder/test2", "data2"));
-        String commit2 = gitExport.commit();
-        assertEquals(commit2, gitExport.getTip());
-
-        assertTrue(containsContent(gitExport, content));
-
-        // init import database
-        gitDir = "gitImport";
-        cleanUpDirs.add(gitDir);
-        JGitInterface gitImport = new JGitInterface();
-        gitImport.init(gitDir, "testBranch", true);
-
-        sync(gitExport, gitImport);
-        assertTrue(containsContent(gitImport, content));
-
-        // test with merge
-
-        // create non conflicting fork
-        add(gitExport, content, new DatabaseStingEntry("folder/test3", "data3"));
-        gitExport.commit();
-        add(gitExport, content, new DatabaseStingEntry("test4", "data4"));
-        gitExport.commit();
-
-        add(gitImport, content, new DatabaseStingEntry("folder/test5", "data5"));
-        gitImport.commit();
-        add(gitImport, content, new DatabaseStingEntry("test6", "data6"));
-        gitImport.commit();
-
-        sync(gitExport, gitImport);
-        assertTrue(containsContent(gitImport, content));
-    }
-
-    private void sync(JGitInterface gitExport, JGitInterface gitImport) throws Exception {
-        String tip = gitExport.getTip();
-        byte exportData[] = gitExport.exportPack("", tip, "", -1);
-
-        String base = gitExport.getLastSyncCommit("gitImport", gitExport.getBranch());
-        gitImport.importPack(exportData, base, tip, -1);
-
-        gitExport.updateLastSyncCommit("gitImport", gitExport.getBranch(), tip);
-    }
-
     public void testDiffImport() throws Exception {
         List<DatabaseStingEntry> content = new ArrayList<>();
 

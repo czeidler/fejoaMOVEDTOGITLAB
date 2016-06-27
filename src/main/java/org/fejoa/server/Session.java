@@ -7,12 +7,12 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library2.AccessTokenServer;
-import org.fejoa.library2.FejoaContext;
-import org.fejoa.library2.UserData;
-import org.fejoa.library2.command.IncomingCommandQueue;
-import org.fejoa.library2.database.StorageDir;
-import org.fejoa.library2.remote.CreateAccountJob;
+import org.fejoa.library.AccessTokenServer;
+import org.fejoa.library.FejoaContext;
+import org.fejoa.library.UserData;
+import org.fejoa.library.command.IncomingCommandQueue;
+import org.fejoa.library.database.StorageDir;
+import org.fejoa.library.remote.CreateAccountJob;
 import org.json.JSONObject;
 
 import javax.servlet.http.HttpSession;

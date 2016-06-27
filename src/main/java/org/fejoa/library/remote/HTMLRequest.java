@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -7,172 +7,161 @@
  */
 package org.fejoa.library.remote;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.impl.client.*;
+import org.eclipse.jetty.util.MultiPartInputStreamParser;
 import org.fejoa.library.support.StreamHelper;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.Part;
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
-/*
+
 public class HTMLRequest implements IRemoteRequest {
-    //static private HttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-    private String url;
-    private HttpURLConnection httpPost;
+    final private String url;
+    private HttpURLConnection connection;
+    private PrintWriter writer;
+    private String receivedHeader;
+    private InputStream inputStream;
+    private InputStream dataInputStream;
+
+    static final public String MESSAGE_KEY = "header";
+    static final public String DATA_KEY = "data";
+    static final public String DATA_FILE = "binary.data";
+
+    private String boundary = "===" + System.currentTimeMillis() + "===";
+    static final private String LINE_FEED = "\r\n";
 
     public HTMLRequest(String url) {
         this.url = url;
     }
 
     @Override
-    public String getUrl() {
-        return url;
-    }
+    public OutputStream open(String header, boolean outgoingData) throws IOException {
+        if (connection != null)
+            close();
 
-    @Override
-    public byte[] send(byte[] data) throws IOException {
-        return getHTML(data);
-    }
+        System.out.println("SEND:     " + new String(header));
 
-    @Override
-    public void cancel() {
-        if (httpPost != null)
-            httpPost.disconnect();
-        httpPost = null;
-    }
+        URL server = new URL(url);
 
-    private byte[] getHTML(byte data[]) throws IOException {
-        httpPost = (HttpURLConnection)(new URL(url)).openConnection();
+        connection = (HttpURLConnection)server.openConnection();
+        connection.setUseCaches(false);
+        connection.setDoOutput(true);
+        connection.setDoInput(true);
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        connection.setRequestProperty("Accept-Charset", "utf-8");
 
-        // creates a unique boundary based on time stamp
-        final String boundary = "===" + System.currentTimeMillis() + "===";
-        final String LINE_FEED = "\r\n";
-        ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
-        BufferedInputStream bufferedInputStream = null;
+        connection.connect();
+        OutputStream outputStream = connection.getOutputStream();
 
-        try {
-            httpPost.setUseCaches(false);
-            httpPost.setDoOutput(true); // indicates POST method
-            httpPost.setDoInput(true);
-            httpPost.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-            httpPost.setRequestProperty("Accept-Charset", "utf-8");
+        writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true);
+        // header
+        writer.append("--" + boundary).append(LINE_FEED);
+        writer.append("Content-Type: text/plain; charset=UTF-8").append(LINE_FEED);
+        writer.append("Content-Disposition: form-data; name=\"" + HTMLRequest.MESSAGE_KEY + "\"").append(LINE_FEED);
+        writer.append(LINE_FEED);
+        writer.append(header);
 
-            OutputStream outputStream = httpPost.getOutputStream();
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true);
-
-            // header
-            writer.append("--" + boundary).append(LINE_FEED);
-            writer.append("Content-Type: text/plain; charset=UTF-8").append(LINE_FEED);
-            writer.append("Content-Disposition: form-data; name=\"transfer_data\"").append(LINE_FEED);
+        // body
+        if (outgoingData) {
             writer.append(LINE_FEED);
-            writer.append("transfer_data.txt").append(LINE_FEED);
-
-            // body
             writer.append("--" + boundary).append(LINE_FEED);
-            writer.append("Content-Type: \"text/plain\"").append(LINE_FEED);
+            writer.append("Content-Type: \"application/octet-stream\"").append(LINE_FEED);
             writer.append("Content-Transfer-Encoding: binary").append(LINE_FEED);
-            writer.append("Content-Disposition: form-data; name=\"transfer_data\"; filename=\"transfer_data.txt\"")
-                    .append(LINE_FEED);
+            writer.append("Content-Disposition: form-data; name=\"" + HTMLRequest.DATA_KEY
+                    + "\"; filename=\"" + HTMLRequest.DATA_FILE + "\"").append(LINE_FEED);
             writer.append(LINE_FEED);
             writer.flush();
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-            StreamHelper.copy(inputStream, outputStream);
-            writer.append(LINE_FEED);
-
-            // finish
-            writer.append("--" + boundary + "--").append(LINE_FEED);
-            writer.append(LINE_FEED).flush();
-            writer.close();
-
-            // receive
-            int status = httpPost.getResponseCode();
-            if (status != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Bad server response: " + status);
-            }
-
-            bufferedInputStream = new BufferedInputStream(httpPost.getInputStream());
-            StreamHelper.copy(bufferedInputStream, receivedData);
-        } finally {
-            if (bufferedInputStream != null)
-                bufferedInputStream.close();
-            httpPost = null;
+            return outputStream;
         }
-        return receivedData.toByteArray();
+        return null;
     }
-}*/
 
-public class HTMLRequest implements IRemoteRequest {
-    final private CookieStore cookieStore;
-    private String url;
-    private HttpPost httpPost;
-    private boolean canceled = false;
+    private void receive() throws IOException {
+        if (receivedHeader != null)
+            return;
+        if (connection == null)
+            throw new IOException("HTMLRequest not open!");
 
-    public HTMLRequest(String url, CookieStore cookieStore) {
-        this.url = url;
-        this.cookieStore = cookieStore;
+        // finish
+        writer.append(LINE_FEED);
+        writer.append("--" + boundary + "--").append(LINE_FEED);
+        writer.append(LINE_FEED).flush();
+        writer.close();
+
+        inputStream = connection.getInputStream();
+
+        String line = "";
+        for (int character = inputStream.read(); character >= 0 && character != '\n';
+             character = inputStream.read()) {
+            line += (char)(character);
+        }
+        line = line.replace("Content-Type: ", "");
+        MultiPartInputStreamParser parser = new MultiPartInputStreamParser(inputStream,
+                line, null, null);
+        try {
+            Part messagePart = parser.getPart(HTMLRequest.MESSAGE_KEY);
+            Part dataPart = parser.getPart(HTMLRequest.DATA_KEY);
+
+            BufferedInputStream bufferedInputStream = new BufferedInputStream(messagePart.getInputStream());
+            ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
+            StreamHelper.copy(bufferedInputStream, receivedData);
+
+            receivedHeader = receivedData.toString();
+            System.out.println("RECEIVED: " + receivedHeader);
+
+            dataInputStream = (dataPart == null) ? null : dataPart.getInputStream();
+        } catch (ServletException e) {
+            e.printStackTrace();
+            throw new IOException("Unexpected server response.");
+        }
     }
 
     @Override
-    public String getUrl() {
-        return url;
+    public String receiveHeader() throws IOException {
+        receive();
+        return receivedHeader;
     }
 
     @Override
-    public byte[] send(byte[] data) throws IOException {
-        return getHTML(data);
+    public InputStream receiveData() throws IOException {
+        receive();
+        return dataInputStream;
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (writer != null)
+                writer.close();
+            if (dataInputStream != null)
+                dataInputStream.close();
+            if (inputStream != null)
+                inputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (connection != null)
+            connection.disconnect();
+
+        writer = null;
+        dataInputStream = null;
+        inputStream = null;
+        connection = null;
+        receivedHeader = null;
     }
 
     @Override
     public void cancel() {
-        canceled = true;
-        HttpPost httpPostStrongRef = httpPost;
-        if (httpPostStrongRef != null)
-            httpPostStrongRef.abort();
-    }
-
-    private byte[] getHTML(byte data[]) throws IOException {
-        System.out.println("SEND:     " + new String(data));
-        HttpClient httpClient = HttpClientBuilder.create().setDefaultCookieStore(cookieStore).build();
-        httpPost = new HttpPost(url);
-
-        if (canceled)
-            return new byte[0];
-
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        builder.addBinaryBody("transfer_data", data, ContentType.DEFAULT_BINARY, "transfer_data.txt");
-
-        httpPost.setEntity(builder.build());
-        try {
-            HttpResponse response = httpClient.execute(httpPost);
-
-            if (response.getStatusLine().getStatusCode() != 200)
-                throw new IOException("Unexpected status code: " + response.getStatusLine().getStatusCode());
-
-            ByteArrayOutputStream receivedData = new ByteArrayOutputStream();
-            BufferedInputStream bufferedInputStream = null;
-
+        if (inputStream != null) {
             try {
-                bufferedInputStream = new BufferedInputStream(response.getEntity().getContent());
-                StreamHelper.copy(bufferedInputStream, receivedData);
-            } finally {
-                if (bufferedInputStream != null)
-                    bufferedInputStream.close();
+                inputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-
-            byte[] reply = receivedData.toByteArray();
-            System.out.println("RECEIVED: " + new String(reply));
-
-            return reply;
-        } finally {
-            httpPost.releaseConnection();
-            httpPost = null;
         }
+        if (connection != null)
+            connection.disconnect();
     }
-
 }

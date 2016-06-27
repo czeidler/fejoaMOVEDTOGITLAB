@@ -9,11 +9,11 @@ package org.fejoa.server;
 
 
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.remote.JsonRPC;
-import org.fejoa.library2.remote.JsonRPCHandler;
-import org.fejoa.library2.remote.JsonRemoteJob;
-import org.fejoa.library2.remote.WatchJob;
+import org.fejoa.library.Constants;
+import org.fejoa.library.remote.JsonRPC;
+import org.fejoa.library.remote.JsonRPCHandler;
+import org.fejoa.library.remote.JsonRemoteJob;
+import org.fejoa.library.remote.WatchJob;
 import org.json.JSONArray;
 import org.json.JSONObject;
 

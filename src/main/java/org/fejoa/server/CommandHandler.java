@@ -9,10 +9,10 @@ package org.fejoa.server;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.command.IncomingCommandQueue;
-import org.fejoa.library2.remote.JsonRPCHandler;
-import org.fejoa.library2.remote.SendCommandJob;
+import org.fejoa.library.Constants;
+import org.fejoa.library.command.IncomingCommandQueue;
+import org.fejoa.library.remote.JsonRPCHandler;
+import org.fejoa.library.remote.SendCommandJob;
 
 import java.io.IOException;
 import java.io.InputStream;

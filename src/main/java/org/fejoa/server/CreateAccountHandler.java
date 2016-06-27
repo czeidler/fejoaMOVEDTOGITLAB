@@ -7,8 +7,8 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library2.remote.CreateAccountJob;
-import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library.remote.CreateAccountJob;
+import org.fejoa.library.remote.JsonRPCHandler;
 import org.fejoa.library.support.StorageLib;
 import org.json.JSONException;
 import org.json.JSONObject;

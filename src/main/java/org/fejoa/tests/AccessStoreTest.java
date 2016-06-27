@@ -9,8 +9,8 @@ package org.fejoa.tests;
 
 import junit.framework.TestCase;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.*;
-import org.fejoa.library2.database.StorageDir;
+import org.fejoa.library.*;
+import org.fejoa.library.database.StorageDir;
 import org.json.JSONArray;
 
 import java.io.File;

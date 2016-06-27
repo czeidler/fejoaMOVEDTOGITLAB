@@ -8,7 +8,7 @@
 package org.fejoa.server;
 
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library2.BranchAccessRight;
+import org.fejoa.library.BranchAccessRight;
 
 import java.io.File;
 import java.io.IOException;

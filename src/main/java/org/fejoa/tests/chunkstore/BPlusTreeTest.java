@@ -9,16 +9,15 @@ package org.fejoa.tests.chunkstore;
 
 import junit.framework.TestCase;
 import org.fejoa.chunkstore.BPlusTree;
+import org.fejoa.chunkstore.HashValue;
+import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.StorageLib;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.math.BigInteger;
+import java.util.*;
 
 
 public class BPlusTreeTest extends TestCase {
@@ -33,7 +32,7 @@ public class BPlusTreeTest extends TestCase {
         }
 
         public void put(String key, Long value) throws IOException {
-            tree.put(key, value);
+            tree.put(HashValue.fromHex(key), value);
             entries.put(key, value);
         }
 
@@ -48,6 +47,8 @@ public class BPlusTreeTest extends TestCase {
         public void validate() throws IOException {
             for (Map.Entry<String, Long> entry : entries.entrySet())
                 assertEquals(entry.getValue(), tree.get(entry.getKey()));
+
+            System.out.println("Deleted tiles: " + tree.countDeletedTiles());
         }
 
         public void print() throws IOException {
@@ -282,5 +283,87 @@ public class BPlusTreeTest extends TestCase {
         tree.remove("0007");
         tree.validate();
         tree.print();
+    }
+
+
+    private void add(TestTree tree, Random generator, int items, List<String> added) throws IOException {
+        for (int i = 0; i < items; i++) {
+            Long value = (long) (Long.MAX_VALUE * generator.nextDouble());
+            String hash = CryptoHelper.sha256HashHex(value.toString());
+            tree.put(hash, value);
+            if (added != null)
+                added.add(hash);
+        }
+    }
+
+    private void remove(TestTree tree, Random generator, int items, List<String> toRemove) throws IOException {
+        for (int i = 0; i < items; i++) {
+            int value = (int) (toRemove.size() * generator.nextDouble());
+            String hash = toRemove.remove(value);
+            assertTrue(tree.remove(hash));
+        }
+    }
+
+    public void testAddingLarge() throws IOException {
+        String fileName = "addLarge.idx";
+        cleanUpFiles.add(fileName);
+
+        RandomAccessFile file = new RandomAccessFile(fileName, "rw");
+        BPlusTree bTree = new BPlusTree(file);
+        bTree.create(32, 1024);
+        TestTree tree = new TestTree(bTree);
+        Random generator = new Random(1);
+        List<String> added = new ArrayList<>();
+        add(tree, generator, 5000, added);
+        tree.validate();
+
+        remove(tree, generator, 2000, added);
+        tree.validate();
+
+        add(tree, generator, 1000, added);
+        tree.validate();
+    }
+
+    private BigInteger hash(BigInteger number) {
+        int n = 50;
+        BigInteger p = new BigInteger("103");
+        return number.pow(n).mod(p);
+    }
+
+    private BigInteger hash2(BigInteger n1, BigInteger n2) {
+        BigInteger p = new BigInteger("103");
+        return n1.modPow(n2, p);
+    }
+
+    private BigInteger hom(BigInteger n1) {
+        BigInteger e = new BigInteger("40");
+        BigInteger p = new BigInteger("103");
+
+        return n1.modPow(e, p);
+    }
+
+    public void testTemp() {
+        BigInteger salt = new BigInteger("32");
+        BigInteger c0 = new BigInteger("78");
+        BigInteger c1 = new BigInteger("58");
+        BigInteger c2 = new BigInteger("777");
+        BigInteger c3 = new BigInteger("72");
+        BigInteger c4 = new BigInteger("12");
+
+
+        BigInteger total = hash(c0.multiply(c3).multiply(c1).multiply(c2));
+        assertEquals(total, hash(c2.multiply(c1).multiply(c0).multiply(c3)));
+
+        total = hash2(hash2(salt, c0), c1);
+        assertEquals(total, hash2(hash2(salt, c1), c0));
+        assertEquals(total, hash2(salt, c1.multiply(c0)));
+
+        assertEquals(hom(c0).multiply(hom(c1)).multiply(hom(c2)).mod(new BigInteger("103")),
+                hom(c0.multiply(c1).multiply(c2)));
+
+        total = hom(hom(c0.multiply(c1).multiply(c2).multiply(c3).multiply(c4).multiply(salt)));
+        BigInteger accessRequest = c1.multiply(c3);
+        BigInteger rest = hom(c0.multiply(c2).multiply(c4).multiply(salt));
+        assertEquals(total, hom(hom(accessRequest)).multiply(hom(rest)).mod(new BigInteger("103")));
     }
 }

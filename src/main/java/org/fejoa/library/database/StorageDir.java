@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2014-2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -10,15 +10,18 @@ package org.fejoa.library.database;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class StorageDir {
     final private StorageDirCache cache;
     final private String baseDir;
+    private IIOFilter filter;
+
+    public interface IIOFilter {
+        byte[] writeFilter(byte[] bytes) throws IOException;
+        byte[] readFilter(byte[] bytes) throws IOException;
+    }
 
     public interface IListener {
         void onTipChanged(DatabaseDiff diff, String base, String tip);
@@ -28,10 +31,14 @@ public class StorageDir {
         cache.addListener(listener);
     }
 
+    public void removeListener(IListener listener) {
+        cache.removeListener(listener);
+    }
+
     /**
-     * The StorageDirCache between all StorageDir that are build from the same parent.
+     * The StorageDirCache is shared between all StorageDir that are build from the same parent.
      */
-    class StorageDirCache extends WeakListenable<StorageDir.IListener> {
+    static class StorageDirCache extends WeakListenable<StorageDir.IListener> {
         final private IDatabaseInterface database;
         final private Map<String, byte[]> toAdd = new HashMap<>();
         final private List<String> toDelete = new ArrayList<>();
@@ -49,7 +56,10 @@ public class StorageDir {
             return database;
         }
 
-        public void writeBytes(String path, byte[] data) {
+        public void writeBytes(String path, byte[] data) throws IOException {
+            // process deleted items before adding new items
+            if (toDelete.size() > 0)
+                flush();
             this.toAdd.put(path, data);
         }
 
@@ -69,15 +79,34 @@ public class StorageDir {
             toDelete.clear();
         }
 
-        public void commit() throws IOException {
-            String base = getDatabase().getTip();
+        private boolean needsCommit() {
+            if (toAdd.size() == 0 && toDelete.size() == 0)
+                return false;
+            return true;
+        }
 
+        public void commit() throws IOException {
+            if (!needsCommit())
+                return;
             flush();
+            String base = getDatabase().getTip();
             database.commit();
 
             if (getListeners().size() > 0) {
-                String tip = getTip();
+                String tip = getDatabase().getTip();
+                DatabaseDiff diff = getDatabase().getDiff(base, tip);
+                notifyTipChanged(diff, base, tip);
+            }
+        }
 
+        public void merge(String theirCommit) throws IOException {
+            commit();
+
+            String base = getDatabase().getTip();
+            database.merge(theirCommit);
+
+            if (getListeners().size() > 0) {
+                String tip = getDatabase().getTip();
                 DatabaseDiff diff = getDatabase().getDiff(base, tip);
                 notifyTipChanged(diff, base, tip);
             }
@@ -93,22 +122,17 @@ public class StorageDir {
             return database.listDirectories(path);
         }
 
-        public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
-            if (!toAdd.isEmpty())
-                throw new IOException("cache must be empty before importing a pack!");
-
-            String base = database.getTip();
-            database.importPack(pack, lastSyncCommit, tip, format);
-
-            if (getListeners().size() > 0) {
-                DatabaseDiff diff = getDatabase().getDiff(base, tip);
-                notifyTipChanged(diff, base, tip);
-            }
-        }
-
         public void remove(String path) {
             toDelete.add(path);
         }
+    }
+
+    public StorageDir(StorageDir storageDir) {
+        this(storageDir, storageDir.baseDir, true);
+    }
+
+    public StorageDir(StorageDir storageDir, String baseDir) {
+        this(storageDir, baseDir, false);
     }
 
     public StorageDir(StorageDir storageDir, String baseDir, boolean absoluteBaseDir) {
@@ -117,6 +141,7 @@ public class StorageDir {
         else
             this.baseDir = appendDir(storageDir.baseDir, baseDir);
         this.cache = storageDir.cache;
+        this.filter = storageDir.filter;
     }
 
     public StorageDir(IDatabaseInterface database, String baseDir) {
@@ -124,7 +149,11 @@ public class StorageDir {
         this.cache = new StorageDirCache(database);
     }
 
-    private IDatabaseInterface getDatabase() {
+    public void setFilter(IIOFilter filter) {
+        this.filter = filter;
+    }
+
+    public IDatabaseInterface getDatabase() {
         return cache.getDatabase();
     }
 
@@ -143,22 +172,31 @@ public class StorageDir {
     }
 
     public byte[] readBytes(String path) throws IOException {
-        return cache.readBytes(getRealPath(path));
+        byte[] bytes = cache.readBytes(getRealPath(path));
+        if (filter != null)
+            return filter.readFilter(bytes);
+        return bytes;
     }
+
+    public void writeBytes(String path, byte[] data) throws IOException {
+        if (filter != null)
+            data = filter.writeFilter(data);
+        cache.writeBytes(getRealPath(path), data);
+    }
+
     public String readString(String path) throws IOException {
         return new String(readBytes(path));
     }
-    public int readInt(String path) throws Exception {
+
+    public int readInt(String path) throws IOException {
         byte data[] = readBytes(path);
         return Integer.parseInt(new String(data));
     }
 
-    public void writeBytes(String path, byte[] data) throws IOException {
-        cache.writeBytes(getRealPath(path), data);
-    }
     public void writeString(String path, String data) throws IOException {
         writeBytes(path, data.getBytes());
     }
+
     public void writeInt(String path, int data) throws IOException {
         String dataString = "";
         dataString += data;
@@ -197,25 +235,11 @@ public class StorageDir {
         return getDatabase().getBranch();
     }
 
-    public String getLastSyncCommit(String remoteUid, String localBranch) throws IOException {
-        return getDatabase().getLastSyncCommit(remoteUid, localBranch);
-    }
-
-    public void updateLastSyncCommit(String remoteUid, String branch, String localTipCommit) throws IOException {
-        getDatabase().updateLastSyncCommit(remoteUid, branch, localTipCommit);
-    }
-
     public DatabaseDiff getDiff(String baseCommit, String endCommit) throws IOException {
         return getDatabase().getDiff(baseCommit, endCommit);
     }
 
-    public void importPack(byte[] pack, String lastSyncCommit, String tip, int format) throws IOException {
-        cache.importPack(pack, lastSyncCommit, tip, format);
+    public void merge(String theirCommit) throws IOException {
+        cache.merge(theirCommit);
     }
-
-    public byte[] exportPack(String lastSyncCommit, String localTipCommit, String remoteTip, int format) throws IOException {
-        return getDatabase().exportPack(lastSyncCommit, localTipCommit, remoteTip, format);
-    }
-
 }
-

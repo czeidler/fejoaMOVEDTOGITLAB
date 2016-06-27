@@ -10,9 +10,9 @@ package org.fejoa.tests;
 import junit.framework.TestCase;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StorageLib;
-import org.fejoa.library2.FejoaContext;
-import org.fejoa.library2.Remote;
-import org.fejoa.library2.UserData;
+import org.fejoa.library.FejoaContext;
+import org.fejoa.library.Remote;
+import org.fejoa.library.UserData;
 
 import java.io.File;
 import java.io.IOException;

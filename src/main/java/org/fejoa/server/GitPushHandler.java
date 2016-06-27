@@ -12,9 +12,9 @@ import org.eclipse.jgit.transport.PacketLineOut;
 import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.RefAdvertiser;
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library2.BranchAccessRight;
-import org.fejoa.library2.remote.GitPushJob;
-import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library.BranchAccessRight;
+import org.fejoa.library.remote.GitPushJob;
+import org.fejoa.library.remote.JsonRPCHandler;
 import org.json.JSONObject;
 
 import java.io.InputStream;

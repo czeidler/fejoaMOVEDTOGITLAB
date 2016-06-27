@@ -8,12 +8,12 @@
 package org.fejoa.server;
 
 import org.fejoa.library.database.JGitInterface;
-import org.fejoa.library2.AccessTokenContact;
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.FejoaContext;
-import org.fejoa.library2.database.StorageDir;
-import org.fejoa.library2.remote.*;
-import org.fejoa.library2.util.Task;
+import org.fejoa.library.AccessTokenContact;
+import org.fejoa.library.Constants;
+import org.fejoa.library.FejoaContext;
+import org.fejoa.library.database.StorageDir;
+import org.fejoa.library.remote.*;
+import org.fejoa.library.support.Task;
 import org.json.JSONObject;
 
 import java.io.InputStream;

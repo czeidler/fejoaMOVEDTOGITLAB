@@ -7,12 +7,9 @@
  */
 package org.fejoa.library.crypto;
 
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.database.StorageDir;
+import org.fejoa.library.Constants;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.io.IOException;
 
 
 public class JsonCryptoSettings {

@@ -7,9 +7,9 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.remote.JsonRPCHandler;
-import org.fejoa.library2.remote.StartMigrationJob;
+import org.fejoa.library.Constants;
+import org.fejoa.library.remote.JsonRPCHandler;
+import org.fejoa.library.remote.StartMigrationJob;
 import org.json.JSONException;
 import org.json.JSONObject;
 

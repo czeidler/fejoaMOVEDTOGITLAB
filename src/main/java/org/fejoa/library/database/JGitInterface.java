@@ -14,100 +14,22 @@ import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEditor;
 import org.eclipse.jgit.dircache.DirCacheEntry;
-import org.eclipse.jgit.errors.IncorrectObjectTypeException;
-import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.Merger;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
-import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
-import org.eclipse.jgit.treewalk.NameConflictTreeWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 
 import java.io.*;
-import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-
-class GitTree {
-    private Repository repository = null;
-    private Map<String, ObjectId> subDirs = new HashMap<>();
-    private Map<String, ObjectId> files = new HashMap<>();
-
-    public GitTree(Repository repository) {
-        this.repository = repository;
-    }
-
-    public void setTo(ObjectId dir) throws IOException {
-        clear();
-
-        byte[] data = repository.open(dir).getBytes();
-
-        int start = 0;
-        while (start < data.length) {
-
-            int pos = findFirst(data, (byte)0, start);
-            String line = new String(data, start, pos - start);
-            String[] list = line.split(" ", 2);
-            String name = list[1];
-            byte[] object = new byte[20];
-            System.arraycopy(data, pos + 1, object, 0, 20);
-            start = pos + 21;
-            ObjectId objectId = ObjectId.fromRaw(object);
-
-            int mode = Integer.parseInt(list[0], 8);
-            if ((mode & 040000) != 0)
-                subDirs.put(name, objectId);
-            else if (mode == 57344) {
-
-            } else
-                files.put(name, objectId);
-        }
-    }
-
-    public ObjectId findFile(ObjectId baseDir, String path) throws IOException {
-        setTo(baseDir);
-
-        String[] split = path.split("/");
-        if (split.length == 0)
-            return null;
-
-        // walk dir
-        for (int i = 0; i < split.length - 1; i++) {
-            String searchDir = split[i];
-            ObjectId subDir = subDirs.get(searchDir);
-            if (subDir == null)
-                return null;
-            setTo(subDir);
-        }
-
-        return files.get(split[split.length - 1]);
-    }
-
-    private int findFirst(byte[] data, byte b, int start) {
-        int pos = start;
-        while (pos < data.length) {
-            if (data[pos] == b)
-                return pos;
-            pos++;
-        }
-        return -1;
-    }
-
-    private void clear() {
-        subDirs.clear();
-        files.clear();
-    }
-}
 
 public class JGitInterface implements IDatabaseInterface {
     private Repository repository = null;
@@ -157,6 +79,49 @@ public class JGitInterface implements IDatabaseInterface {
     @Override
     public String getBranch() {
         return branch;
+    }
+
+    @Override
+    public InputStream read(String path) throws IOException {
+        TreeWalk treeWalk = cdFile(path);
+        if (!treeWalk.next())
+            throw new FileNotFoundException();
+
+        ObjectId objectId = treeWalk.getObjectId(0);
+        return repository.open(objectId).openStream();
+    }
+
+    @Override
+    public void write(String path, long length, InputStream stream) throws IOException {
+        // first remove old entry if there is any
+        try {
+            rmFile(path);
+        } catch(IOException e) {
+
+        }
+
+        // write the blob
+        final ObjectInserter objectInserter = repository.newObjectInserter();
+        final ObjectId blobId = objectInserter.insert(Constants.OBJ_BLOB, length, stream);
+
+        final DirCache cache = DirCache.newInCore();
+        final DirCacheBuilder builder = cache.builder();
+        if (!rootTree.equals(ObjectId.zeroId())) {
+            final ObjectReader reader = repository.getObjectDatabase().newReader();
+            builder.addTree("".getBytes(), DirCacheEntry.STAGE_0, reader, rootTree);
+        }
+        final DirCacheEntry entry = new DirCacheEntry(path);
+
+        entry.setLastModified(System.currentTimeMillis());
+
+        entry.setFileMode(FileMode.REGULAR_FILE);
+        entry.setObjectId(blobId);
+
+        builder.add(entry);
+        builder.finish();
+
+        rootTree = cache.writeTree(objectInserter);
+        objectInserter.flush();
     }
 
     public Repository getRepository() {
@@ -438,10 +403,11 @@ public class JGitInterface implements IDatabaseInterface {
             throw new IOException("can't merge");
         rootTree = merger.getResultTreeId();
         if (needsCommit()) {
+            //TODO check why this is not working!
             // create a normal commit if the merged tree is equal their's
-            if (rootTree.equals(theirsCommit.getTree()))
-                commit();
-            else
+            //if (rootTree.equals(theirsCommit.getTree()))
+              //  commit();
+            //else
                 mergeCommit(rootTree, oursCommit, theirsCommit);
         }
     }
@@ -598,24 +564,5 @@ public class JGitInterface implements IDatabaseInterface {
         } finally {
             out.close();
         }
-    }
-
-    @Override
-    public byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException {
-        PackManager packManager = new PackManager(this, repository);
-        return packManager.exportPack(startCommit, endCommit, ignoreCommit, -1);
-    }
-
-    @Override
-    public void importPack(byte[] pack, String baseCommit, String endCommit, int format) throws IOException {
-        if (endCommit.length() != 40)
-            throw new IllegalArgumentException();
-
-        PackManager packManager = new PackManager(this, repository);
-        packManager.importPack(pack, baseCommit, endCommit, format);
-
-        RevWalk walk = new RevWalk(repository);
-        RevCommit commit = walk.parseCommit(repository.getRef(branch).getLeaf().getObjectId());
-        rootTree = commit.getTree().getId();
     }
 }

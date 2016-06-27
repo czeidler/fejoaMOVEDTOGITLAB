@@ -8,12 +8,12 @@
 package org.fejoa.server;
 
 
-import org.fejoa.library2.AccessTokenServer;
-import org.fejoa.library2.BranchAccessRight;
-import org.fejoa.library2.Constants;
-import org.fejoa.library2.remote.AccessRequestJob;
-import org.fejoa.library2.remote.JsonRPC;
-import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library.AccessTokenServer;
+import org.fejoa.library.BranchAccessRight;
+import org.fejoa.library.Constants;
+import org.fejoa.library.remote.AccessRequestJob;
+import org.fejoa.library.remote.JsonRPC;
+import org.fejoa.library.remote.JsonRPCHandler;
 import org.json.JSONObject;
 
 import javax.xml.bind.DatatypeConverter;

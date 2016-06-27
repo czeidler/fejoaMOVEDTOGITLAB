@@ -7,8 +7,8 @@
  */
 package org.fejoa.server;
 
-import org.fejoa.library2.remote.JsonPingJob;
-import org.fejoa.library2.remote.JsonRPCHandler;
+import org.fejoa.library.remote.JsonPingJob;
+import org.fejoa.library.remote.JsonRPCHandler;
 import org.json.JSONException;
 
 import java.io.*;

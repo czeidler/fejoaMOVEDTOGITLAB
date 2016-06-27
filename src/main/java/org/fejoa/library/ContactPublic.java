@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -7,73 +7,66 @@
  */
 package org.fejoa.library;
 
-import org.fejoa.library.crypto.*;
-import org.fejoa.library.database.SecureStorageDir;
+import org.fejoa.library.database.StorageDir;
 
 import java.io.IOException;
-import java.security.KeyPair;
 import java.security.PublicKey;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
-public class ContactPublic extends Contact {
-    protected Map<String, KeyPair> keys = new HashMap<>();
+public class ContactPublic extends Contact<PublicKeyItem> {
+    final static private String REMOTES_DIR = "remotes";
+    final static private String ACCESS_DIR = "access";
 
-    // open contact
-    public ContactPublic(SecureStorageDir storageDir) throws IOException, CryptoException {
-        super(storageDir);
+    private RemoteList remotes;
+    private AccessTokenContactList access;
 
-        open();
+    /**
+     * Should not be called directly but by the contact store.
+     *
+     * @param context the used context.
+     */
+    ContactPublic(FejoaContext context) {
+        super(context, getEntryIO(), null);
     }
 
-    // new contact
-    public ContactPublic(SecureStorageDir storageDir, String uid) {
-        super(storageDir);
-
-        this.uid = uid;
+    protected ContactPublic(FejoaContext context, StorageDir storageDir) {
+        super(context, getEntryIO(), storageDir);
     }
 
-    public String getUid() {
-        return uid;
-    }
+    static private StorageDirList.AbstractEntryIO<PublicKeyItem> getEntryIO() {
+        return new StorageDirList.AbstractEntryIO<PublicKeyItem>() {
+            @Override
+            public String getId(PublicKeyItem entry) {
+                return entry.getId();
+            }
 
-    @Override
-    public void write() throws IOException, CryptoException {
-        super.write();
-
-        for (Map.Entry<String, KeyPair> entry : keys.entrySet()) {
-            KeyPair keyPair = entry.getValue();
-            String keyId = entry.getKey();
-            storageDir.writeString("keys/" + keyId + "/publicKey", CryptoHelper.convertToPEM(keyPair.getPublic()));
-        }
-    }
-
-    @Override
-    public void open() throws IOException, CryptoException {
-        super.open();
-
-        List<String> keyIds = storageDir.listDirectories("keys");
-        for (String keyId : keyIds) {
-            PublicKey publicKey = CryptoHelper.publicKeyFromPem(storageDir.readString("keys/" + keyId + "/publicKey"));
-            keys.put(keyId, new KeyPair(publicKey, null));
-        }
-    }
-
-    public PublicKey getPublicKey(KeyId keyId) {
-        return keys.get(keyId.getKeyId()).getPublic();
-    }
-
-    public void addKey(String keyId, PublicKey publicKey) {
-        keys.put(keyId, new KeyPair(publicKey, null));
+            @Override
+            public PublicKeyItem read(StorageDir dir) throws IOException {
+                PublicKeyItem item = new PublicKeyItem();
+                item.read(dir);
+                return item;
+            }
+        };
     }
 
     @Override
-    public boolean verify(KeyId keyId, byte data[], byte signature[],
-                          CryptoSettings.Signature signatureSettings) throws CryptoException {
-        ICryptoInterface crypto = Crypto.get();
-        PublicKey publicKey = getPublicKey(keyId);
-        return crypto.verifySignature(data, signature, publicKey, signatureSettings);
+    protected void setStorageDir(StorageDir dir) {
+        super.setStorageDir(dir);
+
+        remotes = new RemoteList(new StorageDir(storageDir, REMOTES_DIR));
+        access = new AccessTokenContactList(context, new StorageDir(storageDir, ACCESS_DIR));
+    }
+
+    @Override
+    public PublicKey getVerificationKey(KeyId keyId) {
+        return signatureKeys.get(keyId.toString()).getKey();
+    }
+
+    public RemoteList getRemotes() {
+        return remotes;
+    }
+
+    public AccessTokenContactList getAccessTokenList() {
+        return access;
     }
 }

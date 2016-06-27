@@ -1,5 +1,5 @@
 /*
- * Copyright 2014.
+ * Copyright 2015.
  * Distributed under the terms of the GPLv3 License.
  *
  * Authors:
@@ -7,249 +7,271 @@
  */
 package org.fejoa.library.remote;
 
-import org.apache.http.client.CookieStore;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.fejoa.library.ContactPrivate;
-import org.fejoa.library.INotifications;
-import org.fejoa.library.support.IFejoaSchedulers;
-import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-import rx.subscriptions.Subscriptions;
-import rx.util.functions.Func1;
+import org.fejoa.library.AccessTokenContact;
+import org.fejoa.library.support.Task;
+import org.fejoa.server.Portal;
 
-import java.io.IOException;
-import java.util.*;
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
-
-class SharedConnection {
-    final private ConnectionManager connectionManager;
-    final private String server;
-    final private CookieStore cookieStore;
-    private Map<ContactPrivate, RoleManager> contactRoles = new HashMap<>();
-    private Object initLock = new Object();
-    private boolean sessionInitialized = false;
-
-    public SharedConnection(ConnectionManager connectionManager, String server, CookieStore cookieStore) {
-        this.connectionManager = connectionManager;
-        this.server = server;
-        this.cookieStore = cookieStore;
-    }
-
-    public ConnectionManager getConnectionManager() {
-        return connectionManager;
-    }
-
-    public RoleManager getRoleManager(ContactPrivate myself) {
-        if (!contactRoles.containsKey(myself)) {
-            RoleManager roleManager = new RoleManager(this);
-            contactRoles.put(myself, roleManager);
-            return roleManager;
-        }
-        return contactRoles.get(myself);
-    }
-
-    Observable<IRemoteRequest> getRemoteRequest() {
-        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
-            @Override
-            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
-                String fullAddress = "http://" + server + "/php_server/portal.php";
-                HTMLRequest remoteRequest = new HTMLRequest(fullAddress, cookieStore);
-
-                synchronized (initLock) {
-                    // Create a php session id (when using php). If there are concurrent requests without a session id
-                    // php creates a new session id for each request, this could lead to hick ups in the client. To
-                    // avoid this we first do a blocking ping call to get a session id.
-                    if (!sessionInitialized) {
-                        try {
-                            remoteRequest.send("<phpPing/>".getBytes());
-                            sessionInitialized = true;
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-                observer.onNext(remoteRequest);
-                observer.onCompleted();
-                return Subscriptions.empty();
-            }
-        });
-    }
-
-    public void shutdown(boolean force) {
-        for (RoleManager roleManager : contactRoles.values())
-            roleManager.shutdown(force);
-        contactRoles.clear();
-    }
-}
-
-class RoleManager {
-    final private SharedConnection sharedConnection;
-    final private RequestQueue requestQueue;
-    final private ServerWatcher serverWatcher;
-    final private List<String> roles = Collections.synchronizedList(new ArrayList<String>());
-
-    public RoleManager(SharedConnection sharedConnection) {
-        this.sharedConnection = sharedConnection;
-        requestQueue = new RequestQueue(null, sharedConnection.getConnectionManager().getFejoaSchedulers());
-        serverWatcher = new ServerWatcher(sharedConnection.getConnectionManager());
-    }
-
-    public void setListener(ServerWatcher.IListener listener) {
-        serverWatcher.setListener(listener);
-    }
-
-    public void startWatching(List<RemoteStorageLink> links) {
-        serverWatcher.setLinks(links);
-        requestQueue.setIdleJob(serverWatcher);
-    }
-
-    private boolean hasRole(String role) {
-        synchronized (roles) {
-            return roles.contains(role);
-        }
-    }
-
-    private void addRole(String role) {
-        synchronized (roles) {
-            roles.add(role);
-        }
-    }
-
-    public Observable<IRemoteRequest> getRemoteRequest() {
-        return sharedConnection.getRemoteRequest();
-    }
-
-    public Observable<IRemoteRequest> getPreparedRemoteRequest(final ConnectionInfo info) {
-        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
-            @Override
-            public Subscription onSubscribe(Observer<? super IRemoteRequest> observer) {
-                Observable<IRemoteRequest> observable = sharedConnection.getRemoteRequest().mapMany(
-                        new Func1<IRemoteRequest, Observable<IRemoteRequest>>() {
-                            @Override
-                            public Observable<IRemoteRequest> call(IRemoteRequest remoteRequest) {
-                                return login(remoteRequest, info);
-                            }
-                        });
-                return observable.subscribe(observer);
-            }
-        });
-    }
-
-    public <T> Observable<T> queueJob(Observable<T> observable) {
-        return requestQueue.queue(observable);
-    }
-
-    private Observable<IRemoteRequest> login(final IRemoteRequest remoteRequest, final ConnectionInfo info) {
-        final String role = info.myself.getUid() + ":" + info.serverUser;
-        if (hasRole(role))
-            return Observable.just(remoteRequest);
-
-        return Observable.create(new Observable.OnSubscribeFunc<IRemoteRequest>() {
-            @Override
-            public Subscription onSubscribe(final Observer<? super IRemoteRequest> observer) {
-                if (hasRole(role)) {
-                    observer.onNext(remoteRequest);
-                    observer.onCompleted();
-                    return Subscriptions.empty();
-                }
-                SignatureAuthentication authentication = new SignatureAuthentication(info);
-                authentication.auth(remoteRequest).subscribe(new Observer<Boolean>() {
-                    @Override
-                    public void onCompleted() {
-                        observer.onCompleted();
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        observer.onError(e);
-                    }
-
-                    @Override
-                    public void onNext(Boolean signedIn) {
-                        if (signedIn) {
-                            addRole(role);
-                            observer.onNext(remoteRequest);
-                        } else
-                            observer.onError(new Exception("failed to log in"));
-                    }
-                });
-                return Subscriptions.empty();
-            }
-        });
-    }
-
-    public void shutdown(boolean force) {
-        requestQueue.shutdown(force);
-        roles.clear();
-    }
-}
 
 public class ConnectionManager {
-    final IFejoaSchedulers fejoaSchedulers;
-    final CookieStore cookieStore = new BasicCookieStore();
-    final Map<String, SharedConnection> servers = new HashMap<>();
-    INotifications notifications = null;
+    static public class ConnectionInfo {
+        final public String user;
+        final public String url;
 
-    public ConnectionManager(IFejoaSchedulers fejoaSchedulers) {
-        this.fejoaSchedulers = fejoaSchedulers;
-    }
-
-    public IFejoaSchedulers getFejoaSchedulers() {
-        return fejoaSchedulers;
-    }
-
-    public void setNotifications(INotifications notifications) {
-        this.notifications = notifications;
-    }
-
-    private SharedConnection getContactRoles(String server) {
-        SharedConnection sharedConnection;
-        if (!servers.containsKey(server)) {
-            sharedConnection = new SharedConnection(this, server, cookieStore);
-            servers.put(server, sharedConnection);
-            return sharedConnection;
+        public ConnectionInfo(String user, String url) {
+            this.user = user;
+            this.url = url;
         }
-        return servers.get(server);
     }
 
-    private RoleManager getRoleManager(ConnectionInfo info) {
-        SharedConnection sharedConnection = getContactRoles(info.server);
-        return sharedConnection.getRoleManager(info.myself);
-    }
+    static public class AuthInfo {
+        final static public int NONE = 0;
+        final static public int ROOT = 1;
+        final static public int TOKEN = 2;
 
-    public Observable<IRemoteRequest> getRemoteRequest(ConnectionInfo info) {
-        return getRoleManager(info).getRemoteRequest();
-    }
+        final public int authType;
+        final public String serverUser;
+        final public String server;
+        final public String password;
+        final public AccessTokenContact token;
 
-    public Observable<IRemoteRequest> getPreparedRemoteRequest(ConnectionInfo info) {
-        return getRoleManager(info).getPreparedRemoteRequest(info);
-    }
+        public AuthInfo() {
+            this.authType = NONE;
+            this.token = null;
+            this.server = null;
+            this.serverUser = null;
+            this.password = null;
+        }
 
-    public <T> Observable<T> queueJob(ConnectionInfo info, Observable<T> observable) {
-        return getRoleManager(info).queueJob(observable);
-    }
+        public AuthInfo(String serverUser, String server, String password) {
+            this.authType = ROOT;
+            this.token = null;
+            this.serverUser = serverUser;
+            this.server = server;
+            this.password = password;
+        }
 
-    public RemoteConnection getConnection(ConnectionInfo info) {
-        return new RemoteConnection(this, info);
+        public AuthInfo(String serverUser, AccessTokenContact token) {
+            this.authType = TOKEN;
+            this.token = token;
+            this.serverUser = serverUser;
+            this.server = null;
+            this.password = null;
+        }
     }
 
     /**
-     * Start watching links that have the same ConnectionInfo.
+     * Maintains the access tokens gained for different target users.
+     *
+     * The target user is identified by a string such as user@server.
+     *
+     * Must be thread safe to be accessed from a task job.
      */
-    public void startWatching(List<RemoteStorageLink> links, ServerWatcher.IListener listener) {
-        if (links.size() == 0)
-            return;
-        ConnectionInfo info = links.get(0).getConnectionInfo();
-        getRoleManager(info).startWatching(links);
-        getRoleManager(info).setListener(listener);
+    static class TokenManager {
+        final private HashSet<String> rootAccess = new HashSet<>();
+        final private Map<String, HashSet<String>> authMap = new HashMap<>();
+
+        static private String makeKey(String serverUser, String server) {
+            return serverUser + "@" + server;
+        }
+
+        public boolean hasRootAccess(String serverUser, String server) {
+            synchronized (this) {
+                return rootAccess.contains(makeKey(serverUser, server));
+            }
+        }
+
+        public boolean addRootAccess(String serverUser, String server) {
+            synchronized (this) {
+                return rootAccess.add(makeKey(serverUser, server));
+            }
+        }
+
+        public boolean removeRootAccess(String serverUser, String server) {
+            synchronized (this) {
+                return rootAccess.remove(makeKey(serverUser, server));
+            }
+        }
+
+        public void addToken(String targetUser, String token) {
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null) {
+                    tokenMap = new HashSet<>();
+                    authMap.put(targetUser, tokenMap);
+                }
+                tokenMap.add(token);
+            }
+        }
+
+        public boolean removeToken(String targetUser, String token) {
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null)
+                    return false;
+                return tokenMap.remove(token);
+            }
+        }
+
+        public boolean hasToken(String targetUser, String token) {
+            synchronized (this) {
+                HashSet<String> tokenMap = authMap.get(targetUser);
+                if (tokenMap == null)
+                    return false;
+                return tokenMap.contains(token);
+            }
+        }
     }
 
-    public void shutdown(boolean force) {
-        for (SharedConnection connection : servers.values())
-            connection.shutdown(force);
-        servers.clear();
+    //final private CookieStore cookieStore = new BasicCookieStore();
+    final private TokenManager tokenManager = new TokenManager();
+    private Task.IScheduler startScheduler = new Task.NewThreadScheduler();
+    private Task.IScheduler observerScheduler = new Task.CurrentThreadScheduler();
+
+    public ConnectionManager() {
+        if (CookieHandler.getDefault() == null)
+            CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
+    }
+
+    public void setStartScheduler(Task.IScheduler startScheduler) {
+        this.startScheduler = startScheduler;
+    }
+
+    public void setObserverScheduler(Task.IScheduler scheduler) {
+        this.observerScheduler = scheduler;
+    }
+
+    public <T extends RemoteJob.Result> Task.ICancelFunction submit(final JsonRemoteJob<T> job,
+                                                                    ConnectionInfo connectionInfo,
+                                                                    final AuthInfo authInfo,
+                                                                    final Task.IObserver<Void, T> observer) {
+        JobTask<T> jobTask = new JobTask<>(tokenManager, job, connectionInfo, authInfo);
+        return jobTask.setStartScheduler(startScheduler).setObserverScheduler(observerScheduler).start(observer);
+    }
+
+    static private class JobTask<T extends RemoteJob.Result> extends Task<Void, T>{
+        final private TokenManager tokenManager;
+        final private JsonRemoteJob<T> job;
+        final private ConnectionInfo connectionInfo;
+        final private AuthInfo authInfo;
+
+        private IRemoteRequest remoteRequest;
+
+        public JobTask(TokenManager tokenManager, final JsonRemoteJob<T> job, ConnectionInfo connectionInfo,
+                       final AuthInfo authInfo) {
+            super();
+
+            this.tokenManager = tokenManager;
+            this.job = job;
+            this.connectionInfo = connectionInfo;
+            this.authInfo = authInfo;
+
+            setTaskFunction(new ITaskFunction<Void, T>() {
+                @Override
+                public void run(Task<Void, T> task) throws Exception {
+                    JobTask.this.run(0);
+                }
+
+                @Override
+                public void cancel() {
+                    cancelJob();
+                }
+            });
+        }
+
+        final static private int MAX_RETRIES = 2;
+        private void run(int retryCount) throws Exception {
+            if (retryCount > MAX_RETRIES)
+                throw new Exception("too many retries");
+            IRemoteRequest remoteRequest = getRemoteRequest(connectionInfo);
+            setCurrentRemoteRequest(remoteRequest);
+
+            boolean hasAccess = hasAccess(authInfo);
+            if (!hasAccess) {
+                remoteRequest = getAuthRequest(remoteRequest, connectionInfo, authInfo);
+                setCurrentRemoteRequest(remoteRequest);
+            }
+
+            T result = runJob(remoteRequest, job);
+            if (result.status == Portal.Errors.ACCESS_DENIED) {
+                if (authInfo.authType == AuthInfo.ROOT)
+                    tokenManager.removeRootAccess(authInfo.serverUser, authInfo.server);
+                if (authInfo.authType == AuthInfo.TOKEN)
+                    tokenManager.removeToken(authInfo.serverUser, authInfo.token.getId());
+                // if we had access try again
+                if (hasAccess) {
+                    run(retryCount + 1);
+                    return;
+                }
+            }
+            onResult(result);
+        }
+
+        private T runJob(final IRemoteRequest remoteRequest, final JsonRemoteJob<T> job) throws Exception {
+            try {
+                return JsonRemoteJob.run(job, remoteRequest);
+            } finally {
+                remoteRequest.close();
+                setCurrentRemoteRequest(null);
+            }
+        }
+
+        private void cancelJob() {
+            synchronized (this) {
+                if (remoteRequest != null)
+                    remoteRequest.cancel();
+            }
+        }
+
+        private void setCurrentRemoteRequest(IRemoteRequest remoteRequest) throws Exception {
+            synchronized (this) {
+                if (isCanceled()) {
+                    this.remoteRequest = null;
+                    throw new Exception("canceled");
+                }
+
+                this.remoteRequest = remoteRequest;
+            }
+        }
+
+        private boolean hasAccess(AuthInfo authInfo) {
+            if (authInfo.authType == AuthInfo.NONE)
+                return true;
+            if (authInfo.authType == AuthInfo.ROOT)
+                return tokenManager.hasRootAccess(authInfo.serverUser, authInfo.server);
+            if (authInfo.authType == AuthInfo.TOKEN)
+                return tokenManager.hasToken(authInfo.serverUser, authInfo.token.getId());
+            return false;
+        }
+
+        private IRemoteRequest getAuthRequest(final IRemoteRequest remoteRequest, final ConnectionInfo connectionInfo,
+                                              final AuthInfo authInfo) throws Exception {
+            RemoteJob.Result result;
+            if (authInfo.authType == AuthInfo.ROOT) {
+                result = runJob(remoteRequest, new RootLoginJob(authInfo.serverUser,
+                        authInfo.password));
+                tokenManager.addRootAccess(authInfo.serverUser, authInfo.server);
+            } else if (authInfo.authType == AuthInfo.TOKEN) {
+                result = runJob(remoteRequest, new AccessRequestJob(authInfo.serverUser,
+                        authInfo.token));
+                tokenManager.addToken(authInfo.serverUser, authInfo.token.getId());
+            } else
+                throw new Exception("unknown auth type");
+
+            if (result.status == Portal.Errors.DONE)
+                return getRemoteRequest(connectionInfo);
+
+            throw new Exception(result.message);
+        }
+
+        private IRemoteRequest getRemoteRequest(ConnectionInfo connectionInfo) {
+            return new HTMLRequest(connectionInfo.url);
+        }
     }
 }
-

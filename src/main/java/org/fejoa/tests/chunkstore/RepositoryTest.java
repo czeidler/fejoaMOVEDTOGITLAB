@@ -3,7 +3,6 @@ package org.fejoa.tests.chunkstore;
 
 import junit.framework.TestCase;
 import org.fejoa.chunkstore.*;
-import org.fejoa.library.database.DatabaseDir;
 import org.fejoa.library.support.StorageLib;
 import org.fejoa.library.support.StreamHelper;
 

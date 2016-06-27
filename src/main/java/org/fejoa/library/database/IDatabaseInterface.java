@@ -8,6 +8,7 @@
 package org.fejoa.library.database;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 
@@ -16,6 +17,9 @@ public interface IDatabaseInterface {
 
     String getPath();
     String getBranch();
+
+    InputStream read(String path) throws IOException;
+    void write(String path, long length, InputStream stream) throws IOException;
 
     byte[] readBytes(String path) throws IOException;
     void writeBytes(String path, byte[] bytes) throws IOException;
@@ -37,7 +41,4 @@ public interface IDatabaseInterface {
     // sync
     String getLastSyncCommit(String remoteName, String remoteBranch) throws IOException;
     void updateLastSyncCommit(String remoteName, String remoteBranch, String uid) throws IOException;
-    byte[] exportPack(String startCommit, String endCommit, String ignoreCommit, int format) throws IOException;
-    //! import pack, tries to merge and update the tip
-    void importPack(byte pack[], String baseCommit, String endCommit, int format) throws IOException;
 }

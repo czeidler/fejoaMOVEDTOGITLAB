@@ -14,22 +14,32 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 
 public class DirectoryBox extends TypedBlob {
     public static class Entry {
         String name;
-        BoxPointer entryHash;
+        boolean isFile;
+        BoxPointer boxPointer;
+        TypedBlob object;
 
-        public Entry(String name, BoxPointer entryHash) {
+        public Entry(String name, BoxPointer boxPointer, boolean isFile) {
             this.name = name;
-            this.entryHash = entryHash;
+            this.isFile = isFile;
+            this.boxPointer = boxPointer;
         }
 
-        protected Entry() {
+        protected Entry(boolean isFile) {
+            this.isFile = isFile;
+        }
 
+        public void setObject(TypedBlob object) {
+            this.object = object;
+        }
+
+        public TypedBlob getObject() {
+            return object;
         }
 
         /**
@@ -39,7 +49,7 @@ public class DirectoryBox extends TypedBlob {
          */
         public void hash(MessageDigest messageDigest) {
             messageDigest.update(name.getBytes());
-            messageDigest.update(entryHash.getDataHash().getBytes());
+            messageDigest.update(boxPointer.getDataHash().getBytes());
         }
 
         private String readString(DataInputStream inputStream) throws IOException {
@@ -64,24 +74,28 @@ public class DirectoryBox extends TypedBlob {
             data.read(inputStream);
 
             this.name = name;
-            this.entryHash = data;
+            this.boxPointer = data;
         }
 
         public void write(DataOutputStream outputStream) throws IOException {
             write(name, outputStream);
-            entryHash.write(outputStream);
+            boxPointer.write(outputStream);
         }
 
         public String getName() {
             return name;
         }
 
-        public BoxPointer getEntryHash() {
-            return entryHash;
+        public BoxPointer getBoxPointer() {
+            return boxPointer;
+        }
+
+        public void setBoxPointer(BoxPointer boxPointer) {
+            this.boxPointer = boxPointer;
         }
     }
 
-    final private List<Entry> entries = new ArrayList<>();
+    final private Map<String, Entry> entries = new HashMap<>();
 
     private DirectoryBox() {
         super(BlobReader.DIRECTORY);
@@ -98,36 +112,82 @@ public class DirectoryBox extends TypedBlob {
         return directoryBox;
     }
 
-    public void addEntry(String name, BoxPointer pointer) {
-        entries.add(new Entry(name, pointer));
+    public Entry addDir(String name, BoxPointer pointer) {
+        Entry entry = new Entry(name, pointer, false);
+        if (put(name, entry))
+            return entry;
+        return null;
     }
 
-    public List<Entry> getEntries() {
-        return entries;
+    public Entry addFile(String name, BoxPointer pointer) {
+        Entry entry = new Entry(name, pointer, true);
+        if (put(name, entry))
+            return entry;
+        return null;
+    }
+
+    private boolean put(String name, Entry entry) {
+        if (entries.containsKey(name))
+            return false;
+        entries.put(name, entry);
+        return true;
+    }
+
+    public Collection<Entry> getEntries() {
+        return entries.values();
     }
 
     public Entry getEntry(String name) {
-        for (Entry entry : entries) {
+        for (Entry entry : entries.values()) {
             if (entry.name.equals(name))
                 return entry;
         }
         return null;
     }
 
+    public Collection<Entry> getDirs() {
+        List<Entry> children = new ArrayList<>();
+        for (Entry entry : entries.values()) {
+            if (!entry.isFile)
+                children.add(entry);
+        }
+        return children;
+    }
+
+    public Collection<Entry> getFiles() {
+        List<Entry> children = new ArrayList<>();
+        for (Entry entry : entries.values()) {
+            if (entry.isFile)
+                children.add(entry);
+        }
+        return children;
+    }
+
     @Override
     protected void readInternal(DataInputStream inputStream) throws IOException {
-        long size = inputStream.readLong();
-        for (long i = 0; i < size; i++) {
-            Entry entry = new Entry();
+        long nDirs = inputStream.readLong();
+        long nFiles = inputStream.readLong();
+        for (long i = 0; i < nDirs; i++) {
+            Entry entry = new Entry(false);
             entry.read(inputStream);
-            entries.add(entry);
+            entries.put(entry.getName(), entry);
+        }
+        for (long i = 0; i < nFiles; i++) {
+            Entry entry = new Entry(true);
+            entry.read(inputStream);
+            entries.put(entry.getName(), entry);
         }
     }
 
     @Override
     protected void writeInternal(DataOutputStream outputStream) throws IOException {
-        outputStream.writeLong(entries.size());
-        for (Entry entry : entries)
+        Collection<Entry> dirs = getDirs();
+        Collection<Entry> files = getFiles();
+        outputStream.writeLong(dirs.size());
+        outputStream.writeLong(files.size());
+        for (Entry entry : dirs)
+            entry.write(outputStream);
+        for (Entry entry : files)
             entry.write(outputStream);
     }
 
@@ -135,7 +195,7 @@ public class DirectoryBox extends TypedBlob {
         try {
             MessageDigest messageDigest = CryptoHelper.sha256Hash();
             messageDigest.reset();
-            for (Entry entry : entries)
+            for (Entry entry : entries.values())
                 entry.hash(messageDigest);
 
             return new HashValue(messageDigest.digest());
@@ -148,8 +208,8 @@ public class DirectoryBox extends TypedBlob {
     @Override
     public String toString() {
         String string = "Directory Entries:";
-        for (Entry entry : entries)
-            string += "\n" + entry.name + " " + entry.entryHash;
+        for (Entry entry : entries.values())
+            string += "\n" + entry.name + " (dir " + !entry.isFile + ")" + entry.boxPointer;
         return string;
     }
 }

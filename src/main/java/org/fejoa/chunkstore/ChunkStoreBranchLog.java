@@ -54,7 +54,7 @@ public class ChunkStoreBranchLog {
         }
     }
 
-    public Entry getTip() {
+    public Entry getLatest() {
         if (entries.size() == 0)
             return null;
         return entries.get(entries.size() - 1);

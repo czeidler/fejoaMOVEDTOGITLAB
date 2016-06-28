@@ -7,21 +7,121 @@
  */
 package org.fejoa.chunkstore;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
+import org.fejoa.library.support.StreamHelper;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
 
+class TreeAccessor {
+    private DirectoryBox root;
+    final private Repository repository;
+
+    public TreeAccessor(DirectoryBox root, Repository repository) throws IOException {
+        this.repository = repository;
+
+        this.root = root;
+    }
+
+    private String checkPath(String path) {
+        while (path.startsWith("/"))
+            path = path.substring(1);
+        return path;
+    }
+
+    public byte[] read(String path) throws IOException {
+        path = checkPath(path);
+        String[] parts = path.split("/");
+        String fileName = parts[parts.length - 1];
+        DirectoryBox currentDir = root;
+        for (int i = 0; i < parts.length - 1; i++) {
+            String subDir = parts[i];
+            DirectoryBox.Entry entry = currentDir.getEntry(subDir);
+            if (entry == null) {
+                return null;
+            } else {
+                IChunkAccessor accessor = repository.getChunkAccessor();
+                if (entry.getObject() != null) {
+                    currentDir = (DirectoryBox)entry.getObject();
+                    continue;
+                }
+                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer().getBoxHash())).readDirectory();
+            }
+        }
+        DirectoryBox.Entry fileEntry = currentDir.getEntry(fileName);
+        if (fileEntry == null)
+            return null;
+
+        FileBox fileBox = (FileBox)repository.get(fileEntry.getBoxPointer().getBoxHash());
+        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getChunkContainer());
+        return StreamHelper.readAll(inputStream);
+    }
+
+    public void put(String path, FileBox file) throws IOException {
+        path = checkPath(path);
+        String[] parts = path.split("/");
+        String fileName = parts[parts.length - 1];
+        DirectoryBox currentDir = root;
+        for (int i = 0; i < parts.length - 1; i++) {
+            String subDir = parts[i];
+            DirectoryBox.Entry entry = currentDir.getEntry(subDir);
+            if (entry == null) {
+                DirectoryBox subDirBox = DirectoryBox.create();
+                DirectoryBox.Entry dirEntry = currentDir.addDir(subDir, null);
+                dirEntry.setObject(subDirBox);
+                currentDir = subDirBox;
+            } else {
+                IChunkAccessor accessor = repository.getChunkAccessor();
+                if (entry.getObject() != null) {
+                    currentDir = (DirectoryBox)entry.getObject();
+                    continue;
+                }
+                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer().getBoxHash())).readDirectory();
+            }
+        }
+        DirectoryBox.Entry fileEntry = currentDir.addFile(fileName, null);
+        fileEntry.setObject(file);
+    }
+
+    public BoxPointer build() throws IOException {
+        return build(root);
+    }
+
+    public BoxPointer build(DirectoryBox dir) throws IOException {
+        for (DirectoryBox.Entry child : dir.getDirs()) {
+            if (child.getBoxPointer() != null)
+                continue;
+            assert child.getObject() != null;
+            child.setBoxPointer(build((DirectoryBox)child.getObject()));
+        }
+        for (DirectoryBox.Entry child : dir.getFiles()) {
+            if (child.getBoxPointer() != null)
+                continue;
+            assert child.getObject() != null;
+            FileBox fileBox = (FileBox)child.getObject();
+            HashValue boxHash = repository.put(fileBox);
+            child.setBoxPointer(new BoxPointer(fileBox.hash(), boxHash));
+        }
+        HashValue boxHash = repository.put(dir);
+        return new BoxPointer(dir.hash(), boxHash);
+    }
+
+    public DirectoryBox getRoot() {
+        return root;
+    }
+}
+
 public class Repository {
     private class Transaction {
         final private List<HashValue> objectsWritten = new ArrayList<>();
-        final private ChunkStoreBranchLog log;
 
-        public Transaction(File branchLogFile) throws IOException {
-            this.log = new ChunkStoreBranchLog(branchLogFile);
+        public Transaction() throws IOException {
+
+        }
+
+        public TreeAccessor getTreeAccessor() {
+            return treeAccessor;
         }
 
         public boolean put(HashValue hash, byte[] data) throws IOException {
@@ -32,27 +132,41 @@ public class Repository {
             return added;
         }
 
-        public void commit(HashValue tip) throws IOException {
+        public BoxPointer commit() throws IOException {
             synchronized (Repository.this) {
+                BoxPointer boxPointer = treeAccessor.build();
+
                 chunkAccessor.finishTransaction();
-                log.add(tip, objectsWritten);
+                log.add(boxPointer.getBoxHash(), objectsWritten);
                 currentTransaction = null;
+
+                return boxPointer;
             }
         }
     }
 
     final private File dir;
     final private String branch;
+    final private ChunkStoreBranchLog log;
     private IChunkAccessor chunkAccessor;
     private Transaction currentTransaction;
-    private DirectoryBox rootDirectory = null;
+    final private TreeAccessor treeAccessor;
 
     public Repository(File dir, String branch, IChunkAccessor chunkAccessor) throws IOException {
         this.dir = dir;
         this.branch = branch;
         this.chunkAccessor = chunkAccessor;
+        this.log = new ChunkStoreBranchLog(new File(getBranchDir(), branch));
 
-        ensureTransaction();
+        HashValue rootBoxHash = null;
+        if (log.getLatest() != null)
+            rootBoxHash = log.getLatest().getTip();
+        DirectoryBox root;
+        if (rootBoxHash == null)
+            root = DirectoryBox.create();
+        else
+            root = new BlobReader(getChunkAccessor().getChunk(rootBoxHash)).readDirectory();
+        this.treeAccessor = new TreeAccessor(root, Repository.this);
     }
 
     public IChunkAccessor getChunkAccessor() {
@@ -68,20 +182,45 @@ public class Repository {
             if (currentTransaction != null)
                 return;
             chunkAccessor.startTransaction();
-            currentTransaction = new Transaction(new File(getBranchDir(), branch));
+            currentTransaction = new Transaction();
         }
     }
 
-    public TypedBlob get(HashValue hashValue) throws IOException {
-        ChunkContainer chunkContainer = new ChunkContainer(chunkAccessor, hashValue);
+    private IChunkAccessor getChunkContainerAccessor() {
+        return new IChunkAccessor() {
+            @Override
+            public DataInputStream getChunk(HashValue hash) throws IOException {
+                return chunkAccessor.getChunk(hash);
+            }
+
+            @Override
+            public boolean putChunk(HashValue hash, byte[] data) throws IOException {
+                return currentTransaction.put(hash, data);
+            }
+
+            @Override
+            public void startTransaction() throws IOException {
+
+            }
+
+            @Override
+            public void finishTransaction() throws IOException {
+
+            }
+        };
+    }
+
+    protected TypedBlob get(HashValue hashValue) throws IOException {
+        IChunkAccessor containerAccessor = getChunkContainerAccessor();
+        ChunkContainer chunkContainer = new ChunkContainer(containerAccessor, hashValue);
         BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
-        return blobReader.read(chunkAccessor);
+        return blobReader.read(containerAccessor);
     }
 
     public HashValue put(TypedBlob blob) throws IOException {
         ensureTransaction();
 
-        ChunkContainer chunkContainer = new ChunkContainer(chunkAccessor);
+        ChunkContainer chunkContainer = new ChunkContainer(getChunkContainerAccessor());
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         blob.write(new DataOutputStream(outputStream));
         chunkContainer.append(new DataChunk(outputStream.toByteArray()));
@@ -91,17 +230,30 @@ public class Repository {
     }
 
     public byte[] readBytes(String path) throws IOException {
-        return null;
+        return treeAccessor.read(path);
     }
 
     public void writeBytes(String path, byte[] bytes) throws IOException {
+        ensureTransaction();
 
+        TreeAccessor treeAccessor = currentTransaction.getTreeAccessor();
+        treeAccessor.put(path, writeToFileBox(bytes));
     }
 
-    public void commit(HashValue tip) throws IOException {
+    private FileBox writeToFileBox(byte[] data) throws IOException {
+        FileBox file = FileBox.create(getChunkAccessor());
+        ChunkContainer chunkContainer = file.getChunkContainer();
+        ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer);
+        containerOutputStream.write(data);
+        containerOutputStream.flush();
+        return file;
+    }
+
+    public BoxPointer commit() throws IOException {
         synchronized (Repository.this) {
-            currentTransaction.commit(tip);
+            BoxPointer boxPointer = currentTransaction.commit();
             currentTransaction = null;
+            return boxPointer;
         }
     }
 

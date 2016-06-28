@@ -115,7 +115,7 @@ class ChunkPointer implements IChunkPointer {
 
 public class ChunkContainer extends ChunkContainerNode {
     public ChunkContainer(IChunkAccessor blobAccessor, HashValue hash) throws IOException {
-        this(blobAccessor, blobAccessor.getBlob(hash));
+        this(blobAccessor, blobAccessor.getChunk(hash));
     }
 
     public ChunkContainer(IChunkAccessor blobAccessor, DataInputStream inputStream) throws IOException {
@@ -367,7 +367,7 @@ class ChunkContainerNode implements IChunk {
         if (cachedChunk != null)
             return cachedChunk;
 
-        DataInputStream inputStream = blobAccessor.getBlob(pointer.getChunkHash());
+        DataInputStream inputStream = blobAccessor.getChunk(pointer.getChunkHash());
         if (isDataPointer(pointer))
             cachedChunk = new DataChunk();
         else {

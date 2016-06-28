@@ -13,8 +13,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.List;
 
 
 public class ChunkStore {
@@ -22,33 +20,27 @@ public class ChunkStore {
      * TODO: make the transaction actually do something, i.e. make a transaction atomic
      */
     public class Transaction {
-        final private List<HashValue> objectsWritten = new ArrayList<>();
-        final private ChunkStoreBranchLog log;
-
-        public Transaction(File branchLogFile) throws IOException {
-            this.log = new ChunkStoreBranchLog(branchLogFile);
+        /**
+         *
+         * @param hash
+         * @param data
+         * @return false if hash is already in the database
+         * @throws IOException
+         */
+        public boolean put(HashValue hash, byte[] data) throws IOException {
+            return ChunkStore.this.put(hash, data);
         }
 
-        public void put(HashValue hash, byte[] data) throws IOException {
-            if (ChunkStore.this.put(hash, data))
-                objectsWritten.add(hash);
-        }
-
-        public void commit(HashValue tip) throws IOException {
-            synchronized (ChunkStore.this) {
-                log.add(tip, objectsWritten);
-                currentTransaction = null;
-            }
+        public void commit() throws IOException {
+            currentTransaction = null;
         }
     }
 
-    final private File dir;
     final private BPlusTree tree;
     final private PackFile packFile;
     private Transaction currentTransaction;
 
     protected ChunkStore(File dir, String name) throws FileNotFoundException {
-        this.dir = dir;
         this.tree = new BPlusTree(new RandomAccessFile(new File(dir, name + ".idx"), "rw"));
         this.packFile = new PackFile(new RandomAccessFile(new File(dir, name + ".pack"), "rw"));
     }
@@ -78,21 +70,15 @@ public class ChunkStore {
         return packFile.get(position.intValue(), hash);
     }
 
-    private File getBranchDir() {
-        return new File(dir, "branches");
-    }
 
-    public Transaction openTransaction(String name) throws IOException {
+
+    public Transaction openTransaction() throws IOException {
         synchronized (this) {
             if (currentTransaction != null)
                 throw new RuntimeException("Currently only one transaction at a time is supported");
-            currentTransaction = new Transaction(new File(getBranchDir(), name));
+            currentTransaction = new Transaction();
             return currentTransaction;
         }
-    }
-
-    public ChunkStoreBranchLog getBranchLog(String name) throws IOException {
-        return new ChunkStoreBranchLog(new File(getBranchDir(), name));
     }
 
     private boolean put(HashValue hash, byte[] data) throws IOException {

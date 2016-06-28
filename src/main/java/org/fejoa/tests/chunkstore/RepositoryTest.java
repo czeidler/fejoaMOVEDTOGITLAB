@@ -28,30 +28,23 @@ public class RepositoryTest  extends TestCase {
             ChunkStore.Transaction transaction;
 
             @Override
-            public DataInputStream getBlob(HashValue hash) throws IOException {
+            public DataInputStream getChunk(HashValue hash) throws IOException {
                 return new DataInputStream(new ByteArrayInputStream(chunkStore.getChunk(hash.getBytes())));
             }
 
             @Override
-            public void putChunk(HashValue hash, byte[] data) throws IOException {
-                transaction.put(hash, data);
+            public boolean putChunk(HashValue hash, byte[] data) throws IOException {
+                return transaction.put(hash, data);
             }
 
             @Override
-            public HashValue putChunk(IChunk blob) throws IOException {
-                HashValue hash = blob.hash();
-                putChunk(hash, hash.getBytes());
-                return hash;
+            public void startTransaction() throws IOException {
+                transaction = chunkStore.openTransaction();
             }
 
             @Override
-            public void startTransaction(String name) throws IOException {
-                transaction = chunkStore.openTransaction(name);
-            }
-
-            @Override
-            public void finishTransaction(HashValue tip) throws IOException {
-                transaction.commit(tip);
+            public void finishTransaction() throws IOException {
+                transaction.commit();
                 transaction = null;
             }
         };
@@ -110,7 +103,7 @@ public class RepositoryTest  extends TestCase {
 
         for (Map.Entry<String, TestFile> entry : dir.files.entrySet()) {
             TestFile testFile = entry.getValue();
-            FileBox file = FileBox.create(repository.getBlobAccessor());
+            FileBox file = FileBox.create(repository.getChunkAccessor());
             ChunkContainer chunkContainer = file.getChunkContainer();
             ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer);
             containerOutputStream.write(testFile.content.getBytes());
@@ -173,7 +166,7 @@ public class RepositoryTest  extends TestCase {
 
         ChunkStore chunkStore = createChunkStore(directory, name);
         IChunkAccessor accessor = getAccessor(chunkStore);
-        Repository repository = new Repository(branch, accessor);
+        Repository repository = new Repository(directory, branch, accessor);
 
         TestFile testFile1 = new TestFile("file1Content");
         TestFile testFile2 = new TestFile("file2Content");
@@ -196,7 +189,7 @@ public class RepositoryTest  extends TestCase {
         TestCommit testCommit = writeToRepositiory(repository, root, "Commit Message");
         repository.commit(testCommit.boxHash);
 
-        ChunkStoreBranchLog branchLog = chunkStore.getBranchLog(branch);
+        ChunkStoreBranchLog branchLog = repository.getBranchLog(branch);
         ChunkStoreBranchLog.Entry tip = branchLog.getTip();
         assertNotNull(tip);
         assertEquals(testCommit.boxHash, tip.getTip());

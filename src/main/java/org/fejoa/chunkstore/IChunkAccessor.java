@@ -12,10 +12,9 @@ import java.io.IOException;
 
 
 public interface IChunkAccessor {
-    DataInputStream getBlob(HashValue hash) throws IOException;
-    void putChunk(HashValue hash, byte[] data) throws IOException;
-    HashValue putChunk(IChunk blob) throws IOException;
+    DataInputStream getChunk(HashValue hash) throws IOException;
+    boolean putChunk(HashValue hash, byte[] data) throws IOException;
 
-    void startTransaction(String name) throws IOException;
-    void finishTransaction(HashValue tip) throws IOException;
+    void startTransaction() throws IOException;
+    void finishTransaction() throws IOException;
 }

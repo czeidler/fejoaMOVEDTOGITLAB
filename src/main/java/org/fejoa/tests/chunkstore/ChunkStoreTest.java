@@ -35,10 +35,10 @@ public class ChunkStoreTest  extends TestCase {
         ChunkStore chunkStore = ChunkStore.create(new File("dirName"), "test");
         byte[] data1 = "Hello".getBytes();
         byte[] data2 = "Test Data".getBytes();
-        ChunkStore.Transaction transaction = chunkStore.openTransaction("testBranch");
+        ChunkStore.Transaction transaction = chunkStore.openTransaction();
         transaction.put(new HashValue(CryptoHelper.sha1Hash(data1)), data1);
         transaction.put(new HashValue(CryptoHelper.sha1Hash(data2)), data2);
-        transaction.commit(new HashValue(CryptoHelper.fromHex("FF")));
+        transaction.commit();
 
         assertEquals(new String(data1), new String(chunkStore.getChunk(CryptoHelper.sha1Hash(data1))));
         assertEquals(new String(data2), new String(chunkStore.getChunk(CryptoHelper.sha1Hash(data2))));

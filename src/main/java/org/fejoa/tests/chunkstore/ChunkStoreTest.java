@@ -10,6 +10,7 @@ package org.fejoa.tests.chunkstore;
 import junit.framework.TestCase;
 import org.fejoa.chunkstore.ChunkStore;
 import org.fejoa.chunkstore.HashValue;
+import org.fejoa.chunkstore.PutResult;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.StorageLib;
 
@@ -30,17 +31,19 @@ public class ChunkStoreTest  extends TestCase {
 
     public void testSimple() throws Exception {
         String dirName = "testDir";
+        File dir = new File("dirName");
+        dir.mkdirs();
         cleanUpFiles.add(dirName);
 
-        ChunkStore chunkStore = ChunkStore.create(new File("dirName"), "test");
+        ChunkStore chunkStore = ChunkStore.create(dir, "test");
         byte[] data1 = "Hello".getBytes();
         byte[] data2 = "Test Data".getBytes();
         ChunkStore.Transaction transaction = chunkStore.openTransaction();
-        transaction.put(new HashValue(CryptoHelper.sha1Hash(data1)), data1);
-        transaction.put(new HashValue(CryptoHelper.sha1Hash(data2)), data2);
+        PutResult<HashValue> result1 = transaction.put(data1);
+        PutResult<HashValue> result2 = transaction.put(data2);
         transaction.commit();
 
-        assertEquals(new String(data1), new String(chunkStore.getChunk(CryptoHelper.sha1Hash(data1))));
-        assertEquals(new String(data2), new String(chunkStore.getChunk(CryptoHelper.sha1Hash(data2))));
+        assertEquals(new String(data1), new String(chunkStore.getChunk(result1.key)));
+        assertEquals(new String(data2), new String(chunkStore.getChunk(result2.key)));
     }
 }

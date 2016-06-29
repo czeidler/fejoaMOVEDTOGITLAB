@@ -20,15 +20,8 @@ public class ChunkStore {
      * TODO: make the transaction actually do something, i.e. make a transaction atomic
      */
     public class Transaction {
-        /**
-         *
-         * @param hash
-         * @param data
-         * @return false if hash is already in the database
-         * @throws IOException
-         */
-        public boolean put(HashValue hash, byte[] data) throws IOException {
-            return ChunkStore.this.put(hash, data);
+        public PutResult<HashValue> put(byte[] data) throws IOException {
+            return ChunkStore.this.put(data);
         }
 
         public void commit() throws IOException {
@@ -52,15 +45,15 @@ public class ChunkStore {
         return chunkStore;
     }
 
-    static public ChunkStore open(String name) throws IOException {
-        ChunkStore chunkStore = new ChunkStore(new File("."), name);
+    static public ChunkStore open(File dir, String name) throws IOException {
+        ChunkStore chunkStore = new ChunkStore(dir, name);
         chunkStore.tree.open();
         chunkStore.packFile.open();
         return chunkStore;
     }
 
-    public byte[] getChunk(String hash) throws IOException {
-        return getChunk(CryptoHelper.fromHex(hash));
+    public byte[] getChunk(HashValue hash) throws IOException {
+        return getChunk(hash.getBytes());
     }
 
     public byte[] getChunk(byte[] hash) throws IOException {
@@ -69,8 +62,6 @@ public class ChunkStore {
             return null;
         return packFile.get(position.intValue(), hash);
     }
-
-
 
     public Transaction openTransaction() throws IOException {
         synchronized (this) {
@@ -81,11 +72,12 @@ public class ChunkStore {
         }
     }
 
-    private boolean put(HashValue hash, byte[] data) throws IOException {
-        if (hash.size() != hashSize())
-            throw new IOException("Hash size miss match");
+    private PutResult<HashValue> put(byte[] data) throws IOException {
+        HashValue hash = new HashValue(CryptoHelper.sha256Hash(data));
         long position = packFile.put(hash, data);
-        return tree.put(hash, position);
+        boolean wasInDatabase = tree.put(hash, position);
+        PutResult<HashValue> putResult = new PutResult<>(hash, wasInDatabase);
+        return putResult;
     }
 
     static private int hashSize() {

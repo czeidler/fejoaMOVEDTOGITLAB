@@ -124,12 +124,12 @@ public class Repository {
             return treeAccessor;
         }
 
-        public boolean put(HashValue hash, byte[] data) throws IOException {
-            boolean added = chunkAccessor.putChunk(hash, data);
-            if (added)
-                objectsWritten.add(hash);
+        public PutResult<HashValue> put(byte[] data) throws IOException {
+            PutResult<HashValue> result = chunkAccessor.putChunk(data);
+            if (!result.wasInDatabase)
+                objectsWritten.add(result.key);
 
-            return added;
+            return result;
         }
 
         public BoxPointer commit() throws IOException {
@@ -194,8 +194,8 @@ public class Repository {
             }
 
             @Override
-            public boolean putChunk(HashValue hash, byte[] data) throws IOException {
-                return currentTransaction.put(hash, data);
+            public PutResult<HashValue> putChunk(byte[] data) throws IOException {
+                return currentTransaction.put(data);
             }
 
             @Override

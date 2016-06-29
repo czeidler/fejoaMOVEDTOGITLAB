@@ -30,8 +30,8 @@ public class RepositoryTest  extends TestCase {
             }
 
             @Override
-            public boolean putChunk(HashValue hash, byte[] data) throws IOException {
-                return transaction.put(hash, data);
+            public PutResult<HashValue> putChunk(byte[] data) throws IOException {
+                return transaction.put(data);
             }
 
             @Override

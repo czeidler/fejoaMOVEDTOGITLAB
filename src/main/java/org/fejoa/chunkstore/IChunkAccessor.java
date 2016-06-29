@@ -13,7 +13,7 @@ import java.io.IOException;
 
 public interface IChunkAccessor {
     DataInputStream getChunk(HashValue hash) throws IOException;
-    boolean putChunk(HashValue hash, byte[] data) throws IOException;
+    PutResult<HashValue> putChunk(byte[] data) throws IOException;
 
     void startTransaction() throws IOException;
     void finishTransaction() throws IOException;

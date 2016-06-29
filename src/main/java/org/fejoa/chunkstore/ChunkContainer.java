@@ -18,7 +18,8 @@ import java.util.List;
 interface IChunkPointer {
     int getPointerLength();
     int getDataLength() throws IOException;
-    HashValue getChunkHash();
+    BoxPointer getBoxPointer();
+    void setBoxPointer(BoxPointer boxPointer);
     void read(DataInputStream inputStream) throws IOException;
     void write(DataOutputStream outputStream) throws IOException;
     IChunk getCachedChunk();
@@ -32,19 +33,22 @@ class ChunkPointer implements IChunkPointer {
     // Goal: don't rewrite previous blocks, support middle extents and make random access possible.
     // Using the data length makes this possible.
     private int dataLength;
+    private BoxPointer boxPointer;
+
     private boolean packed;
-    private HashValue chunkHash;
     private IChunk cachedChunk = null;
     protected int level;
 
-    protected ChunkPointer(int hashSize, int level) {
-        this.chunkHash = new HashValue(hashSize);
+    protected ChunkPointer(int level) {
+        this.boxPointer = new BoxPointer();
         this.level = level;
     }
 
-    protected ChunkPointer(HashValue hash, int dataLength, IChunk blob, int level) {
+    protected ChunkPointer(BoxPointer hash, int dataLength, IChunk blob, int level) {
         if (hash != null)
-            this.chunkHash = new HashValue(hash);
+            this.boxPointer = hash;
+        else
+            this.boxPointer = new BoxPointer();
         this.dataLength = dataLength;
         cachedChunk = blob;
         this.level = level;
@@ -52,7 +56,7 @@ class ChunkPointer implements IChunkPointer {
 
     @Override
     public int getPointerLength() {
-        return HashValue.HASH_SIZE + 4;
+        return BoxPointer.getPointerLength() + 4;
     }
 
     @Override
@@ -62,10 +66,12 @@ class ChunkPointer implements IChunkPointer {
         return dataLength;
     }
 
-    public HashValue getChunkHash() {
-        if (cachedChunk != null)
-            chunkHash = cachedChunk.hash();
-        return chunkHash;
+    public void setBoxPointer(BoxPointer boxPointer) {
+        this.boxPointer = boxPointer;
+    }
+
+    public BoxPointer getBoxPointer() {
+        return boxPointer;
     }
 
     @Override
@@ -92,7 +98,7 @@ class ChunkPointer implements IChunkPointer {
         int value = inputStream.readInt();
         dataLength = value >> 1;
         packed = (value & 0x01) != 0;
-        inputStream.readFully(chunkHash.getBytes());
+        boxPointer.read(inputStream);
     }
 
     public void write(DataOutputStream outputStream) throws IOException {
@@ -100,14 +106,14 @@ class ChunkPointer implements IChunkPointer {
         if (packed)
             value |= 0X01;
         outputStream.writeInt(value);
-        outputStream.write(getChunkHash().getBytes());
+        boxPointer.write(outputStream);
     }
 
     @Override
     public String toString() {
         String string = "l:" + dataLength + ",p:" + packed;
-        if (chunkHash != null)
-            string+= "," + chunkHash.toString();
+        if (boxPointer != null)
+            string+= "," + boxPointer.toString();
         return string;
     }
 }
@@ -226,10 +232,11 @@ public class ChunkContainer extends ChunkContainerNode {
     public void append(DataChunk blob) throws IOException {
         byte[] rawBlob = blob.getData();
         HashValue hash = blob.hash();
-        blobAccessor.putChunk(hash, rawBlob);
+        HashValue boxedHash = blobAccessor.putChunk(rawBlob).key;
+        BoxPointer boxPointer = new BoxPointer(hash, boxedHash);
 
         SearchResult insertPosition = findLevel0Node(getDataLength());
-        IChunkPointer pointer = new ChunkPointer(hash, rawBlob.length, blob, DATA_LEVEL);
+        IChunkPointer pointer = new ChunkPointer(boxPointer, rawBlob.length, blob, DATA_LEVEL);
         ChunkContainerNode node = (ChunkContainerNode)getBlob(insertPosition.nodePointer);
         node.addBlobPointer(pointer);
 
@@ -312,6 +319,7 @@ class ChunkContainerNode implements IChunk {
     protected ChunkContainerNode parent;
     final protected IChunkAccessor blobAccessor;
     private byte[] data;
+    private HashValue dataHash;
     final private List<IChunkPointer> slots = new ArrayList<>();
     private int maxNodeLength = DEFAULT_MAX_NODE_LENGTH;
     // max node length that get assigned to new child nodes
@@ -367,7 +375,7 @@ class ChunkContainerNode implements IChunk {
         if (cachedChunk != null)
             return cachedChunk;
 
-        DataInputStream inputStream = blobAccessor.getChunk(pointer.getChunkHash());
+        DataInputStream inputStream = blobAccessor.getChunk(pointer.getBoxPointer().getBoxHash());
         if (isDataPointer(pointer))
             cachedChunk = new DataChunk();
         else {
@@ -459,7 +467,7 @@ class ChunkContainerNode implements IChunk {
         slots.clear();
         int nSlots = inputStream.readInt();
         for (int i = 0; i < nSlots; i++) {
-            IChunkPointer pointer = new ChunkPointer(HashValue.HASH_SIZE, that.getLevel() - 1);
+            IChunkPointer pointer = new ChunkPointer(that.getLevel() - 1);
             pointer.read(inputStream);
             addBlobPointer(pointer);
         }
@@ -482,20 +490,22 @@ class ChunkContainerNode implements IChunk {
      * @throws IOException
      */
     public void flush(int level, boolean childOnly) throws IOException {
-        if (!childOnly) {
-            byte[] data = getData();
-            blobAccessor.putChunk(hash(data), data);
-        }
-        if (level <= LEAF_LEVEL)
-            return;
-        for (IChunkPointer pointer : slots) {
-            ChunkContainerNode blob = (ChunkContainerNode)pointer.getCachedChunk();
-            if (blob == null || blob.onDisk)
-                continue;
-            blob.flush(level - 1, false);
+        if (level > LEAF_LEVEL) {
+            for (IChunkPointer pointer : slots) {
+                ChunkContainerNode blob = (ChunkContainerNode) pointer.getCachedChunk();
+                if (blob == null || blob.onDisk)
+                    continue;
+                blob.flush(level - 1, false);
+            }
         }
 
-        onDisk = true;
+        if (!childOnly) {
+            byte[] data = getData();
+            HashValue boxHash = blobAccessor.putChunk(data).key;
+            that.setBoxPointer(new BoxPointer(dataHash, boxHash));
+
+            onDisk = true;
+        }
     }
 
     @Override
@@ -505,12 +515,13 @@ class ChunkContainerNode implements IChunk {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         write(new DataOutputStream(outputStream));
         data = outputStream.toByteArray();
+        dataHash = hash(data);
         return data;
     }
 
     @Override
     public String toString() {
-        String string = "Hash: " + hash() + "\n";
+        String string = "Data Hash: " + hash() + "\n";
         for (IChunkPointer pointer : slots)
             string += pointer.toString() + "\n";
         return string;
@@ -528,15 +539,17 @@ class ChunkContainerNode implements IChunk {
 
     @Override
     public HashValue hash() {
-        try {
-            return hash(getData());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+        if (dataHash == null)
+            return new HashValue(HashValue.HASH_SIZE);
+
+        return dataHash;
     }
 
-    public HashValue hash(byte[] data) {
+    public BoxPointer getBoxPointer() {
+        return that.getBoxPointer();
+    }
+
+    private HashValue hash(byte[] data) {
         return new HashValue(CryptoHelper.sha256Hash(data));
     }
 

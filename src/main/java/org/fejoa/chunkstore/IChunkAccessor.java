@@ -7,14 +7,13 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 
 
 public interface IChunkAccessor {
-    DataInputStream getChunk(HashValue hash) throws IOException;
-    PutResult<HashValue> putChunk(byte[] data) throws IOException;
-
-    void startTransaction() throws IOException;
-    void finishTransaction() throws IOException;
+    DataInputStream getChunk(BoxPointer hash) throws IOException, CryptoException;
+    PutResult<HashValue> putChunk(byte[] data) throws IOException, CryptoException;
 }

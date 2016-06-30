@@ -7,19 +7,18 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 
 class TreeAccessor {
     private DirectoryBox root;
-    final private Repository repository;
+    final private IRepoChunkAccessors accessors;
 
-    public TreeAccessor(DirectoryBox root, Repository repository) throws IOException {
-        this.repository = repository;
+    public TreeAccessor(DirectoryBox root, IRepoChunkAccessors accessors) throws IOException {
+        this.accessors = accessors;
 
         this.root = root;
     }
@@ -30,7 +29,23 @@ class TreeAccessor {
         return path;
     }
 
-    public byte[] read(String path) throws IOException {
+    private TypedBlob get(BoxPointer hashValue, IChunkAccessor accessor) throws IOException, CryptoException {
+        ChunkContainer chunkContainer = new ChunkContainer(accessor, hashValue);
+        BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
+        return blobReader.read(accessor);
+    }
+
+    private HashValue put(TypedBlob blob, IChunkAccessor accessor) throws IOException, CryptoException {
+        ChunkContainer chunkContainer = new ChunkContainer(accessor);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        blob.write(new DataOutputStream(outputStream));
+        chunkContainer.append(new DataChunk(outputStream.toByteArray()));
+        chunkContainer.flush(false);
+
+        return chunkContainer.hash();
+    }
+
+    public byte[] read(String path) throws IOException, CryptoException {
         path = checkPath(path);
         String[] parts = path.split("/");
         String fileName = parts[parts.length - 1];
@@ -41,24 +56,24 @@ class TreeAccessor {
             if (entry == null) {
                 return null;
             } else {
-                IChunkAccessor accessor = repository.getChunkAccessor();
                 if (entry.getObject() != null) {
                     currentDir = (DirectoryBox)entry.getObject();
                     continue;
                 }
-                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer().getBoxHash())).readDirectory();
+                IChunkAccessor accessor = accessors.getTreeAccessor();
+                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer())).readDirectory();
             }
         }
         DirectoryBox.Entry fileEntry = currentDir.getEntry(fileName);
         if (fileEntry == null)
             return null;
 
-        FileBox fileBox = (FileBox)repository.get(fileEntry.getBoxPointer().getBoxHash());
+        FileBox fileBox = (FileBox)get(fileEntry.getBoxPointer(), accessors.getFileAccessor(path));
         ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getChunkContainer());
         return StreamHelper.readAll(inputStream);
     }
 
-    public void put(String path, FileBox file) throws IOException {
+    public void put(String path, FileBox file) throws IOException, CryptoException {
         path = checkPath(path);
         String[] parts = path.split("/");
         String fileName = parts[parts.length - 1];
@@ -72,38 +87,38 @@ class TreeAccessor {
                 dirEntry.setObject(subDirBox);
                 currentDir = subDirBox;
             } else {
-                IChunkAccessor accessor = repository.getChunkAccessor();
                 if (entry.getObject() != null) {
                     currentDir = (DirectoryBox)entry.getObject();
                     continue;
                 }
-                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer().getBoxHash())).readDirectory();
+                IChunkAccessor accessor = accessors.getTreeAccessor();
+                currentDir = new BlobReader(accessor.getChunk(entry.getBoxPointer())).readDirectory();
             }
         }
         DirectoryBox.Entry fileEntry = currentDir.addFile(fileName, null);
         fileEntry.setObject(file);
     }
 
-    public BoxPointer build() throws IOException {
-        return build(root);
+    public BoxPointer build() throws IOException, CryptoException {
+        return build(root, "");
     }
 
-    public BoxPointer build(DirectoryBox dir) throws IOException {
+    private BoxPointer build(DirectoryBox dir, String path) throws IOException, CryptoException {
         for (DirectoryBox.Entry child : dir.getDirs()) {
             if (child.getBoxPointer() != null)
                 continue;
             assert child.getObject() != null;
-            child.setBoxPointer(build((DirectoryBox)child.getObject()));
+            child.setBoxPointer(build((DirectoryBox)child.getObject(), path + "/" + child.getName()));
         }
         for (DirectoryBox.Entry child : dir.getFiles()) {
             if (child.getBoxPointer() != null)
                 continue;
             assert child.getObject() != null;
             FileBox fileBox = (FileBox)child.getObject();
-            HashValue boxHash = repository.put(fileBox);
+            HashValue boxHash = put(fileBox, accessors.getFileAccessor(path + "/" + child.getName()));
             child.setBoxPointer(new BoxPointer(fileBox.hash(), boxHash));
         }
-        HashValue boxHash = repository.put(dir);
+        HashValue boxHash = put(dir, accessors.getTreeAccessor());
         return new BoxPointer(dir.hash(), boxHash);
     }
 
@@ -113,49 +128,17 @@ class TreeAccessor {
 }
 
 public class Repository {
-    private class Transaction {
-        final private List<HashValue> objectsWritten = new ArrayList<>();
-
-        public Transaction() throws IOException {
-
-        }
-
-        public TreeAccessor getTreeAccessor() {
-            return treeAccessor;
-        }
-
-        public PutResult<HashValue> put(byte[] data) throws IOException {
-            PutResult<HashValue> result = chunkAccessor.putChunk(data);
-            if (!result.wasInDatabase)
-                objectsWritten.add(result.key);
-
-            return result;
-        }
-
-        public BoxPointer commit() throws IOException {
-            synchronized (Repository.this) {
-                BoxPointer boxPointer = treeAccessor.build();
-
-                chunkAccessor.finishTransaction();
-                log.add(boxPointer.getBoxHash(), objectsWritten);
-                currentTransaction = null;
-
-                return boxPointer;
-            }
-        }
-    }
-
     final private File dir;
     final private String branch;
     final private ChunkStoreBranchLog log;
-    private IChunkAccessor chunkAccessor;
-    private Transaction currentTransaction;
+    private boolean transactionOngoing = false;
+    private LogRepoChunkAccessors chunkAccessors;
     final private TreeAccessor treeAccessor;
 
-    public Repository(File dir, String branch, IChunkAccessor chunkAccessor) throws IOException {
+    public Repository(File dir, String branch, IRepoChunkAccessors chunkAccessors) throws IOException, CryptoException {
         this.dir = dir;
         this.branch = branch;
-        this.chunkAccessor = chunkAccessor;
+        this.chunkAccessors = new LogRepoChunkAccessors(chunkAccessors);
         this.log = new ChunkStoreBranchLog(new File(getBranchDir(), branch));
 
         HashValue rootBoxHash = null;
@@ -165,83 +148,40 @@ public class Repository {
         if (rootBoxHash == null)
             root = DirectoryBox.create();
         else
-            root = new BlobReader(getChunkAccessor().getChunk(rootBoxHash)).readDirectory();
-        this.treeAccessor = new TreeAccessor(root, Repository.this);
-    }
-
-    public IChunkAccessor getChunkAccessor() {
-        return chunkAccessor;
+            root = new BlobReader(chunkAccessors.getCommitAccessor().getChunk(new BoxPointer(null, rootBoxHash)))
+                    .readDirectory();
+        this.treeAccessor = new TreeAccessor(root, chunkAccessors);
     }
 
     private File getBranchDir() {
         return new File(dir, "branches");
     }
 
+    public IRepoChunkAccessors getChunkAccessors() {
+        return chunkAccessors;
+    }
+
     private void ensureTransaction() throws IOException {
         synchronized (this) {
-            if (currentTransaction != null)
+            if (transactionOngoing)
                 return;
-            chunkAccessor.startTransaction();
-            currentTransaction = new Transaction();
+            chunkAccessors.startTransaction();
+            transactionOngoing = true;
         }
     }
 
-    private IChunkAccessor getChunkContainerAccessor() {
-        return new IChunkAccessor() {
-            @Override
-            public DataInputStream getChunk(HashValue hash) throws IOException {
-                return chunkAccessor.getChunk(hash);
-            }
-
-            @Override
-            public PutResult<HashValue> putChunk(byte[] data) throws IOException {
-                return currentTransaction.put(data);
-            }
-
-            @Override
-            public void startTransaction() throws IOException {
-
-            }
-
-            @Override
-            public void finishTransaction() throws IOException {
-
-            }
-        };
-    }
-
-    protected TypedBlob get(HashValue hashValue) throws IOException {
-        IChunkAccessor containerAccessor = getChunkContainerAccessor();
-        ChunkContainer chunkContainer = new ChunkContainer(containerAccessor, hashValue);
-        BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
-        return blobReader.read(containerAccessor);
-    }
-
-    public HashValue put(TypedBlob blob) throws IOException {
-        ensureTransaction();
-
-        ChunkContainer chunkContainer = new ChunkContainer(getChunkContainerAccessor());
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        blob.write(new DataOutputStream(outputStream));
-        chunkContainer.append(new DataChunk(outputStream.toByteArray()));
-        chunkContainer.flush(false);
-
-        return chunkContainer.hash();
-    }
-
-    public byte[] readBytes(String path) throws IOException {
+    public byte[] readBytes(String path) throws IOException, CryptoException {
         return treeAccessor.read(path);
     }
 
-    public void writeBytes(String path, byte[] bytes) throws IOException {
+    public void writeBytes(String path, byte[] bytes) throws IOException, CryptoException {
         ensureTransaction();
 
-        TreeAccessor treeAccessor = currentTransaction.getTreeAccessor();
-        treeAccessor.put(path, writeToFileBox(bytes));
+        treeAccessor.put(path, writeToFileBox(path, bytes));
     }
 
-    private FileBox writeToFileBox(byte[] data) throws IOException {
-        FileBox file = FileBox.create(getChunkAccessor());
+    private FileBox writeToFileBox(String path, byte[] data) throws IOException {
+        FileBox file = FileBox.create(chunkAccessors.getFileAccessor(path));
         ChunkContainer chunkContainer = file.getChunkContainer();
         ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer);
         containerOutputStream.write(data);
@@ -249,10 +189,14 @@ public class Repository {
         return file;
     }
 
-    public BoxPointer commit() throws IOException {
+    public BoxPointer commit() throws IOException, CryptoException {
         synchronized (Repository.this) {
-            BoxPointer boxPointer = currentTransaction.commit();
-            currentTransaction = null;
+            BoxPointer boxPointer = treeAccessor.build();
+
+            chunkAccessors.finishTransaction();
+            log.add(boxPointer.getBoxHash(), chunkAccessors.getObjectsWritten());
+            transactionOngoing = false;
+
             return boxPointer;
         }
     }

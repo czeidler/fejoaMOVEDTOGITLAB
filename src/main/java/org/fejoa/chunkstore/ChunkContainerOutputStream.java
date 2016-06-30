@@ -7,6 +7,8 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,7 +35,11 @@ public class ChunkContainerOutputStream extends OutputStream {
         byte[] data = outputStream.toByteArray();
         if (data.length == 0)
             return;
-        container.append(new DataChunk(data));
+        try {
+            container.append(new DataChunk(data));
+        } catch (CryptoException e) {
+            throw new IOException(e);
+        }
         outputStream = new ByteArrayOutputStream();
     }
 

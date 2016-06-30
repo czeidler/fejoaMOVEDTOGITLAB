@@ -66,7 +66,7 @@ public class ChunkStore {
     public Transaction openTransaction() throws IOException {
         synchronized (this) {
             if (currentTransaction != null)
-                throw new RuntimeException("Currently only one transaction at a time is supported");
+                return currentTransaction;
             currentTransaction = new Transaction();
             return currentTransaction;
         }

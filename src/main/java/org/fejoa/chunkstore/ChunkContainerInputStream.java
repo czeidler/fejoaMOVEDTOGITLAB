@@ -7,6 +7,8 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -24,7 +26,12 @@ public class ChunkContainerInputStream extends InputStream {
     public int read() throws IOException {
         if (position >= container.getDataLength())
             return -1;
-        DataChunk current = validateCurrentChunk();
+        DataChunk current;
+        try {
+            current = validateCurrentChunk();
+        } catch (CryptoException e) {
+            throw new IOException(e);
+        }
         int b = current.getData()[(int)(position - chunkPosition.position)] & 0xff;
         position++;
         return b;
@@ -38,7 +45,7 @@ public class ChunkContainerInputStream extends InputStream {
         }
     }
 
-    private DataChunk validateCurrentChunk() throws IOException {
+    private DataChunk validateCurrentChunk() throws IOException, CryptoException {
         if (chunkPosition != null && position < (chunkPosition.position + chunkPosition.chunk.getDataLength())) {
                 return chunkPosition.chunk;
         }

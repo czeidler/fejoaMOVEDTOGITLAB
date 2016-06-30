@@ -7,6 +7,7 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 
 import java.io.*;
@@ -120,7 +121,7 @@ class ChunkPointer implements IChunkPointer {
 
 
 public class ChunkContainer extends ChunkContainerNode {
-    public ChunkContainer(IChunkAccessor blobAccessor, HashValue hash) throws IOException {
+    public ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash) throws IOException, CryptoException {
         this(blobAccessor, blobAccessor.getChunk(hash));
     }
 
@@ -177,7 +178,7 @@ public class ChunkContainer extends ChunkContainerNode {
                     DataChunkPosition dataChunkPosition = get(position);
                     position += dataChunkPosition.position + dataChunkPosition.chunk.getDataLength();
                     return dataChunkPosition;
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                     return null;
                 }
@@ -190,7 +191,7 @@ public class ChunkContainer extends ChunkContainerNode {
         };
     }
 
-    public DataChunkPosition get(long position) throws IOException {
+    public DataChunkPosition get(long position) throws IOException, CryptoException {
         SearchResult searchResult = findLevel0Node(position);
         if (searchResult.pointer == null)
             throw new IOException("Invalid position");
@@ -198,7 +199,7 @@ public class ChunkContainer extends ChunkContainerNode {
         return new DataChunkPosition(dataChunk, searchResult.pointerDataPosition);
     }
 
-    private SearchResult findLevel0Node(long position) throws IOException {
+    private SearchResult findLevel0Node(long position) throws IOException, CryptoException {
         long currentPosition = 0;
         IChunkPointer pointer = null;
         IChunkPointer containerPointer = that;
@@ -219,7 +220,7 @@ public class ChunkContainer extends ChunkContainerNode {
         return new SearchResult(currentPosition, pointer, containerPointer);
     }
 
-    private IChunkPointer findRightMostNodeBlob() throws IOException {
+    private IChunkPointer findRightMostNodeBlob() throws IOException, CryptoException {
         IChunkPointer pointer = that;
         ChunkContainerNode current = this;
         for (int i = 0; i < that.getLevel() - 1; i++) {
@@ -229,7 +230,7 @@ public class ChunkContainer extends ChunkContainerNode {
         return pointer;
     }
 
-    public void append(DataChunk blob) throws IOException {
+    public void append(DataChunk blob) throws IOException, CryptoException {
         byte[] rawBlob = blob.getData();
         HashValue hash = blob.hash();
         HashValue boxedHash = blobAccessor.putChunk(rawBlob).key;
@@ -290,7 +291,7 @@ public class ChunkContainer extends ChunkContainerNode {
         super.write(outputStream);
     }
 
-    public String printAll() throws IOException {
+    public String printAll() throws Exception {
         String string = "Header: levels=" + that.getLevel() + ", length=" + getDataLength() + "\n";
         string += super.printAll();
         return string;
@@ -304,7 +305,7 @@ public class ChunkContainer extends ChunkContainerNode {
         outputStream.writeByte(that.getLevel());
     }
 
-    public void flush(boolean childOnly) throws IOException {
+    public void flush(boolean childOnly) throws IOException, CryptoException {
         flush(that.getLevel(), childOnly);
     }
 }
@@ -370,12 +371,12 @@ class ChunkContainerNode implements IChunk {
         return calculateDataLength();
     }
 
-    public IChunk getBlob(IChunkPointer pointer) throws IOException {
+    public IChunk getBlob(IChunkPointer pointer) throws IOException, CryptoException {
         IChunk cachedChunk = pointer.getCachedChunk();
         if (cachedChunk != null)
             return cachedChunk;
 
-        DataInputStream inputStream = blobAccessor.getChunk(pointer.getBoxPointer().getBoxHash());
+        DataInputStream inputStream = blobAccessor.getChunk(pointer.getBoxPointer());
         if (isDataPointer(pointer))
             cachedChunk = new DataChunk();
         else {
@@ -420,7 +421,7 @@ class ChunkContainerNode implements IChunk {
      * @return
      */
     protected SearchResult findInNode(IChunkPointer nodePointer, long dataPosition)
-            throws IOException {
+            throws IOException, CryptoException {
         ChunkContainerNode node = (ChunkContainerNode)getBlob(nodePointer);
         if (dataPosition > node.getDataLength())
             return null;
@@ -489,7 +490,7 @@ class ChunkContainerNode implements IChunk {
      * @param childOnly only child nodes are flushed
      * @throws IOException
      */
-    public void flush(int level, boolean childOnly) throws IOException {
+    public void flush(int level, boolean childOnly) throws IOException, CryptoException {
         if (level > LEAF_LEVEL) {
             for (IChunkPointer pointer : slots) {
                 ChunkContainerNode blob = (ChunkContainerNode) pointer.getCachedChunk();
@@ -502,6 +503,8 @@ class ChunkContainerNode implements IChunk {
         if (!childOnly) {
             byte[] data = getData();
             HashValue boxHash = blobAccessor.putChunk(data).key;
+            if (parent != null)
+                parent.invalidate();
             that.setBoxPointer(new BoxPointer(dataHash, boxHash));
 
             onDisk = true;
@@ -527,7 +530,7 @@ class ChunkContainerNode implements IChunk {
         return string;
     }
 
-    protected String printAll() throws IOException {
+    protected String printAll() throws Exception {
         String string = toString();
 
         if (that.getLevel() == LEAF_LEVEL)
@@ -539,6 +542,12 @@ class ChunkContainerNode implements IChunk {
 
     @Override
     public HashValue hash() {
+        try {
+            // make sure that the hash is calculated
+            getData();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         if (dataHash == null)
             return new HashValue(HashValue.HASH_SIZE);
 

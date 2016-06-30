@@ -8,6 +8,8 @@
 package org.fejoa.chunkstore;
 
 
+import org.fejoa.library.crypto.CryptoException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -25,9 +27,9 @@ abstract public class TypedBlob {
     }
 
     abstract protected void readInternal(DataInputStream inputStream) throws IOException;
-    abstract protected void writeInternal(DataOutputStream outputStream) throws IOException;
+    abstract protected void writeInternal(DataOutputStream outputStream) throws IOException, CryptoException;
 
-    public void write(DataOutputStream outputStream) throws IOException {
+    public void write(DataOutputStream outputStream) throws IOException, CryptoException {
         outputStream.writeShort(type);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DataOutputStream dataOut = new DataOutputStream(byteArrayOutputStream);

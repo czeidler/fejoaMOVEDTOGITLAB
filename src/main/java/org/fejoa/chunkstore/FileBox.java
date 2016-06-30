@@ -7,6 +7,7 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.StreamHelper;
 
@@ -68,7 +69,7 @@ public class FileBox extends TypedBlob {
     }
 
     @Override
-    protected void writeInternal(DataOutputStream outputStream) throws IOException {
+    protected void writeInternal(DataOutputStream outputStream) throws IOException, CryptoException {
         chunkContainer.flush(true);
         // write header node
         chunkContainer.write(outputStream);

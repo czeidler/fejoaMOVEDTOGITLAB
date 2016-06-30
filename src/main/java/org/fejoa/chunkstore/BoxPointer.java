@@ -51,6 +51,6 @@ public class BoxPointer {
 
     @Override
     public String toString() {
-        return "data: " + dataHash.toString() + "box: " + boxHash.toString();
+        return "(data:" + dataHash.toString() + " box:" + boxHash.toString() + ")";
     }
 }

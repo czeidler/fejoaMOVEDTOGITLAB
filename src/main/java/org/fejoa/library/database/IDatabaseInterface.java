@@ -7,6 +7,8 @@
  */
 package org.fejoa.library.database;
 
+import org.fejoa.chunkstore.HashValue;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -21,6 +23,7 @@ public interface IDatabaseInterface {
     InputStream read(String path) throws IOException;
     void write(String path, long length, InputStream stream) throws IOException;
 
+    HashValue getHash(String path) throws IOException;
     byte[] readBytes(String path) throws IOException;
     void writeBytes(String path, byte[] bytes) throws IOException;
 

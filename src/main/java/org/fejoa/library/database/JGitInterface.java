@@ -25,6 +25,7 @@ import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.fejoa.chunkstore.HashValue;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -130,12 +131,20 @@ public class JGitInterface implements IDatabaseInterface {
 
     @Override
     public byte[] readBytes(String path) throws IOException{
+        return repository.open(getObject(path)).getBytes();
+    }
+
+    @Override
+    public HashValue getHash(String path) throws IOException {
+        return HashValue.fromHex(getObject(path).getName());
+    }
+
+    private ObjectId getObject(String path) throws IOException {
         TreeWalk treeWalk = cdFile(path);
         if (!treeWalk.next())
             throw new FileNotFoundException();
 
-        ObjectId objectId = treeWalk.getObjectId(0);
-        return repository.open(objectId).getBytes();
+        return treeWalk.getObjectId(0);
     }
 
     @Override

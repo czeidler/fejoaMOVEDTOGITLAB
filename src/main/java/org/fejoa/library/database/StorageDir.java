@@ -7,6 +7,8 @@
  */
 package org.fejoa.library.database;
 
+import org.fejoa.chunkstore.HashValue;
+import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.WeakListenable;
 
 import java.io.IOException;
@@ -61,6 +63,16 @@ public class StorageDir {
             if (toDelete.size() > 0)
                 flush();
             this.toAdd.put(path, data);
+        }
+
+        public HashValue getHash(String path, IIOFilter filter) throws IOException {
+            byte[] bytes = toAdd.get(path);
+            if (bytes != null) {
+                if (filter != null)
+                    bytes = filter.readFilter(bytes);
+                return new HashValue(CryptoHelper.sha1Hash(bytes));
+            }
+            return database.getHash(path);
         }
 
         public byte[] readBytes(String path) throws IOException {
@@ -171,6 +183,10 @@ public class StorageDir {
         return newDir;
     }
 
+    public HashValue getHash(String path) throws IOException {
+        return cache.getHash(path, filter);
+    }
+
     public byte[] readBytes(String path) throws IOException {
         byte[] bytes = cache.readBytes(getRealPath(path));
         if (filter != null)
@@ -193,11 +209,22 @@ public class StorageDir {
         return Integer.parseInt(new String(data));
     }
 
+    public long readLong(String path) throws IOException {
+        byte data[] = readBytes(path);
+        return Long.parseLong(new String(data));
+    }
+
     public void writeString(String path, String data) throws IOException {
         writeBytes(path, data.getBytes());
     }
 
     public void writeInt(String path, int data) throws IOException {
+        String dataString = "";
+        dataString += data;
+        writeString(path, dataString);
+    }
+
+    public void writeLong(String path, long data) throws IOException {
         String dataString = "";
         dataString += data;
         writeString(path, dataString);

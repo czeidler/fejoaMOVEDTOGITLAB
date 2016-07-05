@@ -12,6 +12,7 @@ import org.fejoa.library.database.StorageDir;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -20,13 +21,22 @@ public class Index {
     static public class Entry {
         private HashValue hash;
         private long lastModified;
+        private long length;
 
         final static String HASH_KEY = "hash";
         final static String MODIFICATION_TIME_KEY = "mTime";
+        final static String LENGTH_KEY = "length";
 
-        public Entry(HashValue hash, long lastModified) {
+        public Entry(HashValue hash, long lastModified, long length) {
             this.hash = hash;
             this.lastModified = lastModified;
+            this.length = length;
+        }
+
+        public Entry(HashValue hash, File file) {
+            this.hash = hash;
+            this.lastModified = file.lastModified();
+            this.length = file.length();
         }
 
         private Entry() {
@@ -43,6 +53,7 @@ public class Index {
             JSONObject bundle = new JSONObject();
             bundle.put(HASH_KEY, hash.toHex());
             bundle.put(MODIFICATION_TIME_KEY, lastModified);
+            bundle.put(LENGTH_KEY, length);
             return bundle.toString();
         }
 
@@ -50,6 +61,7 @@ public class Index {
             JSONObject bundle = new JSONObject(data);
             this.hash = HashValue.fromHex(bundle.getString(HASH_KEY));
             this.lastModified = bundle.getLong(MODIFICATION_TIME_KEY);
+            this.length = bundle.getLong(LENGTH_KEY);
         }
 
         public HashValue getHash() {
@@ -58,6 +70,10 @@ public class Index {
 
         public long getLastModified() {
             return lastModified;
+        }
+
+        public long getLength() {
+            return length;
         }
     }
 

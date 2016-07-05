@@ -93,7 +93,7 @@ public class CheckoutDir {
             String filePath = StorageDir.appendDir(dir, file);
             File outFile = new File(targetDir, file);
 
-            if (indexedFiles.contains(file) && needsCheckout(outFile,  storageDir.getHash(filePath),
+            if (indexedFiles.contains(file) && !needsCheckout(outFile,  storageDir.getHash(filePath),
                     index.get(filePath)))
                 continue;
 
@@ -103,7 +103,7 @@ public class CheckoutDir {
             outputStream.close();
 
             HashValue hash = storageDir.getHash(filePath);
-            index.update(filePath, new Index.Entry(hash, outFile.lastModified()));
+            index.update(filePath, new Index.Entry(hash, outFile));
 
             task.onProgress(new Update(outFile));
         }
@@ -132,8 +132,7 @@ public class CheckoutDir {
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     StreamHelper.copy(inputStream, outputStream);
                     storageDir.writeBytes(filePath, outputStream.toByteArray());
-                    index.update(filePath, new Index.Entry(storageDir.getHash(filePath),
-                            checkedOutFile.lastModified()));
+                    index.update(filePath, new Index.Entry(storageDir.getHash(filePath), checkedOutFile));
                     task.onProgress(new Update(checkedOutFile));
                 }
             } else {
@@ -156,6 +155,10 @@ public class CheckoutDir {
     }
 
     private boolean checkoutFileChanged(File outFile, Index.Entry entry) throws IOException {
+        long length = outFile.length();
+        if (length != entry.getLength())
+            return true;
+
         long lastModified = outFile.lastModified();
         if (lastModified > entry.getLastModified())
             return true;
@@ -185,10 +188,10 @@ public class CheckoutDir {
 
     private boolean needsCheckout(File outFile, HashValue inDatabaseHash, Index.Entry entry) throws IOException {
         if (!outFile.exists())
-            return false;
+            return true;
         if (!inDatabaseHash.equals(entry.getHash()))
-            return false;
+            return true;
 
-        return !checkoutFileChanged(outFile, entry);
+        return checkoutFileChanged(outFile, entry);
     }
 }

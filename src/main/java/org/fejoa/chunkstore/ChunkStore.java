@@ -74,8 +74,11 @@ public class ChunkStore {
 
     private PutResult<HashValue> put(byte[] data) throws IOException {
         HashValue hash = new HashValue(CryptoHelper.sha256Hash(data));
+        // TODO make it more efficient by only using one lookup
+        if (tree.get(hash.getBytes()) != null)
+            return new PutResult<>(hash, true);
         long position = packFile.put(hash, data);
-        boolean wasInDatabase = tree.put(hash, position);
+        boolean wasInDatabase = !tree.put(hash, position);
         PutResult<HashValue> putResult = new PutResult<>(hash, wasInDatabase);
         return putResult;
     }

@@ -745,8 +745,8 @@ public class BaseBPlusTree<IndexType extends Number, DataType extends Number> {
         SearchResult result = find(key);
         if (result.foundKey != null && result.keyComparison == 0) {
             // TODO replace
-            throw new IOException("replacing not supported yet");
-            //return false;
+            //throw new IOException("replacing not supported yet");
+            return false;
         }
         insert(result.node, result.keyPosition, key, indexType.fromLong(dataType.toLong(address)), hash.getBytes(),
                 indexType.fromLong(0l));

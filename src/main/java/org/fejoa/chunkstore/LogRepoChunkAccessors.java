@@ -53,6 +53,16 @@ public class LogRepoChunkAccessors implements IRepoChunkAccessors {
 
                 return result;
             }
+
+            @Override
+            public void releaseChunk(HashValue data) {
+                for (HashValue written : objectsWritten) {
+                    if (!written.equals(data))
+                        continue;
+                    objectsWritten.remove(written);
+                    break;
+                }
+            }
         };
     }
 

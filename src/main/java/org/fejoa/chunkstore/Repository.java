@@ -134,6 +134,7 @@ public class Repository {
     private boolean transactionOngoing = false;
     private LogRepoChunkAccessors chunkAccessors;
     final private TreeAccessor treeAccessor;
+    final private ChunkSplitter splitter = new RabinSplitter();
 
     public Repository(File dir, String branch, IRepoChunkAccessors chunkAccessors) throws IOException, CryptoException {
         this.dir = dir;
@@ -183,7 +184,7 @@ public class Repository {
     private FileBox writeToFileBox(String path, byte[] data) throws IOException {
         FileBox file = FileBox.create(chunkAccessors.getFileAccessor(path));
         ChunkContainer chunkContainer = file.getChunkContainer();
-        ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer);
+        ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
         containerOutputStream.write(data);
         containerOutputStream.flush();
         return file;

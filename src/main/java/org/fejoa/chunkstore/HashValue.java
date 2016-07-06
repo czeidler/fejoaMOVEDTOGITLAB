@@ -39,6 +39,14 @@ public class HashValue {
         return Arrays.equals(hash, ((HashValue) o).hash);
     }
 
+    public boolean isZero() {
+        for (int i = 0; i < hash.length; i++) {
+            if (hash[i] != 0)
+                return false;
+        }
+        return true;
+    }
+
     public byte[] getBytes() {
         return hash;
     }

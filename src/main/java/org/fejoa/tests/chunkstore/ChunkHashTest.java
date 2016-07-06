@@ -28,6 +28,7 @@ public class ChunkHashTest extends TestCase {
         chunkHash.update(block1);
         assertTrue(Arrays.equals(hashBlock1, chunkHash.digest()));
 
+        // second layer
         byte[] block2 = "22".getBytes();
         messageDigest.reset();
         messageDigest.update(block2);
@@ -35,11 +36,51 @@ public class ChunkHashTest extends TestCase {
         messageDigest.reset();
         messageDigest.update(hashBlock1);
         messageDigest.update(hashBlock2);
-        byte[] combinedHash = messageDigest.digest();
+        byte[] combinedHashLayer2_0 = messageDigest.digest();
 
         chunkHash.reset();
         chunkHash.update(block1);
         chunkHash.update(block2);
-        assertTrue(Arrays.equals(combinedHash, chunkHash.digest()));
+        assertTrue(Arrays.equals(combinedHashLayer2_0, chunkHash.digest()));
+
+        // third layer
+        byte[] block3 = "33".getBytes();
+        messageDigest.reset();
+        messageDigest.update(block3);
+        byte[] hashBlock3 = messageDigest.digest();
+        messageDigest.reset();
+        messageDigest.update(hashBlock3);
+        byte[] combinedHashLayer2_1 = messageDigest.digest();
+        messageDigest.reset();
+        messageDigest.update(combinedHashLayer2_0);
+        messageDigest.update(combinedHashLayer2_1);
+        byte[] combinedHashLayer3_0 = messageDigest.digest();
+
+        chunkHash.reset();
+        chunkHash.update(block1);
+        chunkHash.update(block2);
+        chunkHash.update(block3);
+        assertTrue(Arrays.equals(combinedHashLayer3_0, chunkHash.digest()));
+
+        // fill third layer
+        byte[] block4 = "44".getBytes();
+        messageDigest.reset();
+        messageDigest.update(block4);
+        byte[] hashBlock4 = messageDigest.digest();
+        messageDigest.reset();
+        messageDigest.update(hashBlock3);
+        messageDigest.update(hashBlock4);
+        byte[] combinedHashLayer2_2 = messageDigest.digest();
+        messageDigest.reset();
+        messageDigest.update(combinedHashLayer2_0);
+        messageDigest.update(combinedHashLayer2_2);
+        byte[] combinedHashLayer3_1 = messageDigest.digest();
+
+        chunkHash.reset();
+        chunkHash.update(block1);
+        chunkHash.update(block2);
+        chunkHash.update(block3);
+        chunkHash.update(block4);
+        assertTrue(Arrays.equals(combinedHashLayer3_1, chunkHash.digest()));
     }
 }

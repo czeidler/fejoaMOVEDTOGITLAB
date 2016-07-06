@@ -12,6 +12,7 @@ import java.util.*;
 
 public class RepositoryTest  extends TestCase {
     final List<String> cleanUpFiles = new ArrayList<String>();
+    final ChunkSplitter splitter = new RabinSplitter();
 
     @Override
     public void tearDown() throws Exception {
@@ -31,6 +32,11 @@ public class RepositoryTest  extends TestCase {
             @Override
             public PutResult<HashValue> putChunk(byte[] data) throws IOException {
                 return chunkStore.openTransaction().put(data);
+            }
+
+            @Override
+            public void releaseChunk(HashValue data) {
+
             }
         };
     }
@@ -124,7 +130,7 @@ public class RepositoryTest  extends TestCase {
     private FileBox writeToFileBox(IChunkAccessor accessor, String content) throws IOException {
         FileBox file = FileBox.create(accessor);
         ChunkContainer chunkContainer = file.getChunkContainer();
-        ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer);
+        ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
         containerOutputStream.write(content.getBytes());
         containerOutputStream.flush();
         return file;

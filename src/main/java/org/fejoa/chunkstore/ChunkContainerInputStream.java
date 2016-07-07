@@ -16,7 +16,7 @@ import java.io.InputStream;
 public class ChunkContainerInputStream extends InputStream {
     final private ChunkContainer container;
     private long position = 0;
-    private ChunkContainer.DataChunkPosition chunkPosition;
+    private ChunkContainer.DataChunkPointer chunkPosition;
 
     public ChunkContainerInputStream(ChunkContainer container) {
         this.container = container;
@@ -37,24 +37,20 @@ public class ChunkContainerInputStream extends InputStream {
         return b;
     }
 
-    public void seek(long position) throws IOException {
+    public void seek(long position) throws IOException, CryptoException {
         this.position = position;
-        if (chunkPosition != null && (position >= chunkPosition.position + chunkPosition.chunk.getDataLength()
+        if (chunkPosition != null && (position >= chunkPosition.position + chunkPosition.getDataChunk().getDataLength()
                     || position < chunkPosition.position)) {
                 chunkPosition = null;
         }
     }
 
     private DataChunk validateCurrentChunk() throws IOException, CryptoException {
-        if (chunkPosition != null && position < (chunkPosition.position + chunkPosition.chunk.getDataLength())) {
-                return chunkPosition.chunk;
+        if (chunkPosition != null
+                && position < (chunkPosition.position + chunkPosition.getDataChunk().getDataLength())) {
+            return chunkPosition.getDataChunk();
         }
         chunkPosition = container.get(position);
-        if (chunkPosition.chunk == null) {
-            position = -1;
-            chunkPosition = null;
-            throw new IOException("Invalid position");
-        }
-        return chunkPosition.chunk;
+        return chunkPosition.getDataChunk();
     }
 }

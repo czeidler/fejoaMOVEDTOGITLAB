@@ -135,7 +135,7 @@ public class ChunkContainerTest extends TestCase {
     public void testAppend() throws Exception {
         final String dirName = "testContainerDir";
         final String name = "test";
-        final ChunkSplitter chunkSplitter = new FixedBlockSplitter(100);
+        final ChunkSplitter chunkSplitter = new FixedBlockSplitter(64);
         ChunkContainer chunkContainer = prepareContainer(dirName, name, chunkSplitter);
 
         chunkContainer.append(new DataChunk("Hello".getBytes()));
@@ -287,5 +287,123 @@ public class ChunkContainerTest extends TestCase {
         ChunkHash chunkHash = new ChunkHash(dataSplitter, nodeSplitter);
         chunkHash.update(newString.getBytes());
         assertTrue(Arrays.equals(chunkContainer.hash().getBytes(), chunkHash.digest()));
+    }
+
+    public void testSeekOutputStream() throws Exception {
+        final String dirName = "testSeekOutputStreamDir";
+        final String name = "test";
+        final ChunkSplitter dataSplitter = createByteTriggerSplitter((byte)'|');
+        final ChunkSplitter nodeSplitter = new RabinSplitter(RabinSplitter.MASK_128B);
+        ChunkContainer chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        ChunkContainerOutputStream outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2|3|4|".getBytes());
+        outputStream.close();
+        assertEquals("1|2|3|4|", toString(new ChunkContainerInputStream(chunkContainer)));
+        chunkContainer.flush(false);
+        assertEquals("1|2|3|4|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        // append: "1|2|3|4|" -> "1|2|3|4|5|6|"
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(chunkContainer.getDataLength());
+        outputStream.write("5|6|".getBytes());
+        outputStream.close();
+        assertEquals("1|2|3|4|5|6|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        // overwrite + append: "1|2|3|4|" -> "1|2|3|i|5|6|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2|3|4|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(6);
+        outputStream.write("i|5|6|".getBytes());
+        outputStream.close();
+        assertEquals("1|2|3|i|5|6|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        // overwrite + append: "1|2|3|4|" -> "1|2|iii|5|6|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2|3|4|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(4);
+        outputStream.write("iii|5|6|".getBytes());
+        outputStream.close();
+        assertEquals("1|2|iii|5|6|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        //"1|2|3|4|" -> "1|i|i|4|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2|3|4|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(2);
+        outputStream.write("i|i|".getBytes());
+        outputStream.close();
+        assertEquals("1|i|i|4|", toString(new ChunkContainerInputStream(chunkContainer)));
+        // try again but with a shorter overwrite:
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2|3|4|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(2);
+        outputStream.write("i|i".getBytes());
+        outputStream.close();
+        assertEquals("1|i|i|4|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        //"1|222|3|" -> "1|i|i|3|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|222|3|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(2);
+        outputStream.write("i|i|".getBytes());
+        outputStream.close();
+        assertEquals("1|i|i|3|", toString(new ChunkContainerInputStream(chunkContainer)));
+        // try again but with a shorter overwrite:
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|222|3|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(2);
+        outputStream.write("i|i".getBytes());
+        outputStream.close();
+        assertEquals("1|i|i|3|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        //"1|222|3|" -> "1|i|2|3|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|222|3|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(2);
+        outputStream.write("i|".getBytes());
+        outputStream.close();
+        assertEquals("1|i|2|3|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        //"1|2222|3|" -> "1|2i|2|3|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|2222|3|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(3);
+        outputStream.write("i|".getBytes());
+        outputStream.close();
+        assertEquals("1|2i|2|3|", toString(new ChunkContainerInputStream(chunkContainer)));
+
+        //"1|222|3|" -> "1|2i2|3|"
+        chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write("1|222|3|".getBytes());
+        outputStream.close();
+        outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.seek(3);
+        outputStream.write("i".getBytes());
+        outputStream.close();
+        assertEquals("1|2i2|3|", toString(new ChunkContainerInputStream(chunkContainer)));
     }
 }

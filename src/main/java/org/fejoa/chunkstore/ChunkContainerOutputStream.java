@@ -12,7 +12,8 @@ import org.fejoa.library.crypto.CryptoException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class ChunkContainerOutputStream extends OutputStream {
@@ -21,30 +22,84 @@ public class ChunkContainerOutputStream extends OutputStream {
         void finish() throws IOException;
     }
 
-    class AppendTransaction implements ITransaction {
+    class OverwriteTransaction implements ITransaction {
+        // position of the first chunk that is overwritten
+        private long writeStartPosition;
+        private long bytesFlushed;
+        private long bytesDeleted;
+        private long bytesWritten;
+        private boolean appending = false;
+        private ChunkContainer.DataChunkPointer lastDeletedPointer;
         private ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        public AppendTransaction(final long seekPosition, final long containerSize) {
-            rewriteLastChunkToStart(seekPosition);
-
-
+        public OverwriteTransaction(final long seekPosition, final long containerSize) throws IOException,
+                CryptoException {
+            goToStart(seekPosition, containerSize);
         }
 
-        public void rewriteLastChunkToStart(final long seekPosition) {
+        public void goToStart(final long seekPosition, final long containerSize) throws IOException, CryptoException {
+            if (containerSize == 0)
+                return;
+
             long start = seekPosition;
-            // start with the previous chunk
-            if (seekPosition > 0)
+            // recalculate the last chunk if we append data because the last chunk may not be full
+            if (seekPosition == containerSize)
                 start--;
-            Iterator<ChunkContainer.DataChunkPosition> iter = container.getChunkIterator(start);
-            if (iter.hasNext()) {
-                ChunkContainer.DataChunkPosition chunkPosition = iter.next();
-                //if (chunkPosition.position + chunkPosition.chunkDataLength < seekPosition)
+
+            lastDeletedPointer = container.get(start);
+            removeChunk(lastDeletedPointer.position, lastDeletedPointer.chunkDataLength);
+            writeStartPosition = lastDeletedPointer.position;
+
+            DataChunk chunk = lastDeletedPointer.getDataChunk();
+            for (int i = 0; i < seekPosition - writeStartPosition; i++)
+                write(chunk.data[i]);
+        }
+
+        private void removeChunk(long position, long size) throws IOException, CryptoException {
+            container.remove(position, size);
+            bytesDeleted += size;
+        }
+
+        // write remaining data till we reached the end or a known chunk position
+        private void finalizeWrite() throws IOException, CryptoException {
+            while (lastDeletedPointer != null) {
+                byte[] data = lastDeletedPointer.getDataChunk().getData();
+                long bytesToWrite = bytesDeleted - bytesWritten;
+                long start = data.length - bytesToWrite;
+                for (int i = (int)start; i < data.length; i++)
+                    write(data[i]);
             }
+            flushChunk();
+        }
+
+        private void overwriteNextChunk() throws IOException, CryptoException {
+            if (appending)
+                return;
+            long nextPosition = writeStartPosition + bytesFlushed;
+            if (nextPosition == container.getDataLength()) {
+                lastDeletedPointer = null;
+                appending = true;
+                return;
+            }
+            lastDeletedPointer = container.get(nextPosition);
+            removeChunk(lastDeletedPointer.position, lastDeletedPointer.chunkDataLength);
         }
 
         @Override
         public void write(int i) throws IOException {
+            if (lastDeletedPointer == null) {
+                try {
+                    overwriteNextChunk();
+                } catch (CryptoException e) {
+                    throw new IOException(e);
+                }
+            }
             outputStream.write(i);
+            bytesWritten++;
+            if (chunkSplitter.update((byte)i)) {
+                chunkSplitter.reset();
+                flushChunk();
+            }
         }
 
         private void flushChunk() throws IOException {
@@ -52,7 +107,13 @@ public class ChunkContainerOutputStream extends OutputStream {
             if (data.length == 0)
                 return;
             try {
-                container.append(new DataChunk(data));
+                container.insert(new DataChunk(data), writeStartPosition + bytesFlushed);
+                bytesFlushed += data.length;
+                if (bytesFlushed == bytesDeleted) {
+                    lastDeletedPointer = null;
+                } else if (bytesFlushed > bytesDeleted) {
+                    overwriteNextChunk();
+                }
             } catch (CryptoException e) {
                 throw new IOException(e);
             }
@@ -61,21 +122,11 @@ public class ChunkContainerOutputStream extends OutputStream {
 
         @Override
         public void finish() throws IOException {
-            flushChunk();
-        }
-    }
-
-    class WriteOverTransaction implements ITransaction {
-
-
-        @Override
-        public void write(int i) throws IOException {
-
-        }
-
-        @Override
-        public void finish() throws IOException {
-
+            try {
+                finalizeWrite();
+            } catch (CryptoException e) {
+                throw new IOException(e);
+            }
         }
     }
 
@@ -105,31 +156,32 @@ public class ChunkContainerOutputStream extends OutputStream {
         long length = length();
         if (position > length || position < 0)
             throw new IOException("Invalid seek position");
+        try {
+            currentTransaction = new OverwriteTransaction(position, length);
+        } catch (CryptoException e) {
+            throw new IOException(e);
+        }
         this.position = position;
-        if (position == length)
-            currentTransaction = new AppendTransaction(position, length);
-        else
-            currentTransaction = new WriteOverTransaction();
     }
 
     @Override
     public void write(int i) throws IOException {
         currentTransaction.write(i);
-        if (chunkSplitter.update((byte)i))
-            seek(position);
     }
 
     @Override
     public void flush() throws IOException {
         super.flush();
 
-        // seek does all the magic
-        seek(position);
+        if (currentTransaction != null)
+            currentTransaction.finish();
     }
 
     @Override
     public void close() throws IOException {
         flush();
+
+        currentTransaction = null;
 
         super.close();
     }

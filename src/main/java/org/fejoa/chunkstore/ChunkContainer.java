@@ -148,20 +148,31 @@ public class ChunkContainer extends ChunkContainerNode {
         return that.getLevel();
     }
 
-    public static class DataChunkPosition {
-        final public DataChunk chunk;
+    public class DataChunkPointer {
+        final private IChunkPointer pointer;
+        private DataChunk cachedChunk;
         final public long position;
         final public int chunkDataLength;
 
-        private DataChunkPosition(DataChunk chunk, long position, int chunkDataLength) {
-            this.chunk = chunk;
+        private DataChunkPointer(IChunkPointer pointer, long position) throws IOException {
+            this.pointer = pointer;
             this.position = position;
-            this.chunkDataLength = chunkDataLength;
+            this.chunkDataLength = pointer.getDataLength();
+        }
+
+        public DataChunk getDataChunk() throws IOException, CryptoException {
+            if (cachedChunk == null)
+                cachedChunk = (DataChunk) getBlob(pointer);
+            return cachedChunk;
+        }
+
+        public int getDataLength() {
+            return chunkDataLength;
         }
     }
 
-    public Iterator<DataChunkPosition> getChunkIterator(final long startPosition) {
-        return new Iterator<DataChunkPosition>() {
+    public Iterator<DataChunkPointer> getChunkIterator(final long startPosition) {
+        return new Iterator<DataChunkPointer>() {
             private long position = startPosition;
 
             @Override
@@ -177,11 +188,11 @@ public class ChunkContainer extends ChunkContainerNode {
             }
 
             @Override
-            public DataChunkPosition next() {
+            public DataChunkPointer next() {
                 try {
-                    DataChunkPosition dataChunkPosition = get(position);
-                    position += dataChunkPosition.position + dataChunkPosition.chunk.getDataLength();
-                    return dataChunkPosition;
+                    DataChunkPointer dataChunkPointer = get(position);
+                    position += dataChunkPointer.position + dataChunkPointer.getDataLength();
+                    return dataChunkPointer;
                 } catch (Exception e) {
                     e.printStackTrace();
                     return null;
@@ -195,12 +206,11 @@ public class ChunkContainer extends ChunkContainerNode {
         };
     }
 
-    public DataChunkPosition get(long position) throws IOException, CryptoException {
+    public DataChunkPointer get(long position) throws IOException, CryptoException {
         SearchResult searchResult = findLevel0Node(position);
         if (searchResult.pointer == null)
             throw new IOException("Invalid position");
-        DataChunk dataChunk = (DataChunk)getBlob(searchResult.pointer);
-        return new DataChunkPosition(dataChunk, searchResult.pointerDataPosition, searchResult.pointer.getDataLength());
+        return new DataChunkPointer(searchResult.pointer, searchResult.pointerDataPosition);
     }
 
     private SearchResult findLevel0Node(long position) throws IOException, CryptoException {
@@ -365,6 +375,8 @@ class ChunkContainerNode implements IChunk {
         this.that = that;
         if (parent != null)
             setNodeSplitter(parent.nodeSplitter);
+        else
+            setNodeSplitter(new RabinSplitter());
     }
 
     public ChunkContainerNode(IChunkAccessor blobAccessor, ChunkContainerNode parent, int level) {
@@ -373,6 +385,8 @@ class ChunkContainerNode implements IChunk {
         this.that = new ChunkPointer(null, -1, this, level);
         if (parent != null)
             setNodeSplitter(parent.nodeSplitter);
+        else
+            setNodeSplitter(new RabinSplitter());
     }
 
     public void setParent(ChunkContainerNode parent) {

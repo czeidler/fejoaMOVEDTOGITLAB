@@ -46,13 +46,13 @@ public class FileBox extends TypedBlob {
         return fileBox;
     }
 
-    public HashValue hash() throws IOException {
+    public HashValue hash() throws IOException, CryptoException {
         try {
             MessageDigest messageDigest = CryptoHelper.sha256Hash();
             messageDigest.reset();
-            Iterator<ChunkContainer.DataChunkPosition> iterator = chunkContainer.getChunkIterator(0);
+            Iterator<ChunkContainer.DataChunkPointer> iterator = chunkContainer.getChunkIterator(0);
             while (iterator.hasNext())
-                messageDigest.update(iterator.next().chunk.getData());
+                messageDigest.update(iterator.next().getDataChunk().getData());
 
             return new HashValue(messageDigest.digest());
         } catch (NoSuchAlgorithmException e) {

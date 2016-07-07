@@ -109,10 +109,10 @@ public class RepositoryTest  extends TestCase {
         chunkContainer.append(new DataChunk(outputStream.toByteArray()));
         chunkContainer.flush(false);
 
-        return chunkContainer.hash();
+        return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    private TestCommit writeToRepositiory(IRepoChunkAccessors accessors, TestDirectory root, String commitMessage)
+    private TestCommit writeToRepository(IRepoChunkAccessors accessors, TestDirectory root, String commitMessage)
             throws IOException, CryptoException {
         BoxPointer tree = writeDir(accessors, root, "");
         CommitBox commitBox = CommitBox.create();
@@ -127,7 +127,7 @@ public class RepositoryTest  extends TestCase {
         return testCommit;
     }
 
-    private FileBox writeToFileBox(IChunkAccessor accessor, String content) throws IOException {
+    private FileBox writeToFileBox(IChunkAccessor accessor, String content) throws IOException, CryptoException {
         FileBox file = FileBox.create(accessor);
         ChunkContainer chunkContainer = file.getChunkContainer();
         ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
@@ -170,7 +170,7 @@ public class RepositoryTest  extends TestCase {
         assert loaded instanceof CommitBox;
         CommitBox commitBox = (CommitBox)loaded;
         assertEquals(testCommit.message, new String(commitBox.getCommitMessage()));
-        assertEquals(testCommit.directory.boxPointer, commitBox.getTree().getBoxHash());
+        assertEquals(testCommit.directory.boxPointer.getBoxHash(), commitBox.getTree().getBoxHash());
 
         verifyDirInRepository(accessors, testCommit.directory, "");
     }
@@ -185,7 +185,7 @@ public class RepositoryTest  extends TestCase {
         for (Map.Entry<String, TestDirectory> entry : testDir.dirs.entrySet()) {
             DirectoryBox.Entry dirEntry = directoryBox.getEntry(entry.getKey());
             assertNotNull(dirEntry);
-            assertEquals(entry.getValue().boxPointer, dirEntry.getBoxPointer().getBoxHash());
+            assertEquals(entry.getValue().boxPointer.getBoxHash(), dirEntry.getBoxPointer().getBoxHash());
 
             verifyDirInRepository(accessors, entry.getValue(), path + "/" + entry.getKey());
         }
@@ -193,7 +193,7 @@ public class RepositoryTest  extends TestCase {
             TestFile testFile = entry.getValue();
             DirectoryBox.Entry dirEntry = directoryBox.getEntry(entry.getKey());
             assertNotNull(dirEntry);
-            assertEquals(testFile.boxPointer, dirEntry.getBoxPointer().getBoxHash());
+            assertEquals(testFile.boxPointer.getBoxHash(), dirEntry.getBoxPointer().getBoxHash());
 
             verifyFileInRepository(accessors.getFileAccessor(path + "/" + entry.getKey()), testFile);
         }
@@ -204,7 +204,7 @@ public class RepositoryTest  extends TestCase {
         assert loaded instanceof FileBox;
         FileBox fileBox = (FileBox)loaded;
         ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getChunkContainer());
-        assertTrue(Arrays.equals(StreamHelper.readAll(inputStream), testFile.content.getBytes()));
+        assertEquals(testFile.content, new String(StreamHelper.readAll(inputStream)));
     }
 
     public void testBasics() throws IOException, CryptoException {
@@ -235,14 +235,14 @@ public class RepositoryTest  extends TestCase {
         root.dirs.put("sub2", sub2);
 
         ChunkStoreBranchLog branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
-        TestCommit testCommit = writeToRepositiory(accessors, root, "Commit Message");
+        TestCommit testCommit = writeToRepository(accessors, root, "Commit Message");
         branchLog.add(testCommit.boxPointer.getBoxHash(), Collections.<HashValue>emptyList());
         accessors.finishTransaction();
 
         branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
         ChunkStoreBranchLog.Entry tip = branchLog.getLatest();
         assertNotNull(tip);
-        assertEquals(testCommit.boxPointer, tip.getTip());
+        assertEquals(testCommit.boxPointer.getBoxHash(), tip.getTip());
 
         verifyCommitInRepository(accessors, testCommit);
     }

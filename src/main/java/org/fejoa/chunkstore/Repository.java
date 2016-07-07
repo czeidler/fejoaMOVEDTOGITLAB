@@ -42,7 +42,7 @@ class TreeAccessor {
         chunkContainer.append(new DataChunk(outputStream.toByteArray()));
         chunkContainer.flush(false);
 
-        return chunkContainer.hash();
+        return chunkContainer.getBoxPointer().getBoxHash();
     }
 
     public byte[] read(String path) throws IOException, CryptoException {

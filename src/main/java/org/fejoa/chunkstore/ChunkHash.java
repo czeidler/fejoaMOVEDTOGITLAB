@@ -15,12 +15,24 @@ public class ChunkHash {
     private class Layer {
         final ChunkSplitter splitter;
         Layer upperLayer;
+        Layer cachedUpperLayer;
         MessageDigest hash;
         // hash of the first chunk, only if there are more then one chunk an upper layer is started
         byte[] firstChunkHash;
 
         public Layer(ChunkSplitter splitter) {
             this.splitter = splitter;
+        }
+
+        void reset() {
+            this.splitter.reset();
+            if (this.upperLayer != null) {
+                this.upperLayer.reset();
+                this.cachedUpperLayer = this.upperLayer;
+            }
+            this.upperLayer = null;
+            this.hash = null;
+            this.firstChunkHash = null;
         }
 
         void update(byte... data) {
@@ -67,8 +79,12 @@ public class ChunkHash {
         }
 
         Layer ensureUpperLayer() {
-            if (upperLayer == null)
-                upperLayer = new Layer(newNodeSplitter());
+            if (upperLayer == null) {
+                if (cachedUpperLayer != null)
+                    upperLayer = cachedUpperLayer;
+                else
+                    upperLayer = new Layer(newNodeSplitter());
+            }
             return upperLayer;
         }
     }
@@ -80,6 +96,9 @@ public class ChunkHash {
     public ChunkHash(ChunkSplitter dataSplitter, ChunkSplitter nodeSplitter) throws NoSuchAlgorithmException {
         this.dataSplitter = dataSplitter;
         this.nodeSplitter = nodeSplitter;
+        dataSplitter.reset();
+        nodeSplitter.reset();
+
         reset();
         // test for message digest
         getMessageDigestRaw();
@@ -111,7 +130,10 @@ public class ChunkHash {
     }
 
     public void reset() {
-        this.currentLayer = new Layer(dataSplitter);
+        if (currentLayer != null)
+            this.currentLayer.reset();
+        else
+            currentLayer = new Layer(nodeSplitter);
     }
 
     protected ChunkSplitter newNodeSplitter() {

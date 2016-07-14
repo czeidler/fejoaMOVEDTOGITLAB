@@ -105,7 +105,7 @@ class ChunkPointer implements IChunkPointer {
     }
 
     public void write(DataOutputStream outputStream) throws IOException {
-        int value = dataLength << 1;
+        int value = getDataLength() << 1;
         if (packed)
             value |= 0X01;
         outputStream.writeInt(value);
@@ -191,7 +191,7 @@ public class ChunkContainer extends ChunkContainerNode {
             public DataChunkPointer next() {
                 try {
                     DataChunkPointer dataChunkPointer = get(position);
-                    position += dataChunkPointer.position + dataChunkPointer.getDataLength();
+                    position = dataChunkPointer.position + dataChunkPointer.getDataLength();
                     return dataChunkPointer;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -403,6 +403,7 @@ class ChunkContainerNode implements IChunk {
 
     public void setNodeSplitter(ChunkSplitter nodeSplitter) {
         this.nodeSplitter = nodeSplitter;
+        nodeSplitter.reset();
     }
 
     protected int getHeaderLength() {

@@ -358,7 +358,6 @@ public class ChunkContainer extends ChunkContainerNode {
 class ChunkContainerNode implements IChunk {
     static final protected int DATA_LEVEL = 0;
     static final protected int LEAF_LEVEL = DATA_LEVEL + 1;
-    static final public int DEFAULT_MAX_NODE_LENGTH = 1024;
 
     final protected IChunkPointer that;
     protected boolean onDisk = false;
@@ -375,8 +374,6 @@ class ChunkContainerNode implements IChunk {
         this.that = that;
         if (parent != null)
             setNodeSplitter(parent.nodeSplitter);
-        else
-            setNodeSplitter(new RabinSplitter());
     }
 
     public ChunkContainerNode(IChunkAccessor blobAccessor, ChunkContainerNode parent, int level) {
@@ -385,8 +382,6 @@ class ChunkContainerNode implements IChunk {
         this.that = new ChunkPointer(null, -1, this, level);
         if (parent != null)
             setNodeSplitter(parent.nodeSplitter);
-        else
-            setNodeSplitter(new RabinSplitter());
     }
 
     public void setParent(ChunkContainerNode parent) {
@@ -441,7 +436,7 @@ class ChunkContainerNode implements IChunk {
     }
 
     public int getBlobLength() {
-        int length = 4; // number of slots;
+        int length = 4; // number of slots (int);
         length += slots.size() * that.getPointerLength();
 
         return length;
@@ -518,6 +513,7 @@ class ChunkContainerNode implements IChunk {
             IChunkPointer pointerInParent = parent.that;
             parent = parent.getParent();
             indexInParent = parent.indexOf(pointerInParent);
+            assert indexInParent >= 0;
             if (indexInParent != parent.size() - 1)
                 break;
         }
@@ -525,7 +521,9 @@ class ChunkContainerNode implements IChunk {
         // is last pointer?
         if (indexInParent == parent.size() - 1)
             return null;
-        ChunkContainerNode neighbour = (ChunkContainerNode) getBlob(parent.get(indexInParent + 1));
+
+        IChunk blob = parent.getBlob(parent.get(indexInParent + 1));
+        ChunkContainerNode neighbour = (ChunkContainerNode) blob;
         for (int i = 0; i < levelDiff - 1; i++)
             neighbour = (ChunkContainerNode) neighbour.getBlob(neighbour.get(0));
 
@@ -561,11 +559,12 @@ class ChunkContainerNode implements IChunk {
      */
     private void balance() throws IOException, CryptoException {
         nodeSplitter.reset();
-        for (int i = 0; i < size(); i++) {
+        int size = size();
+        for (int i = 0; i < size; i++) {
             IChunkPointer child = get(i);
             nodeSplitter.write(child.getBoxPointer().getDataHash().getBytes());
             if (nodeSplitter.isTriggered()) {
-                if (i == size() - 1) // all good
+                if (i == size - 1) // all good
                     return;
                 // split left over into a right node
                 splitAt(i + 1);
@@ -598,7 +597,7 @@ class ChunkContainerNode implements IChunk {
             }
         }
 
-        // Since we merged all right neighbours in we have to check if the root is redundant
+        // Since we merged all right neighbours in; we have to check if the root is redundant
         if (getParent() != null && getParent().size() == 1) {
             int level = that.getLevel();
             ChunkContainerNode root = getRoot();

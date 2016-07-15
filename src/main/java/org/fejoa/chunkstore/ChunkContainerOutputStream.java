@@ -38,6 +38,7 @@ public class ChunkContainerOutputStream extends OutputStream {
         }
 
         public void goToStart(final long seekPosition, final long containerSize) throws IOException, CryptoException {
+            chunkSplitter.reset();
             if (containerSize == 0)
                 return;
 
@@ -65,6 +66,8 @@ public class ChunkContainerOutputStream extends OutputStream {
             while (lastDeletedPointer != null) {
                 byte[] data = lastDeletedPointer.getDataChunk().getData();
                 long bytesToWrite = bytesDeleted - bytesWritten;
+                if (bytesToWrite <= 0)
+                    break;
                 long start = data.length - bytesToWrite;
                 for (int i = (int)start; i < data.length; i++)
                     write(data[i]);
@@ -111,7 +114,7 @@ public class ChunkContainerOutputStream extends OutputStream {
                 bytesFlushed += data.length;
                 if (bytesFlushed == bytesDeleted) {
                     lastDeletedPointer = null;
-                } else if (bytesFlushed > bytesDeleted) {
+                } else while (!appending && bytesFlushed > bytesDeleted) {
                     overwriteNextChunk();
                 }
             } catch (CryptoException e) {
@@ -155,7 +158,7 @@ public class ChunkContainerOutputStream extends OutputStream {
 
         long length = length();
         if (position > length || position < 0)
-            throw new IOException("Invalid seek position");
+            throw new IOException("Invalid seek position: " + position + " (Length: " + length + ")");
         try {
             currentTransaction = new OverwriteTransaction(position, length);
         } catch (CryptoException e) {

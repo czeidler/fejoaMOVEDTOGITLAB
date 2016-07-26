@@ -48,10 +48,11 @@ public class ChunkContainerOutputStream extends OutputStream {
                 start--;
 
             lastDeletedPointer = container.get(start);
+            DataChunk chunk = lastDeletedPointer.getDataChunk();
+
             removeChunk(lastDeletedPointer.position, lastDeletedPointer.chunkDataLength);
             writeStartPosition = lastDeletedPointer.position;
 
-            DataChunk chunk = lastDeletedPointer.getDataChunk();
             for (int i = 0; i < seekPosition - writeStartPosition; i++)
                 write(chunk.data[i]);
         }

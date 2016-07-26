@@ -17,6 +17,7 @@ import javax.crypto.SecretKey;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -96,7 +97,7 @@ public class ChunkContainerTest extends TestCase {
     }
 
     private IChunkAccessor getAccessor(ChunkStore chunkStore) throws IOException, CryptoException {
-        return getEncAccessor(chunkStore);
+        return getSimpleAccessor(chunkStore);
     }
 
     private ChunkContainer prepareContainer(String dirName, String name, ChunkSplitter nodeSplitter)
@@ -115,11 +116,13 @@ public class ChunkContainerTest extends TestCase {
         return chunkContainer;
     }
 
-    private ChunkContainer openContainer(String dirName, String name, BoxPointer pointer) throws IOException,
-            CryptoException {
+    private ChunkContainer openContainer(String dirName, String name, BoxPointer pointer, ChunkSplitter nodeSplitter)
+            throws IOException, CryptoException {
         final ChunkStore chunkStore = ChunkStore.open(new File(dirName), name);
         IChunkAccessor accessor = getAccessor(chunkStore);
-        return new ChunkContainer(accessor, pointer);
+        ChunkContainer chunkContainer = new ChunkContainer(accessor, pointer);
+        chunkContainer.setNodeSplitter(nodeSplitter);
+        return chunkContainer;
     }
 
     private String toString(InputStream inputStream) throws IOException {
@@ -166,7 +169,7 @@ public class ChunkContainerTest extends TestCase {
         System.out.println("Load:");
         BoxPointer rootPointer = chunkContainer.getBoxPointer();
 
-        chunkContainer = openContainer(dirName, name, rootPointer);
+        chunkContainer = openContainer(dirName, name, rootPointer, chunkSplitter);
         System.out.println(chunkContainer.printAll());
 
         ChunkContainerInputStream inputStream = new ChunkContainerInputStream(chunkContainer);
@@ -220,7 +223,6 @@ public class ChunkContainerTest extends TestCase {
         ChunkContainer chunkContainer = prepareContainer(dirName, name, nodeSplitter);
 
         chunkContainer.append(new DataChunk("11".getBytes()));
-        //System.out.println(chunkContainer.printAll());
         chunkContainer.append(new DataChunk("22".getBytes()));
         chunkContainer.append(new DataChunk("33".getBytes()));
         chunkContainer.insert(new DataChunk("44".getBytes()), 2);
@@ -263,7 +265,7 @@ public class ChunkContainerTest extends TestCase {
         final String name = "test";
         final String dataString = "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|";
         final ChunkSplitter dataSplitter = createByteTriggerSplitter((byte)'|');
-        final ChunkSplitter nodeSplitter = new RabinSplitter(RabinSplitter.MASK_128B);
+        final ChunkSplitter nodeSplitter = new RabinSplitter(128, 48);
         ChunkContainer chunkContainer = prepareContainer(dirName, name, nodeSplitter);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         for (byte c : dataString.getBytes()) {
@@ -293,7 +295,7 @@ public class ChunkContainerTest extends TestCase {
         final String dirName = "testSeekOutputStreamDir";
         final String name = "test";
         final ChunkSplitter dataSplitter = createByteTriggerSplitter((byte)'|');
-        final ChunkSplitter nodeSplitter = new RabinSplitter(RabinSplitter.MASK_128B);
+        final ChunkSplitter nodeSplitter = new RabinSplitter(128, 48);
         ChunkContainer chunkContainer = prepareContainer(dirName, name, nodeSplitter);
         ChunkContainerOutputStream outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
         outputStream.write("1|2|3|4|".getBytes());
@@ -405,5 +407,40 @@ public class ChunkContainerTest extends TestCase {
         outputStream.write("i".getBytes());
         outputStream.close();
         assertEquals("1|2i2|3|", toString(new ChunkContainerInputStream(chunkContainer)));
+    }
+
+    public void testSeekOutputStreamEditingLarge() throws Exception {
+        int nBytes = 1024 * 1000 * 50;
+        byte[] data = new byte[nBytes];
+        for (int value = 0; value < data.length; value++) {
+            byte random = (byte) (256 * Math.random());
+            data[value] = random;
+            //data[value] = (byte)value;
+        }
+
+        final String dirName = "testSeekOutputStreamEditingLarge";
+        final String name = "test";
+        final ChunkSplitter dataSplitter = new RabinSplitter(RabinSplitter.CHUNK_8KB, 128);
+        final ChunkSplitter nodeSplitter = new RabinSplitter(RabinSplitter.CHUNK_8KB, 128);
+        ChunkHash chunkHash = new ChunkHash(dataSplitter, nodeSplitter);
+        chunkHash.update(data);
+        final HashValue dataHash = new HashValue(chunkHash.digest());
+
+        ChunkContainer chunkContainer = prepareContainer(dirName, name, nodeSplitter);
+        ChunkContainerOutputStream outputStream = new ChunkContainerOutputStream(chunkContainer, dataSplitter);
+        outputStream.write(data);
+        outputStream.close();
+        chunkContainer.flush(false);
+
+        // verify
+        chunkContainer = openContainer(dirName, name, chunkContainer.getBoxPointer(), nodeSplitter);
+        Iterator<ChunkContainer.DataChunkPointer> iter = chunkContainer.getChunkIterator(0);
+        chunkHash = new ChunkHash(dataSplitter, nodeSplitter);
+        while (iter.hasNext()) {
+            ChunkContainer.DataChunkPointer pointer = iter.next();
+            chunkHash.update(pointer.getDataChunk().getData());
+        }
+
+        assertTrue(Arrays.equals(dataHash.getBytes(), chunkHash.digest()));
     }
 }

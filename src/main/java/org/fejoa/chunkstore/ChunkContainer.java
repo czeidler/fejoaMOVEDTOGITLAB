@@ -162,7 +162,7 @@ public class ChunkContainer extends ChunkContainerNode {
 
         public DataChunk getDataChunk() throws IOException, CryptoException {
             if (cachedChunk == null)
-                cachedChunk = (DataChunk) getBlob(pointer);
+                cachedChunk = ChunkContainer.this.getDataChunk(pointer);
             return cachedChunk;
         }
 
@@ -216,32 +216,32 @@ public class ChunkContainer extends ChunkContainerNode {
     private SearchResult findLevel0Node(long position) throws IOException, CryptoException {
         long currentPosition = 0;
         IChunkPointer pointer = null;
-        IChunkPointer containerPointer = that;
+        ChunkContainerNode containerNode = this;
         for (int i = 0; i < that.getLevel(); i++) {
-            SearchResult result = findInNode(containerPointer, position - currentPosition);
+            SearchResult result = findInNode(containerNode, position - currentPosition);
             if (result == null) {
                 // find right most node blob
-                return new SearchResult(getDataLength(), null, findRightMostNodeBlob());
+                return new SearchResult(getDataLength(), null, findRightMostNode());
             }
             currentPosition += result.pointerDataPosition;
             pointer = result.pointer;
             if (i == that.getLevel() - 1)
                 break;
             else
-                containerPointer = result.pointer;
+                containerNode = containerNode.getNode(result.pointer);
+
         }
 
-        return new SearchResult(currentPosition, pointer, containerPointer);
+        return new SearchResult(currentPosition, pointer, containerNode);
     }
 
-    private IChunkPointer findRightMostNodeBlob() throws IOException, CryptoException {
-        IChunkPointer pointer = that;
+    private ChunkContainerNode findRightMostNode() throws IOException, CryptoException {
         ChunkContainerNode current = this;
         for (int i = 0; i < that.getLevel() - 1; i++) {
-            pointer = current.get(current.size() - 1);
-            current = (ChunkContainerNode)getBlob(pointer);
+            IChunkPointer pointer = current.get(current.size() - 1);
+            current = current.getNode(pointer);
         }
-        return pointer;
+        return current;
     }
 
     private IChunkPointer putDataChunk(DataChunk blob) throws IOException, CryptoException {
@@ -253,21 +253,20 @@ public class ChunkContainer extends ChunkContainerNode {
     }
 
     static class InsertSearchResult {
-        final IChunkPointer containerPointer;
+        final ChunkContainerNode containerNode;
         final int index;
 
-        InsertSearchResult(IChunkPointer containerPointer, int index) {
-            this.containerPointer = containerPointer;
+        InsertSearchResult(ChunkContainerNode containerNode, int index) {
+            this.containerNode = containerNode;
             this.index = index;
         }
     }
 
     private InsertSearchResult findInsertPosition(final long position) throws IOException, CryptoException {
         long currentPosition = 0;
-        IChunkPointer containerPointer = that;
+        ChunkContainerNode node = this;
         int index = 0;
         for (int i = 0; i < that.getLevel(); i++) {
-            ChunkContainerNode node = (ChunkContainerNode)getBlob(containerPointer);
             long nodePosition = 0;
             long inNodeInsertPosition = position - currentPosition;
             index = 0;
@@ -286,15 +285,15 @@ public class ChunkContainer extends ChunkContainerNode {
             }
 
             if (i < that.getLevel() - 1 && pointer != null)
-                containerPointer = pointer;
+                node = node.getNode(pointer);
         }
 
-        return new InsertSearchResult(containerPointer, index);
+        return new InsertSearchResult(node, index);
     }
 
     public void insert(final DataChunk blob, final long position) throws IOException, CryptoException {
         InsertSearchResult searchResult = findInsertPosition(position);
-        ChunkContainerNode containerNode = (ChunkContainerNode) getBlob(searchResult.containerPointer);
+        ChunkContainerNode containerNode = searchResult.containerNode;
         IChunkPointer blobChunkPointer = putDataChunk(blob);
         containerNode.addBlobPointer(searchResult.index, blobChunkPointer);
     }
@@ -314,7 +313,7 @@ public class ChunkContainer extends ChunkContainerNode {
         if (searchResult.pointer.getDataLength() != length)
             throw new IOException("Data length mismatch");
 
-        ChunkContainerNode containerNode = (ChunkContainerNode) getBlob(searchResult.nodePointer);
+        ChunkContainerNode containerNode = searchResult.node;
         int indexInParent = containerNode.indexOf(searchResult.pointer);
         containerNode.removeBlobPointer(indexInParent, true);
     }
@@ -410,22 +409,33 @@ class ChunkContainerNode implements IChunk {
         return calculateDataLength();
     }
 
-    public IChunk getBlob(IChunkPointer pointer) throws IOException, CryptoException {
+    protected DataChunk getDataChunk(IChunkPointer pointer) throws IOException, CryptoException {
+        assert(isDataPointer(pointer));
         IChunk cachedChunk = pointer.getCachedChunk();
         if (cachedChunk != null)
-            return cachedChunk;
-
+            return (DataChunk)cachedChunk;
         DataInputStream inputStream = blobAccessor.getChunk(pointer.getBoxPointer());
-        if (isDataPointer(pointer))
-            cachedChunk = new DataChunk();
-        else {
-            ChunkContainerNode node = new ChunkContainerNode(blobAccessor, this, pointer);
-            node.setNodeSplitter(nodeSplitter);
-            cachedChunk = node;
-        }
-        cachedChunk.read(inputStream);
-        pointer.setCachedChunk(cachedChunk);
-        return cachedChunk;
+        DataChunk dataChunk = new DataChunk();
+        dataChunk.read(inputStream);
+        pointer.setCachedChunk(dataChunk);
+        return dataChunk;
+    }
+
+    protected ChunkContainerNode getNode(IChunkPointer pointer) throws IOException, CryptoException {
+        assert !isDataPointer(pointer);
+        IChunk cachedChunk = pointer.getCachedChunk();
+        if (cachedChunk != null)
+            return (ChunkContainerNode)cachedChunk;
+
+        assert slots.contains(pointer);
+        DataInputStream inputStream = blobAccessor.getChunk(pointer.getBoxPointer());
+
+        ChunkContainerNode node = new ChunkContainerNode(blobAccessor, this, pointer);
+        node.setNodeSplitter(nodeSplitter);
+
+        node.read(inputStream);
+        pointer.setCachedChunk(node);
+        return node;
     }
 
     protected int calculateDataLength() throws IOException {
@@ -445,12 +455,12 @@ class ChunkContainerNode implements IChunk {
     static class SearchResult {
         final long pointerDataPosition;
         final IChunkPointer pointer;
-        final IChunkPointer nodePointer;
+        final ChunkContainerNode node;
 
-        SearchResult(long pointerDataPosition, IChunkPointer pointer, IChunkPointer nodePointer) {
+        SearchResult(long pointerDataPosition, IChunkPointer pointer, ChunkContainerNode node) {
             this.pointerDataPosition = pointerDataPosition;
             this.pointer = pointer;
-            this.nodePointer = nodePointer;
+            this.node = node;
         }
     }
 
@@ -459,9 +469,8 @@ class ChunkContainerNode implements IChunk {
      * @param dataPosition relative to this node
      * @return
      */
-    protected SearchResult findInNode(IChunkPointer nodePointer, final long dataPosition)
+    protected SearchResult findInNode(ChunkContainerNode node, final long dataPosition)
             throws IOException, CryptoException {
-        ChunkContainerNode node = (ChunkContainerNode)getBlob(nodePointer);
         if (dataPosition > node.getDataLength())
             return null;
 
@@ -470,10 +479,10 @@ class ChunkContainerNode implements IChunk {
             IChunkPointer pointer = node.slots.get(i);
             long dataLength = pointer.getDataLength();
             if (position + dataLength > dataPosition)
-                return new SearchResult(position, pointer, nodePointer);
+                return new SearchResult(position, pointer, node);
             position += dataLength;
         }
-        return new SearchResult(position, null, nodePointer);
+        return new SearchResult(position, null, node);
     }
 
     @Override
@@ -522,10 +531,9 @@ class ChunkContainerNode implements IChunk {
         if (indexInParent == parent.size() - 1)
             return null;
 
-        IChunk blob = parent.getBlob(parent.get(indexInParent + 1));
-        ChunkContainerNode neighbour = (ChunkContainerNode) blob;
+        ChunkContainerNode neighbour =  parent.getNode(parent.get(indexInParent + 1));
         for (int i = 0; i < levelDiff - 1; i++)
-            neighbour = (ChunkContainerNode) neighbour.getBlob(neighbour.get(0));
+            neighbour = neighbour.getNode(neighbour.get(0));
 
         assert neighbour.that.getLevel() == that.getLevel();
         return neighbour;
@@ -689,7 +697,7 @@ class ChunkContainerNode implements IChunk {
         if (that.getLevel() == LEAF_LEVEL)
             return string;
         for (IChunkPointer pointer : slots)
-            string += ((ChunkContainerNode)getBlob(pointer)).printAll();
+            string += getNode(pointer).printAll();
         return string;
     }
 

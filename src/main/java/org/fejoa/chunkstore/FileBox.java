@@ -31,10 +31,10 @@ public class FileBox extends TypedBlob {
         super(BlobReader.FILE);
     }
 
-    static public FileBox create(IChunkAccessor accessor) {
+    static public FileBox create(IChunkAccessor accessor, ChunkSplitter nodeSplitter) {
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;
-        fileBox.chunkContainer = new ChunkContainer(accessor);
+        fileBox.chunkContainer = new ChunkContainer(accessor, nodeSplitter);
         return fileBox;
     }
 

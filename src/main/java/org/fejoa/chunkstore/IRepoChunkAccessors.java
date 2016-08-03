@@ -11,20 +11,22 @@ import java.io.IOException;
 
 
 public interface IRepoChunkAccessors {
-    /**
-     * Accessor to access commit chunks.
-     */
-    IChunkAccessor getCommitAccessor();
-    /**
-     * Accessor to access the directory structure chunks.
-     */
-    IChunkAccessor getTreeAccessor();
-    /**
-     * Accessor to access the files structure chunks.
-     */
-    IChunkAccessor getFileAccessor(String filePath);
+    interface ITransaction {
+        /**
+         * Accessor to access commit chunks.
+         */
+        IChunkAccessor getCommitAccessor();
+        /**
+         * Accessor to access the directory structure chunks.
+         */
+        IChunkAccessor getTreeAccessor();
+        /**
+         * Accessor to access the files structure chunks.
+         */
+        IChunkAccessor getFileAccessor(String filePath);
 
-    void startTransaction() throws IOException;
+        void finishTransaction() throws IOException;
+    }
 
-    void finishTransaction() throws IOException;
+    ITransaction startTransaction() throws IOException;
 }

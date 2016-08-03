@@ -1,6 +1,5 @@
 package org.fejoa.tests.chunkstore;
 
-
 import junit.framework.TestCase;
 import org.fejoa.chunkstore.*;
 import org.fejoa.library.crypto.CryptoException;
@@ -10,9 +9,11 @@ import org.fejoa.library.support.StreamHelper;
 import java.io.*;
 import java.util.*;
 
+
 public class RepositoryTest  extends TestCase {
     final List<String> cleanUpFiles = new ArrayList<String>();
     final ChunkSplitter splitter = new RabinSplitter();
+    final ChunkSplitter nodeSplitter = new RabinSplitter();
 
     @Override
     public void tearDown() throws Exception {
@@ -22,16 +23,16 @@ public class RepositoryTest  extends TestCase {
             StorageLib.recursiveDeleteFile(new File(dir));
     }
 
-    private IChunkAccessor getAccessor(final ChunkStore chunkStore) {
+    private IChunkAccessor getAccessor(final ChunkStore.Transaction chunkStoreTransaction) {
         return new IChunkAccessor() {
             @Override
             public DataInputStream getChunk(BoxPointer hash) throws IOException {
-                return new DataInputStream(new ByteArrayInputStream(chunkStore.getChunk(hash.getBoxHash())));
+                return new DataInputStream(new ByteArrayInputStream(chunkStoreTransaction.getChunk(hash.getBoxHash())));
             }
 
             @Override
             public PutResult<HashValue> putChunk(byte[] data) throws IOException {
-                return chunkStore.openTransaction().put(data);
+                return chunkStoreTransaction.put(data);
             }
 
             @Override
@@ -43,33 +44,25 @@ public class RepositoryTest  extends TestCase {
 
     private IRepoChunkAccessors getRepoChunkAccessors(final ChunkStore chunkStore) {
         return new IRepoChunkAccessors() {
-            ChunkStore.Transaction transaction;
-            IChunkAccessor accessor = getAccessor(chunkStore);
-
             @Override
-            public IChunkAccessor getCommitAccessor() {
-                return accessor;
-            }
+            public ITransaction startTransaction() throws IOException {
+                return new RepoAccessorsTransactionBase(chunkStore) {
+                    final IChunkAccessor accessor = getAccessor(transaction);
+                    @Override
+                    public IChunkAccessor getCommitAccessor() {
+                        return accessor;
+                    }
 
-            @Override
-            public IChunkAccessor getTreeAccessor() {
-                return accessor;
-            }
+                    @Override
+                    public IChunkAccessor getTreeAccessor() {
+                        return accessor;
+                    }
 
-            @Override
-            public IChunkAccessor getFileAccessor(String filePath) {
-                return accessor;
-            }
-
-            @Override
-            public void startTransaction() throws IOException {
-                transaction = chunkStore.openTransaction();
-            }
-
-            @Override
-            public void finishTransaction() throws IOException {
-                transaction.commit();
-                transaction = null;
+                    @Override
+                    public IChunkAccessor getFileAccessor(String filePath) {
+                        return accessor;
+                    }
+                };
             }
         };
     }
@@ -103,7 +96,7 @@ public class RepositoryTest  extends TestCase {
     }
 
     private HashValue write(IChunkAccessor accessor, TypedBlob blob) throws IOException, CryptoException {
-        ChunkContainer chunkContainer = new ChunkContainer(accessor);
+        ChunkContainer chunkContainer = new ChunkContainer(accessor, nodeSplitter);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         blob.write(new DataOutputStream(outputStream));
         chunkContainer.append(new DataChunk(outputStream.toByteArray()));
@@ -112,7 +105,8 @@ public class RepositoryTest  extends TestCase {
         return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    private TestCommit writeToRepository(IRepoChunkAccessors accessors, TestDirectory root, String commitMessage)
+    private TestCommit writeToRepository(IRepoChunkAccessors.ITransaction accessors, TestDirectory root,
+                                         String commitMessage)
             throws IOException, CryptoException {
         BoxPointer tree = writeDir(accessors, root, "");
         CommitBox commitBox = CommitBox.create();
@@ -128,7 +122,7 @@ public class RepositoryTest  extends TestCase {
     }
 
     private FileBox writeToFileBox(IChunkAccessor accessor, String content) throws IOException, CryptoException {
-        FileBox file = FileBox.create(accessor);
+        FileBox file = FileBox.create(accessor, Repository.defaultNodeSplitter(RabinSplitter.CHUNK_8KB));
         ChunkContainer chunkContainer = file.getChunkContainer();
         ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
         containerOutputStream.write(content.getBytes());
@@ -136,7 +130,8 @@ public class RepositoryTest  extends TestCase {
         return file;
     }
 
-    private BoxPointer writeDir(IRepoChunkAccessors accessors, TestDirectory dir, String path) throws IOException,
+    private BoxPointer writeDir(IRepoChunkAccessors.ITransaction accessors, TestDirectory dir, String path)
+            throws IOException,
             CryptoException {
         DirectoryBox directoryBox = DirectoryBox.create();
         // first write child dirs recursively
@@ -164,7 +159,8 @@ public class RepositoryTest  extends TestCase {
         return blobReader.read(accessor);
     }
 
-    private void verifyCommitInRepository(IRepoChunkAccessors accessors, TestCommit testCommit) throws IOException,
+    private void verifyCommitInRepository(IRepoChunkAccessors.ITransaction accessors, TestCommit testCommit)
+            throws IOException,
             CryptoException {
         TypedBlob loaded = getBlob(accessors.getCommitAccessor(), testCommit.boxPointer);
         assert loaded instanceof CommitBox;
@@ -175,7 +171,7 @@ public class RepositoryTest  extends TestCase {
         verifyDirInRepository(accessors, testCommit.directory, "");
     }
 
-    private void verifyDirInRepository(IRepoChunkAccessors accessors, TestDirectory testDir, String path)
+    private void verifyDirInRepository(IRepoChunkAccessors.ITransaction accessors, TestDirectory testDir, String path)
             throws IOException, CryptoException {
         TypedBlob loaded = getBlob(accessors.getTreeAccessor(), testDir.boxPointer);
         assert loaded instanceof DirectoryBox;
@@ -210,11 +206,12 @@ public class RepositoryTest  extends TestCase {
     public void testBasics() throws IOException, CryptoException {
         String name = "repoTest";
         File directory = new File("RepoTest");
+        cleanUpFiles.add(name);
         directory.mkdirs();
 
         ChunkStore chunkStore = createChunkStore(directory, name);
         IRepoChunkAccessors accessors = getRepoChunkAccessors(chunkStore);
-        accessors.startTransaction();
+        IRepoChunkAccessors.ITransaction transaction = accessors.startTransaction();
 
         TestFile testFile1 = new TestFile("file1Content");
         TestFile testFile2 = new TestFile("file2Content");
@@ -235,16 +232,17 @@ public class RepositoryTest  extends TestCase {
         root.dirs.put("sub2", sub2);
 
         ChunkStoreBranchLog branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
-        TestCommit testCommit = writeToRepository(accessors, root, "Commit Message");
+        TestCommit testCommit = writeToRepository(transaction, root, "Commit Message");
         branchLog.add(testCommit.boxPointer.getBoxHash(), Collections.<HashValue>emptyList());
-        accessors.finishTransaction();
+        transaction.finishTransaction();
 
         branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
         ChunkStoreBranchLog.Entry tip = branchLog.getLatest();
         assertNotNull(tip);
         assertEquals(testCommit.boxPointer.getBoxHash(), tip.getTip());
 
-        verifyCommitInRepository(accessors, testCommit);
+        transaction = accessors.startTransaction();
+        verifyCommitInRepository(transaction, testCommit);
     }
 
     class DatabaseStingEntry {
@@ -275,6 +273,7 @@ public class RepositoryTest  extends TestCase {
         String branch = "repoBranch";
         String name = "repoTreeBuilder";
         File directory = new File("RepoTest");
+        cleanUpFiles.add(directory.getName());
         directory.mkdirs();
 
         ChunkStore chunkStore = createChunkStore(directory, name);

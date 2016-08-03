@@ -20,6 +20,10 @@ public class ChunkStore {
      * TODO: make the transaction actually do something, i.e. make a transaction atomic
      */
     public class Transaction {
+        public byte[] getChunk(HashValue hash) throws IOException {
+            return ChunkStore.this.getChunk(hash);
+        }
+
         public PutResult<HashValue> put(byte[] data) throws IOException {
             return ChunkStore.this.put(data);
         }

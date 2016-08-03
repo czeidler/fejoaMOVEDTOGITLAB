@@ -15,34 +15,39 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class LogRepoChunkAccessors implements IRepoChunkAccessors {
-    final private IRepoChunkAccessors childAccessors;
+public class LogRepoTransaction implements IRepoChunkAccessors.ITransaction {
+    final private IRepoChunkAccessors.ITransaction childTransaction;
     final private List<HashValue> objectsWritten = new ArrayList<>();
 
-    public LogRepoChunkAccessors(IRepoChunkAccessors accessors) {
-        this.childAccessors = accessors;
+    public LogRepoTransaction(IRepoChunkAccessors.ITransaction childTransaction) {
+        this.childTransaction = childTransaction;
     }
 
     @Override
     public IChunkAccessor getCommitAccessor() {
-        return createWrapper(childAccessors.getCommitAccessor());
+        return createWrapper(childTransaction.getCommitAccessor());
     }
 
     @Override
     public IChunkAccessor getTreeAccessor() {
-        return createWrapper(childAccessors.getTreeAccessor());
+        return createWrapper(childTransaction.getTreeAccessor());
     }
 
     @Override
     public IChunkAccessor getFileAccessor(String filePath) {
-        return createWrapper(childAccessors.getFileAccessor(filePath));
+        return createWrapper(childTransaction.getFileAccessor(filePath));
+    }
+
+    @Override
+    public void finishTransaction() throws IOException {
+        childTransaction.finishTransaction();
     }
 
     private IChunkAccessor createWrapper(final IChunkAccessor chunkAccessor) {
         return new IChunkAccessor() {
             @Override
             public DataInputStream getChunk(BoxPointer hash) throws IOException, CryptoException {
-                return null;
+                return chunkAccessor.getChunk(hash);
             }
 
             @Override
@@ -64,17 +69,6 @@ public class LogRepoChunkAccessors implements IRepoChunkAccessors {
                 }
             }
         };
-    }
-
-    @Override
-    public void startTransaction() throws IOException {
-        objectsWritten.clear();
-        childAccessors.startTransaction();
-    }
-
-    @Override
-    public void finishTransaction() throws IOException {
-        childAccessors.finishTransaction();
     }
 
     public List<HashValue> getObjectsWritten() {

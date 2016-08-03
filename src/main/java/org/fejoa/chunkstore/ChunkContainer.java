@@ -38,7 +38,6 @@ class ChunkPointer implements IChunkPointer {
     private int dataLength;
     private BoxPointer boxPointer;
 
-    private boolean packed;
     private IChunk cachedChunk = null;
     protected int level;
 
@@ -100,21 +99,18 @@ class ChunkPointer implements IChunkPointer {
     public void read(DataInputStream inputStream) throws IOException {
         int value = inputStream.readInt();
         dataLength = value >> 1;
-        packed = (value & 0x01) != 0;
         boxPointer.read(inputStream);
     }
 
     public void write(DataOutputStream outputStream) throws IOException {
         int value = getDataLength() << 1;
-        if (packed)
-            value |= 0X01;
         outputStream.writeInt(value);
         boxPointer.write(outputStream);
     }
 
     @Override
     public String toString() {
-        String string = "l:" + dataLength + ",p:" + packed;
+        String string = "l:" + dataLength;
         if (boxPointer != null)
             string+= "," + boxPointer.toString();
         return string;
@@ -123,17 +119,33 @@ class ChunkPointer implements IChunkPointer {
 
 
 public class ChunkContainer extends ChunkContainerNode {
-    public ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash) throws IOException, CryptoException {
+    /**
+     * Create a new chunk container.
+     *
+     * @param blobAccessor
+     */
+    public ChunkContainer(IChunkAccessor blobAccessor, ChunkSplitter nodeSplitter) {
+        super(blobAccessor, null, LEAF_LEVEL);
+        setNodeSplitter(nodeSplitter);
+    }
+
+    /**
+     * Load an existing chunk container.
+     *
+     * @param blobAccessor
+     * @param hash
+     * @throws IOException
+     * @throws CryptoException
+     */
+    public ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash)
+            throws IOException, CryptoException {
         this(blobAccessor, blobAccessor.getChunk(hash));
     }
 
-    public ChunkContainer(IChunkAccessor blobAccessor, DataInputStream inputStream) throws IOException {
+    public ChunkContainer(IChunkAccessor blobAccessor, DataInputStream inputStream)
+            throws IOException {
         super(blobAccessor, null, LEAF_LEVEL);
         read(inputStream);
-    }
-
-    public ChunkContainer(IChunkAccessor blobAccessor) {
-        super(blobAccessor, null, LEAF_LEVEL);
     }
 
     @Override
@@ -343,13 +355,46 @@ public class ChunkContainer extends ChunkContainerNode {
         return string;
     }
 
+    static final public byte FIXED_BLOCK_SPLITTER = 0;
+    static final public byte RABIN_SPLITTER_DETAILED = 1;
+
     private void readHeader(DataInputStream inputStream) throws IOException {
         that.setLevel(inputStream.readByte());
+
+        byte nodeSplitterType = inputStream.readByte();
+        switch (nodeSplitterType) {
+            case FIXED_BLOCK_SPLITTER:
+                int blockSize = inputStream.readInt();
+                setNodeSplitter(new FixedBlockSplitter(blockSize));
+                break;
+            case RABIN_SPLITTER_DETAILED:
+                int targetSize = inputStream.readInt();
+                int minSize = inputStream.readInt();
+                int maxSize = inputStream.readInt();
+                setNodeSplitter(new RabinSplitter(targetSize, minSize, maxSize));
+                break;
+            default:
+                throw new IOException("Unknown node splitter type.");
+        }
     }
 
     @Override
     protected void writeHeader(DataOutputStream outputStream) throws IOException {
         outputStream.writeByte(that.getLevel());
+        if (nodeSplitter instanceof RabinSplitter) {
+            RabinSplitter rabinSplitter = (RabinSplitter) nodeSplitter;
+            outputStream.writeByte(RABIN_SPLITTER_DETAILED);
+            outputStream.writeInt(rabinSplitter.getTargetChunkSize());
+            outputStream.writeInt(rabinSplitter.getMinChunkSize());
+            outputStream.writeInt(rabinSplitter.getMaxChunkSize());
+        } else if (nodeSplitter instanceof  FixedBlockSplitter) {
+            FixedBlockSplitter fixedBlockSplitter = (FixedBlockSplitter) nodeSplitter;
+            outputStream.writeByte(FIXED_BLOCK_SPLITTER);
+            outputStream.writeInt(fixedBlockSplitter.getBlockSize());
+        } else {
+            throw new IOException("Unsupported node splitter.");
+        }
+
         super.writeHeader(outputStream);
     }
 }
@@ -365,7 +410,7 @@ class ChunkContainerNode implements IChunk {
     private byte[] data;
     private HashValue dataHash;
     final private List<IChunkPointer> slots = new ArrayList<>();
-    private ChunkSplitter nodeSplitter;
+    protected ChunkSplitter nodeSplitter;
 
     public ChunkContainerNode(IChunkAccessor blobAccessor, ChunkContainerNode parent, IChunkPointer that) {
         this.blobAccessor = blobAccessor;

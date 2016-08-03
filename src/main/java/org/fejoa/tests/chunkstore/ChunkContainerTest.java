@@ -110,18 +110,16 @@ public class ChunkContainerTest extends TestCase {
         final ChunkStore chunkStore = ChunkStore.create(dir, name);
 
         IChunkAccessor accessor = getAccessor(chunkStore);
-        ChunkContainer chunkContainer = new ChunkContainer(accessor);
-        chunkContainer.setNodeSplitter(nodeSplitter);
+        ChunkContainer chunkContainer = new ChunkContainer(accessor, nodeSplitter);
 
         return chunkContainer;
     }
 
-    private ChunkContainer openContainer(String dirName, String name, BoxPointer pointer, ChunkSplitter nodeSplitter)
+    private ChunkContainer openContainer(String dirName, String name, BoxPointer pointer)
             throws IOException, CryptoException {
         final ChunkStore chunkStore = ChunkStore.open(new File(dirName), name);
         IChunkAccessor accessor = getAccessor(chunkStore);
         ChunkContainer chunkContainer = new ChunkContainer(accessor, pointer);
-        chunkContainer.setNodeSplitter(nodeSplitter);
         return chunkContainer;
     }
 
@@ -169,7 +167,7 @@ public class ChunkContainerTest extends TestCase {
         System.out.println("Load:");
         BoxPointer rootPointer = chunkContainer.getBoxPointer();
 
-        chunkContainer = openContainer(dirName, name, rootPointer, chunkSplitter);
+        chunkContainer = openContainer(dirName, name, rootPointer);
         System.out.println(chunkContainer.printAll());
 
         ChunkContainerInputStream inputStream = new ChunkContainerInputStream(chunkContainer);
@@ -433,7 +431,7 @@ public class ChunkContainerTest extends TestCase {
         chunkContainer.flush(false);
 
         // verify
-        chunkContainer = openContainer(dirName, name, chunkContainer.getBoxPointer(), nodeSplitter);
+        chunkContainer = openContainer(dirName, name, chunkContainer.getBoxPointer());
         Iterator<ChunkContainer.DataChunkPointer> iter = chunkContainer.getChunkIterator(0);
         chunkHash = new ChunkHash(dataSplitter, nodeSplitter);
         while (iter.hasNext()) {

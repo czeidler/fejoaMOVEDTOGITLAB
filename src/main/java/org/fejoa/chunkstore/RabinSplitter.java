@@ -22,7 +22,7 @@ public class RabinSplitter extends ChunkSplitter {
     final static public int CHUNK_128KB = 128 * CHUNK_1KB;
     final static private long MASK = 0xFFFFFFFFL;
 
-    final private long targetChunkSize;
+    final private int targetChunkSize;
     final private int windowSize = 48;
     private long chunkSize;
     final private int minChunkSize;
@@ -49,6 +49,18 @@ public class RabinSplitter extends ChunkSplitter {
 
     public RabinSplitter() {
         this(CHUNK_8KB, 128);
+    }
+
+    public int getTargetChunkSize() {
+        return targetChunkSize;
+    }
+
+    public int getMinChunkSize() {
+        return minChunkSize;
+    }
+
+    public int getMaxChunkSize() {
+        return maxChunkSize;
     }
 
     @Override

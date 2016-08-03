@@ -16,6 +16,10 @@ public class FixedBlockSplitter extends ChunkSplitter {
         this.blockSize = blockSize;
     }
 
+    public int getBlockSize() {
+        return blockSize;
+    }
+
     @Override
     public boolean updateInternal(byte i) {
         nBytesInBlock++;

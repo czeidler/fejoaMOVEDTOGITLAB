@@ -8,11 +8,11 @@
 package org.fejoa.tests;
 
 import junit.framework.TestCase;
-import org.fejoa.library.support.LinkedList;
+import org.fejoa.library.support.DoubleLinkedList;
 
 
-public class LinkedListTest extends TestCase {
-    class TestEntry extends LinkedList.Entry {
+public class DoubleLinkedListTest extends TestCase {
+    class TestEntry extends DoubleLinkedList.Entry {
         int i;
 
         TestEntry(int i) {
@@ -25,7 +25,7 @@ public class LinkedListTest extends TestCase {
         }
     }
 
-    private void assertContent(LinkedList<TestEntry> list, String expected) {
+    private void assertContent(DoubleLinkedList<TestEntry> list, String expected) {
         assertEquals(expected.length(), list.size());
 
         String result = "";
@@ -38,7 +38,7 @@ public class LinkedListTest extends TestCase {
     }
 
     public void testLinkedList() {
-        LinkedList<TestEntry> linkedList = new LinkedList<>();
+        DoubleLinkedList<TestEntry> linkedList = new DoubleLinkedList<>();
 
         TestEntry entry1 = new TestEntry(1);
         TestEntry entry2 = new TestEntry(2);

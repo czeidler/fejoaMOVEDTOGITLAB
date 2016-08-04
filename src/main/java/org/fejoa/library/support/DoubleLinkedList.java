@@ -10,7 +10,7 @@ package org.fejoa.library.support;
 
 import java.util.Iterator;
 
-public class LinkedList<T extends LinkedList.Entry> implements Iterable<T> {
+public class DoubleLinkedList<T extends DoubleLinkedList.Entry> implements Iterable<T> {
     public static class Entry {
         protected Entry previous;
         protected Entry next;
@@ -74,11 +74,11 @@ public class LinkedList<T extends LinkedList.Entry> implements Iterable<T> {
     public void remove(Entry entry) {
         nEntries--;
 
-        if (entry.previous != null) {
+        if (entry.previous != null)
             entry.previous.next = entry.next;
-        } else {
+        else
             head = entry.next;
-        }
+
         if (entry == tail)
             tail = entry.previous;
 
@@ -93,7 +93,7 @@ public class LinkedList<T extends LinkedList.Entry> implements Iterable<T> {
 
             @Override
             public void remove() {
-                LinkedList.this.remove(current);
+                DoubleLinkedList.this.remove(current);
                 current = current.next;
             }
 

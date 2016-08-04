@@ -7,6 +7,7 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 
 import java.io.DataInputStream;
@@ -29,6 +30,11 @@ public class CommitBox extends TypedBlob {
 
     static public CommitBox create() {
         return new CommitBox();
+    }
+
+    static public CommitBox read(IChunkAccessor accessor, BoxPointer pointer)
+            throws IOException, CryptoException {
+        return read(BlobReader.COMMIT, accessor.getChunk(pointer));
     }
 
     static public CommitBox read(short type, DataInputStream inputStream) throws IOException {

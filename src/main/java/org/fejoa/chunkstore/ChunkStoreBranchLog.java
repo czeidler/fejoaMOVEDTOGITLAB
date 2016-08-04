@@ -17,11 +17,11 @@ import java.util.List;
  */
 public class ChunkStoreBranchLog {
     static public class Entry {
-        HashValue tip;
+        String message;
         final List<HashValue> changes = new ArrayList<>();
 
-        public HashValue getTip() {
-            return tip;
+        public String getMessage() {
+            return message;
         }
     }
 
@@ -32,6 +32,10 @@ public class ChunkStoreBranchLog {
         this.logfile = logfile;
 
         read();
+    }
+
+    public List<Entry> getEntries() {
+        return entries;
     }
 
     private void read() throws IOException {
@@ -45,7 +49,7 @@ public class ChunkStoreBranchLog {
         String line;
         while ((line = reader.readLine()) != null && line.length() != 0) {
             Entry entry = new Entry();
-            entry.tip = HashValue.fromHex(line);
+            entry.message = line;
             int nChanges = Integer.parseInt(reader.readLine());
             for (int i = 0; i < nChanges; i++) {
                 entry.changes.add(HashValue.fromHex(reader.readLine()));
@@ -60,9 +64,9 @@ public class ChunkStoreBranchLog {
         return entries.get(entries.size() - 1);
     }
 
-    public void add(HashValue newTip, List<HashValue> changes) throws IOException {
+    public void add(String message, List<HashValue> changes) throws IOException {
         Entry entry = new Entry();
-        entry.tip = newTip;
+        entry.message = message;
         entry.changes.addAll(changes);
         write(entry);
         entries.add(entry);
@@ -76,7 +80,7 @@ public class ChunkStoreBranchLog {
 
         FileOutputStream outputStream = new FileOutputStream(logfile, false);
         try {
-            outputStream.write((entry.tip.toHex() + "\n").getBytes());
+            outputStream.write((entry.message + "\n").getBytes());
             outputStream.write(("" + entry.changes.size() + "\n").getBytes());
             for (HashValue change : entry.changes)
                 outputStream.write((change.toHex() + "\n").getBytes());

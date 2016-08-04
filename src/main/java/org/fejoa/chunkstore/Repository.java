@@ -11,6 +11,7 @@ import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
+import java.util.Collection;
 
 
 class TreeAccessor {
@@ -42,18 +43,6 @@ class TreeAccessor {
     private BoxPointer put(FileBox fileBox, IChunkAccessor accessor) throws IOException, CryptoException {
         fileBox.flush();
         return fileBox.getDataContainer().getBoxPointer();
-    }
-
-    private HashValue put(TypedBlob blob, IChunkAccessor accessor) throws IOException, CryptoException {
-        ChunkSplitter nodeSplitter = Repository.defaultNodeSplitter(RabinSplitter.CHUNK_8KB);
-        ChunkContainer chunkContainer = new ChunkContainer(accessor, nodeSplitter);
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        blob.write(new DataOutputStream(outputStream));
-        chunkContainer.append(new DataChunk(outputStream.toByteArray()));
-        chunkContainer.flush(false);
-
-        return chunkContainer.getBoxPointer().getBoxHash();
     }
 
     public byte[] read(String path) throws IOException, CryptoException {
@@ -129,7 +118,7 @@ class TreeAccessor {
             BoxPointer dataPointer = put(fileBox, transaction.getFileAccessor(path + "/" + child.getName()));
             child.setDataPointer(dataPointer);
         }
-        HashValue boxHash = put(dir, transaction.getTreeAccessor());
+        HashValue boxHash = Repository.put(dir, transaction.getTreeAccessor());
         return new BoxPointer(dir.hash(), boxHash);
     }
 
@@ -142,27 +131,38 @@ public class Repository {
     final private File dir;
     final private String branch;
     final private ChunkStoreBranchLog log;
+    private BoxPointer headCommit;
+    final private ICommitCallback commitCallback;
     final private IRepoChunkAccessors accessors;
     private LogRepoTransaction transaction;
     final private TreeAccessor treeAccessor;
     final private ChunkSplitter chunkSplitter = new RabinSplitter();
 
-    public Repository(File dir, String branch, IRepoChunkAccessors chunkAccessors) throws IOException, CryptoException {
+    public interface ICommitCallback {
+        String commitPointerToLog(BoxPointer commitPointer);
+        BoxPointer commitPointerfromLog(String logEntry);
+        byte[] createCommitMessage(String message, BoxPointer rootTree, Collection<BoxPointer> parents);
+     }
+
+    public Repository(File dir, String branch, IRepoChunkAccessors chunkAccessors, ICommitCallback commitCallback)
+            throws IOException, CryptoException {
         this.dir = dir;
         this.branch = branch;
         this.accessors = chunkAccessors;
         this.transaction = new LogRepoTransaction(accessors.startTransaction());
         this.log = new ChunkStoreBranchLog(new File(getBranchDir(), branch));
+        this.commitCallback = commitCallback;
 
-        HashValue rootBoxHash = null;
         if (log.getLatest() != null)
-            rootBoxHash = log.getLatest().getTip();
+            headCommit = commitCallback.commitPointerfromLog(log.getLatest().getMessage());
         DirectoryBox root;
-        if (rootBoxHash == null)
+        if (headCommit == null) {
+            headCommit = new BoxPointer();
             root = DirectoryBox.create();
-        else
-            root = new BlobReader(transaction.getCommitAccessor().getChunk(new BoxPointer(null, rootBoxHash)))
-                    .readDirectory();
+        } else {
+            CommitBox commitBox = CommitBox.read(transaction.getCommitAccessor(), headCommit);
+            root = new BlobReader(transaction.getTreeAccessor().getChunk(commitBox.getTree())).readDirectory();
+        }
         this.treeAccessor = new TreeAccessor(root, transaction);
     }
 
@@ -202,17 +202,44 @@ public class Repository {
         return file;
     }
 
+    static HashValue put(TypedBlob blob, IChunkAccessor accessor) throws IOException, CryptoException {
+        ChunkSplitter nodeSplitter = Repository.defaultNodeSplitter(RabinSplitter.CHUNK_8KB);
+        ChunkContainer chunkContainer = new ChunkContainer(accessor, nodeSplitter);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        blob.write(new DataOutputStream(outputStream));
+        chunkContainer.append(new DataChunk(outputStream.toByteArray()));
+        chunkContainer.flush(false);
+
+        return chunkContainer.getBoxPointer().getBoxHash();
+    }
+
+    public void merge(CommitBox otherBranch) {
+
+    }
+
     public BoxPointer commit() throws IOException, CryptoException {
+        return commit("Repo commit");
+    }
+
+    public BoxPointer commit(String message) throws IOException, CryptoException {
         synchronized (Repository.this) {
-            BoxPointer boxPointer = treeAccessor.build();
+            BoxPointer rootTree = treeAccessor.build();
+            CommitBox commitBox = CommitBox.create();
+            commitBox.setTree(rootTree);
+            if (headCommit != null)
+                commitBox.addParent(headCommit);
+            commitBox.setCommitMessage(commitCallback.createCommitMessage(message, rootTree, commitBox.getParents()));
+            HashValue boxHash = put(commitBox, transaction.getCommitAccessor());
+            BoxPointer commitPointer = new BoxPointer(commitBox.hash(), boxHash);
 
             transaction.finishTransaction();
-            log.add(boxPointer.getBoxHash(), transaction.getObjectsWritten());
+            log.add(commitCallback.commitPointerToLog(commitPointer), transaction.getObjectsWritten());
 
             transaction = new LogRepoTransaction(accessors.startTransaction());
             this.treeAccessor.setTransaction(transaction);
 
-            return boxPointer;
+            return commitPointer;
         }
     }
 

@@ -11,7 +11,6 @@ import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 
 
@@ -30,7 +29,7 @@ public class FileBox {
             throws IOException, CryptoException {
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;
-        fileBox.read(accessor.getChunk(pointer));
+        fileBox.read(pointer);
         return fileBox;
     }
 
@@ -38,8 +37,8 @@ public class FileBox {
         dataContainer.flush(false);
     }
 
-    private void read(DataInputStream inputStream) throws IOException {
-        dataContainer = new ChunkContainer(accessor, inputStream);
+    private void read(BoxPointer pointer) throws IOException, CryptoException {
+        dataContainer = new ChunkContainer(accessor, pointer);
     }
 
     public ChunkContainer getDataContainer() {

@@ -13,7 +13,6 @@ import java.io.*;
 public class BlobReader {
     final public static short COMMIT = 1;
     final public static short DIRECTORY = 2;
-    final public static short FILE = 3;
 
     protected short type;
     protected DataInputStream inputStream;
@@ -36,8 +35,6 @@ public class BlobReader {
             return readCommit();
         else if (type == DIRECTORY)
             return readDirectory();
-        else if (type == FILE)
-            return readFile(blobAccessor);
         return null;
     }
 
@@ -51,12 +48,6 @@ public class BlobReader {
         if (type != DIRECTORY)
             throw new IOException("Data is of type: " + type);
         return DirectoryBox.read(type, inputStream);
-    }
-
-    public FileBox readFile(IChunkAccessor blobAccessor) throws IOException {
-        if (type != FILE)
-            throw new IOException("Data is of type: " + type);
-        return FileBox.read(type, inputStream, blobAccessor);
     }
 }
 

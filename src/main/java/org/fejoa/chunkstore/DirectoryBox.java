@@ -9,89 +9,147 @@ package org.fejoa.chunkstore;
 
 import org.fejoa.library.crypto.CryptoHelper;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 
-public class DirectoryBox extends TypedBlob {
-    public static class Entry {
-        String name;
-        boolean isFile;
-        BoxPointer boxPointer;
-        TypedBlob object;
+abstract class DirectoryEntry {
+    private String name;
+    private BoxPointer dataPointer;
+    private BoxPointer attrsDir;
+    private Object object;
 
-        public Entry(String name, BoxPointer boxPointer, boolean isFile) {
-            this.name = name;
+    public DirectoryEntry(String name, BoxPointer dataPointer) {
+        this.name = name;
+        this.dataPointer = dataPointer;
+    }
+
+    public DirectoryEntry() {
+
+    }
+
+    public void setObject(Object object) {
+        this.object = object;
+    }
+
+    public Object getObject() {
+        return object;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public BoxPointer getDataPointer() {
+        return dataPointer;
+    }
+
+    public void setDataPointer(BoxPointer dataPointer) {
+        this.dataPointer = dataPointer;
+    }
+
+    public BoxPointer getAttrsDir() {
+        return attrsDir;
+    }
+
+    public void setAttrsDir(BoxPointer attrsDir) {
+        this.attrsDir = attrsDir;
+    }
+
+    abstract void writeShortAttrs(DataOutputStream outputStream) throws IOException;
+    abstract void readShortAttrs(DataInputStream inputStream) throws IOException;
+
+    /**
+     * Write the entry to a MessageDigest.
+     *
+     * @param messageDigest
+     */
+    public void hash(MessageDigest messageDigest) {
+        DigestOutputStream digestOutputStream = new DigestOutputStream(new OutputStream() {
+            @Override
+            public void write(int i) throws IOException {
+
+            }
+        }, messageDigest);
+        DataOutputStream outputStream = new DataOutputStream(digestOutputStream);
+        try {
+            write(outputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String readString(DataInputStream inputStream) throws IOException {
+        int c = inputStream.read();
+        StringBuilder builder = new StringBuilder("");
+        while (c != -1 && c != 0) {
+            builder.append((char) c);
+            c = inputStream.read();
+        }
+        return builder.toString();
+    }
+
+    private void writeString(DataOutputStream outputStream, String string) throws IOException {
+        outputStream.write(string.getBytes());
+        outputStream.write(0);
+    }
+
+    public void write(DataOutputStream outputStream) throws IOException {
+        writeString(outputStream, name);
+        writeShortAttrs(outputStream);
+        dataPointer.write(outputStream);
+        byte hasAttrsDir = 0x0;
+        if (attrsDir != null)
+            hasAttrsDir = 0x1;
+        outputStream.writeByte(hasAttrsDir);
+        if (attrsDir != null)
+            attrsDir.write(outputStream);
+    }
+
+    public void read(DataInputStream inputStream) throws IOException {
+        name = readString(inputStream);
+        readShortAttrs(inputStream);
+        if (dataPointer == null)
+            dataPointer = new BoxPointer();
+        dataPointer.read(inputStream);
+        byte hasAttrsDir = inputStream.readByte();
+        if (hasAttrsDir == 0x1) {
+            if (attrsDir == null)
+                attrsDir = new BoxPointer();
+            attrsDir.read(inputStream);
+        }
+    }
+}
+
+public class DirectoryBox extends TypedBlob {
+    public static class Entry extends DirectoryEntry {
+        boolean isFile;
+
+        public Entry(String name, BoxPointer dataPointer, boolean isFile) {
+            super(name, dataPointer);
             this.isFile = isFile;
-            this.boxPointer = boxPointer;
         }
 
         protected Entry(boolean isFile) {
             this.isFile = isFile;
         }
 
-        public void setObject(TypedBlob object) {
-            this.object = object;
+
+        @Override
+        void writeShortAttrs(DataOutputStream outputStream) throws IOException {
+
         }
 
-        public TypedBlob getObject() {
-            return object;
-        }
+        @Override
+        void readShortAttrs(DataInputStream inputStream) throws IOException {
 
-        /**
-         * Write the entry to a MessageDigest.
-         *
-         * @param messageDigest
-         */
-        public void hash(MessageDigest messageDigest) {
-            messageDigest.update(name.getBytes());
-            messageDigest.update(boxPointer.getDataHash().getBytes());
-        }
-
-        private String readString(DataInputStream inputStream) throws IOException {
-            int c = inputStream.read();
-            StringBuilder builder = new StringBuilder("");
-            while (c != -1 && c != 0) {
-                builder.append((char) c);
-                c = inputStream.read();
-            }
-            return builder.toString();
-        }
-
-        private void write(String string, DataOutputStream outputStream) throws IOException {
-            outputStream.write(string.getBytes());
-            outputStream.write(0);
-        }
-
-        public void read(DataInputStream inputStream) throws IOException {
-            String name = readString(inputStream);
-
-            BoxPointer data = new BoxPointer();
-            data.read(inputStream);
-
-            this.name = name;
-            this.boxPointer = data;
-        }
-
-        public void write(DataOutputStream outputStream) throws IOException {
-            write(name, outputStream);
-            boxPointer.write(outputStream);
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public BoxPointer getBoxPointer() {
-            return boxPointer;
-        }
-
-        public void setBoxPointer(BoxPointer boxPointer) {
-            this.boxPointer = boxPointer;
         }
     }
 
@@ -139,7 +197,7 @@ public class DirectoryBox extends TypedBlob {
 
     public Entry getEntry(String name) {
         for (Entry entry : entries.values()) {
-            if (entry.name.equals(name))
+            if (entry.getName().equals(name))
                 return entry;
         }
         return null;
@@ -209,7 +267,7 @@ public class DirectoryBox extends TypedBlob {
     public String toString() {
         String string = "Directory Entries:";
         for (Entry entry : entries.values())
-            string += "\n" + entry.name + " (dir " + !entry.isFile + ")" + entry.boxPointer;
+            string += "\n" + entry.getName() + " (dir " + !entry.isFile + ")" + entry.getDataPointer();
         return string;
     }
 }

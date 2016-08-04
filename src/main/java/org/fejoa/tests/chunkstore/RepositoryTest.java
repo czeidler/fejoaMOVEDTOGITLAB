@@ -123,7 +123,7 @@ public class RepositoryTest  extends TestCase {
 
     private FileBox writeToFileBox(IChunkAccessor accessor, String content) throws IOException, CryptoException {
         FileBox file = FileBox.create(accessor, Repository.defaultNodeSplitter(RabinSplitter.CHUNK_8KB));
-        ChunkContainer chunkContainer = file.getChunkContainer();
+        ChunkContainer chunkContainer = file.getDataContainer();
         ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
         containerOutputStream.write(content.getBytes());
         containerOutputStream.flush();
@@ -144,8 +144,7 @@ public class RepositoryTest  extends TestCase {
             TestFile testFile = entry.getValue();
             IChunkAccessor fileAccessor = accessors.getFileAccessor(path + "/" + entry.getKey());
             FileBox file = writeToFileBox(fileAccessor, testFile.content);
-
-            testFile.boxPointer = new BoxPointer(file.hash(), write(fileAccessor, file));
+            testFile.boxPointer = file.getDataContainer().getBoxPointer();
             directoryBox.addFile(entry.getKey(), testFile.boxPointer);
         }
 
@@ -181,7 +180,7 @@ public class RepositoryTest  extends TestCase {
         for (Map.Entry<String, TestDirectory> entry : testDir.dirs.entrySet()) {
             DirectoryBox.Entry dirEntry = directoryBox.getEntry(entry.getKey());
             assertNotNull(dirEntry);
-            assertEquals(entry.getValue().boxPointer.getBoxHash(), dirEntry.getBoxPointer().getBoxHash());
+            assertEquals(entry.getValue().boxPointer.getBoxHash(), dirEntry.getDataPointer().getBoxHash());
 
             verifyDirInRepository(accessors, entry.getValue(), path + "/" + entry.getKey());
         }
@@ -189,17 +188,15 @@ public class RepositoryTest  extends TestCase {
             TestFile testFile = entry.getValue();
             DirectoryBox.Entry dirEntry = directoryBox.getEntry(entry.getKey());
             assertNotNull(dirEntry);
-            assertEquals(testFile.boxPointer.getBoxHash(), dirEntry.getBoxPointer().getBoxHash());
+            assertEquals(testFile.boxPointer.getBoxHash(), dirEntry.getDataPointer().getBoxHash());
 
             verifyFileInRepository(accessors.getFileAccessor(path + "/" + entry.getKey()), testFile);
         }
     }
 
     private void verifyFileInRepository(IChunkAccessor accessor, TestFile testFile) throws IOException, CryptoException {
-        TypedBlob loaded = getBlob(accessor, testFile.boxPointer);
-        assert loaded instanceof FileBox;
-        FileBox fileBox = (FileBox)loaded;
-        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getChunkContainer());
+        FileBox fileBox = FileBox.read(accessor, testFile.boxPointer);
+        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getDataContainer());
         assertEquals(testFile.content, new String(StreamHelper.readAll(inputStream)));
     }
 

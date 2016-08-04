@@ -8,82 +8,49 @@
 package org.fejoa.chunkstore;
 
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Iterator;
 
 
-public class FileBox extends TypedBlob {
+public class FileBox {
     private IChunkAccessor accessor;
-    private ChunkContainer chunkContainer;
-
-    private BoxPointer fileAttrs;
-    private HashValue boxAttrs;
-
-    private FileBox() {
-        super(BlobReader.FILE);
-    }
+    private ChunkContainer dataContainer;
 
     static public FileBox create(IChunkAccessor accessor, ChunkSplitter nodeSplitter) {
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;
-        fileBox.chunkContainer = new ChunkContainer(accessor, nodeSplitter);
+        fileBox.dataContainer = new ChunkContainer(accessor, nodeSplitter);
         return fileBox;
     }
 
-    static public FileBox read(short type, DataInputStream inputStream, IChunkAccessor accessor) throws IOException {
-        assert type == BlobReader.FILE;
+    static public FileBox read(IChunkAccessor accessor, BoxPointer pointer)
+            throws IOException, CryptoException {
         FileBox fileBox = new FileBox();
         fileBox.accessor = accessor;
-        fileBox.read(inputStream);
+        fileBox.read(accessor.getChunk(pointer));
         return fileBox;
     }
 
-    public HashValue hash() throws IOException, CryptoException {
-        try {
-            MessageDigest messageDigest = CryptoHelper.sha256Hash();
-            messageDigest.reset();
-            Iterator<ChunkContainer.DataChunkPointer> iterator = chunkContainer.getChunkIterator(0);
-            while (iterator.hasNext())
-                messageDigest.update(iterator.next().getDataChunk().getData());
-
-            return new HashValue(messageDigest.digest());
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-
+    public void flush() throws IOException, CryptoException {
+        dataContainer.flush(false);
     }
 
-    @Override
-    protected void readInternal(DataInputStream inputStream) throws IOException {
-        // TODO: read/write header and file/box attrs
-        chunkContainer = new ChunkContainer(accessor, inputStream);
+    private void read(DataInputStream inputStream) throws IOException {
+        dataContainer = new ChunkContainer(accessor, inputStream);
     }
 
-    @Override
-    protected void writeInternal(DataOutputStream outputStream) throws IOException, CryptoException {
-        chunkContainer.flush(true);
-        // write header node
-        chunkContainer.write(outputStream);
-    }
-
-    public ChunkContainer getChunkContainer() {
-        return chunkContainer;
+    public ChunkContainer getDataContainer() {
+        return dataContainer;
     }
 
     @Override
     public String toString() {
-        if (chunkContainer == null)
+        if (dataContainer == null)
             return "empty";
-        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(chunkContainer);
+        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(dataContainer);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try {
             StreamHelper.copy(inputStream, outputStream);

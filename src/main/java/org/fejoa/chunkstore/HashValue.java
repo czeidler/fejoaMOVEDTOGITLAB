@@ -9,6 +9,7 @@ package org.fejoa.chunkstore;
 
 import org.fejoa.library.crypto.CryptoHelper;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 
@@ -30,6 +31,11 @@ public class HashValue {
 
     static public HashValue fromHex(String hash) {
         return new HashValue(CryptoHelper.fromHex(hash));
+    }
+
+    @Override
+    public int hashCode() {
+        return ByteBuffer.wrap(hash).getInt();
     }
 
     @Override

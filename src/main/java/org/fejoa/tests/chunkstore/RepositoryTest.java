@@ -1,27 +1,28 @@
+/*
+ * Copyright 2016.
+ * Distributed under the terms of the GPLv3 License.
+ *
+ * Authors:
+ *      Clemens Zeidler <czei002@aucklanduni.ac.nz>
+ */
 package org.fejoa.tests.chunkstore;
 
-import junit.framework.TestCase;
+import org.apache.commons.codec.binary.*;
+import org.apache.commons.codec.binary.Base64;
+import org.bouncycastle.util.encoders.Base64Encoder;
 import org.fejoa.chunkstore.*;
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.support.StorageLib;
 import org.fejoa.library.support.StreamHelper;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.*;
 import java.util.*;
 
 
-public class RepositoryTest  extends TestCase {
-    final List<String> cleanUpFiles = new ArrayList<String>();
+public class RepositoryTest extends RepositoryTestBase {
     final ChunkSplitter splitter = new RabinSplitter();
     final ChunkSplitter nodeSplitter = new RabinSplitter();
-
-    @Override
-    public void tearDown() throws Exception {
-        super.tearDown();
-
-        for (String dir : cleanUpFiles)
-            StorageLib.recursiveDeleteFile(new File(dir));
-    }
 
     private IChunkAccessor getAccessor(final ChunkStore.Transaction chunkStoreTransaction) {
         return new IChunkAccessor() {
@@ -72,27 +73,6 @@ public class RepositoryTest  extends TestCase {
         cleanUpFiles.add(directory.getName());
 
         return ChunkStore.create(directory, name);
-    }
-
-    static class TestFile {
-        TestFile(String content) {
-            this.content = content;
-        }
-
-        String content;
-        BoxPointer boxPointer;
-    }
-
-    static class TestDirectory {
-        Map<String, TestFile> files = new HashMap<>();
-        Map<String, TestDirectory> dirs = new HashMap<>();
-        BoxPointer boxPointer;
-    }
-
-    static class TestCommit {
-        String message;
-        TestDirectory directory;
-        BoxPointer boxPointer;
     }
 
     private HashValue write(IChunkAccessor accessor, TypedBlob blob) throws IOException, CryptoException {
@@ -230,40 +210,16 @@ public class RepositoryTest  extends TestCase {
 
         ChunkStoreBranchLog branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
         TestCommit testCommit = writeToRepository(transaction, root, "Commit Message");
-        branchLog.add(testCommit.boxPointer.getBoxHash(), Collections.<HashValue>emptyList());
+        branchLog.add(testCommit.boxPointer.getBoxHash().toHex(), Collections.<HashValue>emptyList());
         transaction.finishTransaction();
 
         branchLog = new ChunkStoreBranchLog(new File(name, "branch.log"));
         ChunkStoreBranchLog.Entry tip = branchLog.getLatest();
         assertNotNull(tip);
-        assertEquals(testCommit.boxPointer.getBoxHash(), tip.getTip());
+        assertEquals(testCommit.boxPointer.getBoxHash(), HashValue.fromHex(tip.getMessage()));
 
         transaction = accessors.startTransaction();
         verifyCommitInRepository(transaction, testCommit);
-    }
-
-    class DatabaseStingEntry {
-        public String path;
-        public String content;
-
-        public DatabaseStingEntry(String path, String content) {
-            this.path = path;
-            this.content = content;
-        }
-    }
-
-    private void add(Repository database, List<DatabaseStingEntry> content, DatabaseStingEntry entry)
-            throws Exception {
-        content.add(entry);
-        database.writeBytes(entry.path, entry.content.getBytes());
-    }
-
-    private void containsContent(Repository database, List<DatabaseStingEntry> content) throws IOException,
-            CryptoException {
-        for (DatabaseStingEntry entry : content) {
-            byte bytes[] = database.readBytes(entry.path);
-            assertTrue(entry.content.equals(new String(bytes)));
-        }
     }
 
     public void testRepositoryBasics() throws Exception {
@@ -275,7 +231,7 @@ public class RepositoryTest  extends TestCase {
 
         ChunkStore chunkStore = createChunkStore(directory, name);
         IRepoChunkAccessors accessors = getRepoChunkAccessors(chunkStore);
-        Repository repository = new Repository(directory, branch, accessors);
+        Repository repository = new Repository(directory, branch, accessors, simpleCommitCallback);
 
         List<DatabaseStingEntry> content = new ArrayList<>();
         add(repository, content, new DatabaseStingEntry("file1", "file1"));

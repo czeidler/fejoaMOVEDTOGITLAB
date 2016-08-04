@@ -52,4 +52,19 @@ public class StreamHelper {
         copy(inputStream, outputStream);
         return outputStream.toByteArray();
     }
+
+    static public String readString(DataInputStream inputStream) throws IOException {
+        int c = inputStream.read();
+        StringBuilder builder = new StringBuilder("");
+        while (c != -1 && c != 0) {
+            builder.append((char) c);
+            c = inputStream.read();
+        }
+        return builder.toString();
+    }
+
+    static public void writeString(DataOutputStream outputStream, String string) throws IOException {
+        outputStream.write(string.getBytes());
+        outputStream.write(0);
+    }
 }

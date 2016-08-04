@@ -8,6 +8,7 @@
 package org.fejoa.chunkstore;
 
 import org.fejoa.library.crypto.CryptoHelper;
+import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
 import java.security.DigestOutputStream;
@@ -86,23 +87,8 @@ abstract class DirectoryEntry {
         }
     }
 
-    private String readString(DataInputStream inputStream) throws IOException {
-        int c = inputStream.read();
-        StringBuilder builder = new StringBuilder("");
-        while (c != -1 && c != 0) {
-            builder.append((char) c);
-            c = inputStream.read();
-        }
-        return builder.toString();
-    }
-
-    private void writeString(DataOutputStream outputStream, String string) throws IOException {
-        outputStream.write(string.getBytes());
-        outputStream.write(0);
-    }
-
     public void write(DataOutputStream outputStream) throws IOException {
-        writeString(outputStream, name);
+        StreamHelper.writeString(outputStream, name);
         writeShortAttrs(outputStream);
         dataPointer.write(outputStream);
         byte hasAttrsDir = 0x0;
@@ -114,7 +100,7 @@ abstract class DirectoryEntry {
     }
 
     public void read(DataInputStream inputStream) throws IOException {
-        name = readString(inputStream);
+        name = StreamHelper.readString(inputStream);
         readShortAttrs(inputStream);
         if (dataPointer == null)
             dataPointer = new BoxPointer();

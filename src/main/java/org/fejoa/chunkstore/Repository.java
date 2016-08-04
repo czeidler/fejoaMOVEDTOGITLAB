@@ -140,7 +140,7 @@ public class Repository {
 
     public interface ICommitCallback {
         String commitPointerToLog(BoxPointer commitPointer);
-        BoxPointer commitPointerfromLog(String logEntry);
+        BoxPointer commitPointerFromLog(String logEntry);
         byte[] createCommitMessage(String message, BoxPointer rootTree, Collection<BoxPointer> parents);
      }
 
@@ -154,7 +154,7 @@ public class Repository {
         this.commitCallback = commitCallback;
 
         if (log.getLatest() != null)
-            headCommit = commitCallback.commitPointerfromLog(log.getLatest().getMessage());
+            headCommit = commitCallback.commitPointerFromLog(log.getLatest().getMessage());
         DirectoryBox root;
         if (headCommit == null) {
             headCommit = new BoxPointer();
@@ -178,6 +178,10 @@ public class Repository {
 
     private File getBranchDir() {
         return new File(dir, "branches");
+    }
+
+    public ICommitCallback getCommitCallback() {
+        return commitCallback;
     }
 
     public IRepoChunkAccessors getChunkAccessors() {

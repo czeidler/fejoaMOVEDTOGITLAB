@@ -15,6 +15,7 @@ import java.util.Collection;
 
 
 class TreeAccessor {
+    private boolean modified = false;
     private DirectoryBox root;
     private IRepoChunkAccessors.ITransaction transaction;
 
@@ -22,6 +23,10 @@ class TreeAccessor {
         this.transaction = transaction;
 
         this.root = root;
+    }
+
+    public boolean isModified() {
+        return modified;
     }
 
     public void setTransaction(IRepoChunkAccessors.ITransaction transaction) {
@@ -68,6 +73,7 @@ class TreeAccessor {
     }
 
     public void put(String path, FileBox file) throws IOException, CryptoException {
+        this.modified = true;
         path = checkPath(path);
         String[] parts = path.split("/");
         String fileName = parts[parts.length - 1];
@@ -94,6 +100,7 @@ class TreeAccessor {
     }
 
     public BoxPointer build() throws IOException, CryptoException {
+        modified = false;
         return build(root, "");
     }
 
@@ -125,11 +132,11 @@ public class Repository {
     final private File dir;
     final private String branch;
     final private ChunkStoreBranchLog log;
-    private BoxPointer headCommit;
+    private CommitBox headCommit;
     final private ICommitCallback commitCallback;
     final private IRepoChunkAccessors accessors;
     private LogRepoTransaction transaction;
-    final private TreeAccessor treeAccessor;
+    private TreeAccessor treeAccessor;
     final private ChunkSplitter chunkSplitter = new RabinSplitter();
 
     public interface ICommitCallback {
@@ -147,14 +154,15 @@ public class Repository {
         this.log = new ChunkStoreBranchLog(new File(getBranchDir(), branch));
         this.commitCallback = commitCallback;
 
+        BoxPointer headCommitPointer = null;
         if (log.getLatest() != null)
-            headCommit = commitCallback.commitPointerFromLog(log.getLatest().getMessage());
+            headCommitPointer = commitCallback.commitPointerFromLog(log.getLatest().getMessage());
         DirectoryBox root;
-        if (headCommit == null) {
+        if (headCommitPointer == null) {
             root = DirectoryBox.create();
         } else {
-            CommitBox commitBox = CommitBox.read(transaction.getCommitAccessor(), headCommit);
-            root = DirectoryBox.read(transaction.getTreeAccessor(), commitBox.getTree());
+            headCommit = CommitBox.read(transaction.getCommitAccessor(), headCommitPointer);
+            root = DirectoryBox.read(transaction.getTreeAccessor(), headCommit.getTree());
         }
         this.treeAccessor = new TreeAccessor(root, transaction);
     }
@@ -211,24 +219,52 @@ public class Repository {
         return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    public void merge(ChunkStore.Transaction transaction, CommitBox otherBranch) {
-        // TODO: fix concurrency...
+    public void merge(ChunkStore.Transaction otherTransaction, CommitBox otherBranch) throws IOException, CryptoException {
+        // TODO: check if the transaction is valid, i.e. contains object compatible with otherBranch?
+        assert otherBranch != null;
+
+        // 1) Find common ancestor
+        // 2) Pull missing objects into the other transaction
+        // 3) Merge head with otherBranch and commit the other transaction
+        synchronized (Repository.this) {
+            commit();
+
+            if (headCommit == null) {
+                // we are empty just use the other branch
+                otherTransaction.commit();
+                headCommit = otherBranch;
+
+                transaction.finishTransaction();
+                transaction = new LogRepoTransaction(accessors.startTransaction());
+                log.add(commitCallback.commitPointerToLog(headCommit.getBoxPointer()), transaction.getObjectsWritten());
+                treeAccessor = new TreeAccessor(DirectoryBox.read(transaction.getTreeAccessor(), otherBranch.getTree()),
+                        transaction);
+            }
+        }
     }
 
     public BoxPointer commit() throws IOException, CryptoException {
         return commit("Repo commit");
     }
 
+    private boolean needCommit() {
+        return treeAccessor.isModified();
+    }
+
     public BoxPointer commit(String message) throws IOException, CryptoException {
+        if (!needCommit())
+            return null;
+
         synchronized (Repository.this) {
             BoxPointer rootTree = treeAccessor.build();
             CommitBox commitBox = CommitBox.create();
             commitBox.setTree(rootTree);
             if (headCommit != null)
-                commitBox.addParent(headCommit);
+                commitBox.addParent(headCommit.getBoxPointer());
             commitBox.setCommitMessage(commitCallback.createCommitMessage(message, rootTree, commitBox.getParents()));
             HashValue boxHash = put(commitBox, transaction.getCommitAccessor());
             BoxPointer commitPointer = new BoxPointer(commitBox.hash(), boxHash);
+            commitBox.setBoxPointer(commitPointer);
 
             transaction.finishTransaction();
             log.add(commitCallback.commitPointerToLog(commitPointer), transaction.getObjectsWritten());

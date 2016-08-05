@@ -22,6 +22,7 @@ import java.util.Map;
 
 
 public class CommitBox extends TypedBlob {
+    private BoxPointer that;
     private BoxPointer tree;
     final private List<BoxPointer> parents = new ArrayList<>();
     final private Map<BoxPointer, CommitBox> parentCache = new HashMap<>();
@@ -43,12 +44,14 @@ public class CommitBox extends TypedBlob {
 
     static public CommitBox read(ChunkContainer chunkContainer)
             throws IOException, CryptoException {
-        return read(BlobTypes.COMMIT, new DataInputStream(new ChunkContainerInputStream(chunkContainer)));
+        return read(BlobTypes.COMMIT, new DataInputStream(new ChunkContainerInputStream(chunkContainer)),
+                chunkContainer.getBoxPointer());
     }
 
-    static private CommitBox read(short type, DataInputStream inputStream) throws IOException {
+    static private CommitBox read(short type, DataInputStream inputStream, BoxPointer that) throws IOException {
         assert type == BlobTypes.COMMIT;
         CommitBox commitBox = new CommitBox();
+        commitBox.that = that;
         commitBox.read(inputStream);
         return commitBox;
     }
@@ -142,5 +145,13 @@ public class CommitBox extends TypedBlob {
         for (int i = 0; i < parents.size(); i++)
             out += "\n\t" + parents.get(i);
         return out;
+    }
+
+    public void setBoxPointer(BoxPointer boxPointer) {
+        this.that = boxPointer;
+    }
+
+    public BoxPointer getBoxPointer() {
+        return that;
     }
 }

@@ -16,12 +16,15 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class CommitBox extends TypedBlob {
     private BoxPointer tree;
     final private List<BoxPointer> parents = new ArrayList<>();
+    final private Map<BoxPointer, CommitBox> parentCache = new HashMap<>();
     private byte[] commitMessage;
 
     private CommitBox() {
@@ -68,6 +71,16 @@ public class CommitBox extends TypedBlob {
 
     public void addParent(BoxPointer parent) {
         parents.add(parent);
+    }
+
+    public CommitBox getParent(IChunkAccessor accessor, int i) throws IOException, CryptoException {
+        BoxPointer pointer = parents.get(i);
+        CommitBox parent = parentCache.get(pointer);
+        if (parent != null)
+            return parent;
+        parent = CommitBox.read(accessor, pointer);
+        parentCache.put(pointer, parent);
+        return parent;
     }
 
     public List<BoxPointer> getParents() {

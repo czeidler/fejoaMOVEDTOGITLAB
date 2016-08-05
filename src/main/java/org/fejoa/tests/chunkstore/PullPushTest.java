@@ -9,7 +9,6 @@ package org.fejoa.tests.chunkstore;
 
 import org.fejoa.chunkstore.*;
 import org.fejoa.chunkstore.sync.*;
-import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.remote.IRemotePipe;
 
 import java.io.*;

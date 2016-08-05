@@ -211,8 +211,8 @@ public class Repository {
         return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    public void merge(CommitBox otherBranch) {
-
+    public void merge(ChunkStore.Transaction transaction, CommitBox otherBranch) {
+        // TODO: fix concurrency...
     }
 
     public BoxPointer commit() throws IOException, CryptoException {

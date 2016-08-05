@@ -38,7 +38,7 @@ public class FileBox {
     }
 
     private void read(BoxPointer pointer) throws IOException, CryptoException {
-        dataContainer = new ChunkContainer(accessor, pointer);
+        dataContainer = ChunkContainer.read(accessor, pointer);
     }
 
     public ChunkContainer getDataContainer() {

@@ -110,6 +110,7 @@ public class RepositoryTestBase extends TestCase {
             CryptoException {
         for (DatabaseStingEntry entry : content) {
             byte bytes[] = database.readBytes(entry.path);
+            assertNotNull(bytes);
             assertTrue(entry.content.equals(new String(bytes)));
         }
     }

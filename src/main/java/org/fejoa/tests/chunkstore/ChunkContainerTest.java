@@ -119,7 +119,7 @@ public class ChunkContainerTest extends TestCase {
             throws IOException, CryptoException {
         final ChunkStore chunkStore = ChunkStore.open(new File(dirName), name);
         IChunkAccessor accessor = getAccessor(chunkStore);
-        ChunkContainer chunkContainer = new ChunkContainer(accessor, pointer);
+        ChunkContainer chunkContainer = ChunkContainer.read(accessor, pointer);
         return chunkContainer;
     }
 

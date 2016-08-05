@@ -7,14 +7,9 @@
  */
 package org.fejoa.tests.chunkstore;
 
-import org.apache.commons.codec.binary.*;
-import org.apache.commons.codec.binary.Base64;
-import org.bouncycastle.util.encoders.Base64Encoder;
 import org.fejoa.chunkstore.*;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StreamHelper;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.*;
 import java.util.*;
@@ -107,6 +102,7 @@ public class RepositoryTest extends RepositoryTestBase {
         ChunkContainerOutputStream containerOutputStream = new ChunkContainerOutputStream(chunkContainer, splitter);
         containerOutputStream.write(content.getBytes());
         containerOutputStream.flush();
+        chunkContainer.flush(false);
         return file;
     }
 
@@ -132,18 +128,10 @@ public class RepositoryTest extends RepositoryTestBase {
         return dir.boxPointer;
     }
 
-    public TypedBlob getBlob(IChunkAccessor accessor, BoxPointer hashValue) throws IOException, CryptoException {
-        ChunkContainer chunkContainer = new ChunkContainer(accessor, hashValue);
-        BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
-        return blobReader.read(accessor);
-    }
-
     private void verifyCommitInRepository(IRepoChunkAccessors.ITransaction accessors, TestCommit testCommit)
             throws IOException,
             CryptoException {
-        TypedBlob loaded = getBlob(accessors.getCommitAccessor(), testCommit.boxPointer);
-        assert loaded instanceof CommitBox;
-        CommitBox commitBox = (CommitBox)loaded;
+        CommitBox commitBox = CommitBox.read(accessors.getCommitAccessor(), testCommit.boxPointer);
         assertEquals(testCommit.message, new String(commitBox.getCommitMessage()));
         assertEquals(testCommit.directory.boxPointer.getBoxHash(), commitBox.getTree().getBoxHash());
 
@@ -152,9 +140,7 @@ public class RepositoryTest extends RepositoryTestBase {
 
     private void verifyDirInRepository(IRepoChunkAccessors.ITransaction accessors, TestDirectory testDir, String path)
             throws IOException, CryptoException {
-        TypedBlob loaded = getBlob(accessors.getTreeAccessor(), testDir.boxPointer);
-        assert loaded instanceof DirectoryBox;
-        DirectoryBox directoryBox = (DirectoryBox)loaded;
+        DirectoryBox directoryBox = DirectoryBox.read(accessors.getTreeAccessor(), testDir.boxPointer);
         assertEquals(testDir.dirs.size() + testDir.files.size(), directoryBox.getEntries().size());
 
         for (Map.Entry<String, TestDirectory> entry : testDir.dirs.entrySet()) {

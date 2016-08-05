@@ -13,6 +13,8 @@ import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.remote.IRemotePipe;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class PullPushTest extends RepositoryTestBase {
@@ -98,7 +100,7 @@ public class PullPushTest extends RepositoryTestBase {
         };
     }
 
-    public void testPull() throws IOException, CryptoException {
+    public void testPull() throws Exception {
         String branch = "pullBranch";
         File directory = new File("PullTest");
         cleanUpFiles.add(directory.getName());
@@ -119,10 +121,13 @@ public class PullPushTest extends RepositoryTestBase {
 
         assertTrue(pulledTip.getBoxHash().isZero());
 
-        remoteRepo.writeBytes("testFile", "Hello World".getBytes());
+        List<DatabaseStingEntry> remoteContent = new ArrayList<>();
+        add(remoteRepo, remoteContent, new DatabaseStingEntry("testFile", "Hello World"));
         BoxPointer boxPointer = remoteRepo.commit();
 
         pulledTip = pullRequest.pull(senderPipe);
+        containsContent(requestRepo, remoteContent);
+
         assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
     }
 /*

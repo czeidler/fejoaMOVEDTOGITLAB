@@ -21,36 +21,43 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.fejoa.chunkstore.sync.PullRequest.GET_CHUNKS;
-import static org.fejoa.chunkstore.sync.PullRequest.receiveHeader;
 
 
 abstract class Job {
     final private Job parent;
-    private List<Job> childJobs;
+    final private List<Job> childJobs = new ArrayList<>();
 
     public Job(Job parent) {
         this.parent = parent;
+        if (parent != null)
+            parent.childJobs.add(this);
     }
 
     abstract public Collection<HashValue> getRequestedChunks();
-    abstract protected List<Job> getChildJobsAfterChunksFetched() throws IOException, CryptoException;
+    abstract protected void enqueueJobsAfterChunksFetched(ChunkFetcher chunkFetcher) throws IOException, CryptoException;
 
-    final public List<Job> onChunksFetched() throws IOException, CryptoException {
-        childJobs = getChildJobsAfterChunksFetched();
-        if (childJobs.size() == 0)
-            notifyParentWeAreDone();
-        return childJobs;
+    final public void onChunksFetched(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        enqueueJobsAfterChunksFetched(chunkFetcher);
+        checkIfDone(chunkFetcher);
     }
 
-    final private void onChildDone(Job job) {
-        assert childJobs.remove(job);
-        if (childJobs.size() == 0)
-            notifyParentWeAreDone();
+    public void onDone(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+
     }
 
-    final private void notifyParentWeAreDone() {
-        if (parent != null)
-            parent.onChildDone(this);
+    final private void onChildDone(Job job, ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        boolean removed = childJobs.remove(job);
+        assert removed;
+        checkIfDone(chunkFetcher);
+    }
+
+    private void checkIfDone(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        if (childJobs.size() == 0) {
+            onDone(chunkFetcher);
+            // have new jobs been added?
+            if (parent != null && childJobs.size() == 0)
+                parent.onChildDone(this, chunkFetcher);
+        }
     }
 }
 
@@ -73,56 +80,99 @@ abstract class RootObjectJob extends Job {
 
 class GetChunkContainerNodeJob extends Job {
     final private IChunkAccessor accessor;
-    final private ChunkContainerNode parentNode;
+    final private ChunkContainerNode node;
 
-    public GetChunkContainerNodeJob(Job parent, IChunkAccessor accessor, ChunkContainerNode parentNode) {
+    public GetChunkContainerNodeJob(Job parent, IChunkAccessor accessor, ChunkContainerNode node) {
         super(parent);
 
         this.accessor = accessor;
-        this.parentNode = parentNode;
+        this.node = node;
     }
 
     @Override
     public Collection<HashValue> getRequestedChunks() {
         List<HashValue> children = new ArrayList<>();
-        for (IChunkPointer pointer : parentNode.getChunkPointers())
+        for (IChunkPointer pointer : node.getChunkPointers())
             children.add(pointer.getBoxPointer().getBoxHash());
         return children;
     }
 
     @Override
-    protected List<Job> getChildJobsAfterChunksFetched() throws IOException, CryptoException {
-        if (parentNode.isDataNode())
-            return Collections.emptyList();
-        List<Job> childJobs = new ArrayList<>();
-        for (IChunkPointer child : parentNode.getChunkPointers()) {
-            ChunkContainerNode childNode = ChunkContainerNode.read(accessor, parentNode, child);
-            childJobs.add(new GetChunkContainerNodeJob(this, accessor, childNode));
+    protected void enqueueJobsAfterChunksFetched(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        if (node.isLeafNode())
+            return;
+        for (IChunkPointer child : node.getChunkPointers()) {
+            ChunkContainerNode childNode = ChunkContainerNode.read(accessor, node, child);
+            chunkFetcher.enqueueJob(new GetChunkContainerNodeJob(this, accessor, childNode));
         }
-        return childJobs;
     }
 }
 
 class GetChunkContainerJob extends RootObjectJob {
+    protected ChunkContainer chunkContainer;
     public GetChunkContainerJob(Job parent, IChunkAccessor accessor, BoxPointer pointer) {
         super(parent, accessor, pointer);
     }
 
     @Override
-    protected List<Job> getChildJobsAfterChunksFetched() throws IOException, CryptoException {
-        ChunkContainer chunkContainer = new ChunkContainer(accessor, boxPointer);
-        return Collections.singletonList((Job)(new GetChunkContainerNodeJob(this, accessor, chunkContainer)));
+    protected void enqueueJobsAfterChunksFetched(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        chunkContainer = ChunkContainer.read(accessor, boxPointer);
+        chunkFetcher.enqueueJob(new GetChunkContainerNodeJob(this, accessor, chunkContainer));
     }
 }
 
-class GetCommitJob extends RootObjectJob {
-    public GetCommitJob(Job parent, IChunkAccessor accessor, BoxPointer pointer) {
-        super(parent, accessor, pointer);
+class GetCommitJob extends GetChunkContainerJob {
+    private int doneCount = 0;
+    private IRepoChunkAccessors.ITransaction transaction;
+
+    public GetCommitJob(Job parent, IRepoChunkAccessors.ITransaction transaction, BoxPointer pointer) {
+        super(parent, transaction.getCommitAccessor(), pointer);
+        this.transaction = transaction;
     }
 
     @Override
-    protected List<Job> getChildJobsAfterChunksFetched() throws IOException, CryptoException {
-        return Collections.singletonList((Job)(new GetChunkContainerJob(this, accessor, boxPointer)));
+    public void onDone(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        if (doneCount > 0)
+            return;
+        doneCount++;
+
+        CommitBox commitBox = CommitBox.read(chunkContainer);
+        System.out.println(commitBox);
+        for (BoxPointer parent : commitBox.getParents())
+            chunkFetcher.enqueueJob(new GetCommitJob(this, transaction, parent));
+        chunkFetcher.enqueueJob(new GetDirJob(this, transaction, commitBox.getTree(), ""));
+    }
+}
+
+class GetDirJob extends GetChunkContainerJob {
+    private int doneCount = 0;
+    final private IRepoChunkAccessors.ITransaction transaction;
+    final private String path;
+
+    public GetDirJob(Job parent, IRepoChunkAccessors.ITransaction transaction, BoxPointer pointer, String path) {
+        super(parent, transaction.getTreeAccessor(), pointer);
+
+        this.transaction = transaction;
+        this.path = path;
+    }
+
+    @Override
+    public void onDone(ChunkFetcher chunkFetcher) throws IOException, CryptoException {
+        if (doneCount > 0)
+            return;
+        doneCount++;
+        DirectoryBox directoryBox = DirectoryBox.read(chunkContainer);
+        System.out.println(directoryBox);
+
+        for (DirectoryBox.Entry entry : directoryBox.getEntries()) {
+            if (entry.isFile()) {
+                chunkFetcher.enqueueJob(new GetChunkContainerJob(this,
+                        transaction.getFileAccessor(path + "/" + entry.getName()), entry.getDataPointer()));
+            } else {
+                chunkFetcher.enqueueJob(new GetDirJob(this, transaction, entry.getDataPointer(),
+                        path + "/" + entry.getName()));
+            }
+        }
     }
 }
 
@@ -140,22 +190,27 @@ class ChunkFetcher {
 
     final private ChunkStore chunkStore;
     final private IRemotePipe remotePipe;
+    private List<Job> ongoingJobs = new ArrayList<>();
 
     public ChunkFetcher(ChunkStore chunkStore, IRemotePipe remotePipe) {
         this.chunkStore = chunkStore;
         this.remotePipe = remotePipe;
     }
 
-    public void fetch(List<Job> jobs) throws IOException, CryptoException {
-        List<Job> currentJobs = jobs;
+    public void enqueueJob(Job job) {
+        ongoingJobs.add(job);
+    }
+
+    public void fetch() throws IOException, CryptoException {
         ChunkStore.Transaction transaction = chunkStore.openTransaction();
-        while (jobs.size() > 0) {
-            ChunkRequest chunkRequest = new ChunkRequest(jobs);
+        while (ongoingJobs.size() > 0) {
+            List<Job> currentJobs = ongoingJobs;
+            ongoingJobs = new ArrayList<>();
+
+            ChunkRequest chunkRequest = new ChunkRequest(currentJobs);
             fetch(transaction, chunkRequest);
-            List<Job> childJobs = new ArrayList<>();
             for (Job job : currentJobs)
-                childJobs.addAll(job.onChunksFetched());
-            currentJobs = childJobs;
+                job.onChunksFetched(this);
         }
         transaction.commit();
     }
@@ -180,6 +235,7 @@ class ChunkFetcher {
             inputStream.readFully(hashValue.getBytes());
             int size = inputStream.readInt();
             byte[] buffer = new byte[size];
+            inputStream.readFully(buffer);
             PutResult<HashValue> result = transaction.put(buffer);
             if (!result.key.equals(hashValue))
                 throw new IOException("Hash miss match.");
@@ -205,12 +261,16 @@ public class PullRequest {
         outputStream.writeInt(request);
     }
 
-    static public void receiveHeader(DataInputStream inputStream, int request) throws IOException {
+    static public int receiveRequest(DataInputStream inputStream) throws IOException {
         int version = inputStream.readInt();
         if (version != PULL_REQUEST_VERSION)
             throw new IOException("Version " + PULL_REQUEST_VERSION + " expected but got:" + version);
-        int response = inputStream.readInt();
-        if (response != GET_REMOTE_TIP)
+        return inputStream.readInt();
+    }
+
+    static public void receiveHeader(DataInputStream inputStream, int request) throws IOException {
+        int response = receiveRequest(inputStream);
+        if (response != request)
             throw new IOException("GET_REMOTE_TIP response expected but got: " + response);
     }
 
@@ -228,10 +288,14 @@ public class PullRequest {
     public BoxPointer pull(IRemotePipe remotePipe) throws IOException, CryptoException {
         ChunkFetcher chunkFetcher = new ChunkFetcher(chunkStore, remotePipe);
 
-        BoxPointer remoteTip = requestRepo.getCommitCallback().commitPointerFromLog(getRemoteTip(remotePipe));
+        String remoteTipMessage = getRemoteTip(remotePipe);
+        if (remoteTipMessage.equals(""))
+            return new BoxPointer();
+        BoxPointer remoteTip = requestRepo.getCommitCallback().commitPointerFromLog(remoteTipMessage);
         IRepoChunkAccessors.ITransaction transaction = requestRepo.getChunkAccessors().startTransaction();
-        GetCommitJob getCommitJob = new GetCommitJob(null, transaction.getCommitAccessor(), remoteTip);
-        chunkFetcher.fetch(Collections.singletonList((Job)getCommitJob));
+        GetCommitJob getCommitJob = new GetCommitJob(null, transaction, remoteTip);
+        chunkFetcher.enqueueJob(getCommitJob);
+        chunkFetcher.fetch();
 
         //requestRepo.merge(getCommitJob);
         return remoteTip;

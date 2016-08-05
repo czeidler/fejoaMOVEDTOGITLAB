@@ -23,6 +23,8 @@ abstract public class TypedBlob {
     }
 
     public void read(DataInputStream inputStream) throws IOException {
+        short t = inputStream.readShort();
+        assert t == type;
         readInternal(inputStream);
     }
 

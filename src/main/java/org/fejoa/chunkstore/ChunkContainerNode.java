@@ -70,8 +70,8 @@ public class ChunkContainerNode implements IChunk {
         return parent;
     }
 
-    public boolean isDataNode() {
-        return isDataPointer(that);
+    public boolean isLeafNode() {
+        return that.getLevel() == ChunkContainer.LEAF_LEVEL;
     }
 
     protected boolean isDataPointer(IChunkPointer pointer) {

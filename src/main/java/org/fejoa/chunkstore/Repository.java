@@ -34,13 +34,7 @@ class TreeAccessor {
         return path;
     }
 
-    private TypedBlob get(BoxPointer hashValue, IChunkAccessor accessor) throws IOException, CryptoException {
-        ChunkContainer chunkContainer = new ChunkContainer(accessor, hashValue);
-        BlobReader blobReader = new BlobReader(new ChunkContainerInputStream(chunkContainer));
-        return blobReader.read(accessor);
-    }
-
-    private BoxPointer put(FileBox fileBox, IChunkAccessor accessor) throws IOException, CryptoException {
+    private BoxPointer put(FileBox fileBox) throws IOException, CryptoException {
         fileBox.flush();
         return fileBox.getDataContainer().getBoxPointer();
     }
@@ -61,7 +55,7 @@ class TreeAccessor {
                     continue;
                 }
                 IChunkAccessor accessor = transaction.getTreeAccessor();
-                currentDir = new BlobReader(accessor.getChunk(entry.getDataPointer())).readDirectory();
+                currentDir = DirectoryBox.read(accessor, entry.getDataPointer());
             }
         }
         DirectoryBox.Entry fileEntry = currentDir.getEntry(fileName);
@@ -92,7 +86,7 @@ class TreeAccessor {
                     continue;
                 }
                 IChunkAccessor accessor = transaction.getTreeAccessor();
-                currentDir = new BlobReader(accessor.getChunk(entry.getDataPointer())).readDirectory();
+                currentDir = DirectoryBox.read(accessor, entry.getDataPointer());
             }
         }
         DirectoryBox.Entry fileEntry = currentDir.addFile(fileName, null);
@@ -115,7 +109,7 @@ class TreeAccessor {
                 continue;
             assert child.getObject() != null;
             FileBox fileBox = (FileBox)child.getObject();
-            BoxPointer dataPointer = put(fileBox, transaction.getFileAccessor(path + "/" + child.getName()));
+            BoxPointer dataPointer = put(fileBox);
             child.setDataPointer(dataPointer);
         }
         HashValue boxHash = Repository.put(dir, transaction.getTreeAccessor());
@@ -157,11 +151,10 @@ public class Repository {
             headCommit = commitCallback.commitPointerFromLog(log.getLatest().getMessage());
         DirectoryBox root;
         if (headCommit == null) {
-            headCommit = new BoxPointer();
             root = DirectoryBox.create();
         } else {
             CommitBox commitBox = CommitBox.read(transaction.getCommitAccessor(), headCommit);
-            root = new BlobReader(transaction.getTreeAccessor().getChunk(commitBox.getTree())).readDirectory();
+            root = DirectoryBox.read(transaction.getTreeAccessor(), commitBox.getTree());
         }
         this.treeAccessor = new TreeAccessor(root, transaction);
     }

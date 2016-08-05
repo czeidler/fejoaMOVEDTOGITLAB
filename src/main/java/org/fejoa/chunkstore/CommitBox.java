@@ -25,7 +25,7 @@ public class CommitBox extends TypedBlob {
     private byte[] commitMessage;
 
     private CommitBox() {
-        super(BlobReader.COMMIT);
+        super(BlobTypes.COMMIT);
     }
 
     static public CommitBox create() {
@@ -34,11 +34,17 @@ public class CommitBox extends TypedBlob {
 
     static public CommitBox read(IChunkAccessor accessor, BoxPointer pointer)
             throws IOException, CryptoException {
-        return read(BlobReader.COMMIT, accessor.getChunk(pointer));
+        ChunkContainer chunkContainer = ChunkContainer.read(accessor, pointer);
+        return read(chunkContainer);
     }
 
-    static public CommitBox read(short type, DataInputStream inputStream) throws IOException {
-        assert type == BlobReader.COMMIT;
+    static public CommitBox read(ChunkContainer chunkContainer)
+            throws IOException, CryptoException {
+        return read(BlobTypes.COMMIT, new DataInputStream(new ChunkContainerInputStream(chunkContainer)));
+    }
+
+    static private CommitBox read(short type, DataInputStream inputStream) throws IOException {
+        assert type == BlobTypes.COMMIT;
         CommitBox commitBox = new CommitBox();
         commitBox.read(inputStream);
         return commitBox;
@@ -119,9 +125,9 @@ public class CommitBox extends TypedBlob {
             return "invalid";
         String out = "Tree: " + tree + "\n";
         out += "Commit data: " + new String(commitMessage) + "\n";
-        out += "Parents: " + parents.size();
+        out += "" + parents.size() + " parents: ";
         for (int i = 0; i < parents.size(); i++)
-            out += "\n" + parents.get(i);
+            out += "\n\t" + parents.get(i);
         return out;
     }
 }

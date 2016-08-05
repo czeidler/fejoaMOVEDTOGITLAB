@@ -32,7 +32,7 @@ public class PullHandler implements IHandler {
 
     public void handle(IRemotePipe pipe) throws IOException {
         DataInputStream inputStream = new DataInputStream(pipe.getInputStream());
-        int request = inputStream.readInt();
+        int request = PullRequest.receiveRequest(inputStream);
         switch (request) {
             case GET_REMOTE_TIP:
                 handleGetRemoteTip(pipe);
@@ -47,7 +47,7 @@ public class PullHandler implements IHandler {
 
     private void handleGetRemoteTip(IRemotePipe pipe) throws IOException {
         DataOutputStream outputStream = new DataOutputStream(pipe.getOutputStream());
-        outputStream.writeInt(GET_REMOTE_TIP);
+        PullRequest.writeRequestHeader(outputStream, GET_REMOTE_TIP);
         String tip;
         if (localBranchLog.getLatest() == null)
             tip = "";
@@ -66,6 +66,8 @@ public class PullHandler implements IHandler {
         }
 
         DataOutputStream outputStream = new DataOutputStream(pipe.getOutputStream());
+        PullRequest.writeRequestHeader(outputStream, GET_CHUNKS);
+
         outputStream.writeInt(requestedChunks.size());
         //TODO: check if we have all chunks before start sending them
         for (HashValue hashValue : requestedChunks) {

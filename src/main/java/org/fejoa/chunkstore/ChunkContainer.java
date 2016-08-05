@@ -110,6 +110,11 @@ public class ChunkContainer extends ChunkContainerNode {
         super(blobAccessor, null, nodeSplitter, LEAF_LEVEL);
     }
 
+    static public ChunkContainer read(IChunkAccessor blobAccessor, BoxPointer hash)
+            throws IOException, CryptoException {
+        return new ChunkContainer(blobAccessor, hash);
+    }
+
     /**
      * Load an existing chunk container.
      *
@@ -118,7 +123,7 @@ public class ChunkContainer extends ChunkContainerNode {
      * @throws IOException
      * @throws CryptoException
      */
-    public ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash)
+    private ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash)
             throws IOException, CryptoException {
         this(blobAccessor, blobAccessor.getChunk(hash));
     }

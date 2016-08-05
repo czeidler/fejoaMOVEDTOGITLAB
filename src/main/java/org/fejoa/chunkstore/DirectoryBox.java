@@ -7,6 +7,7 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.crypto.CryptoHelper;
 import org.fejoa.library.support.StreamHelper;
 
@@ -127,6 +128,9 @@ public class DirectoryBox extends TypedBlob {
             this.isFile = isFile;
         }
 
+        public boolean isFile() {
+            return isFile;
+        }
 
         @Override
         void writeShortAttrs(DataOutputStream outputStream) throws IOException {
@@ -142,15 +146,26 @@ public class DirectoryBox extends TypedBlob {
     final private Map<String, Entry> entries = new HashMap<>();
 
     private DirectoryBox() {
-        super(BlobReader.DIRECTORY);
+        super(BlobTypes.DIRECTORY);
     }
 
     static public DirectoryBox create() {
         return new DirectoryBox();
     }
 
-    static public DirectoryBox read(short type, DataInputStream inputStream) throws IOException {
-        assert type == BlobReader.DIRECTORY;
+    static public DirectoryBox read(IChunkAccessor accessor, BoxPointer boxPointer)
+            throws IOException, CryptoException {
+        ChunkContainer chunkContainer = ChunkContainer.read(accessor, boxPointer);
+        return read(chunkContainer);
+    }
+
+    static public DirectoryBox read(ChunkContainer chunkContainer)
+            throws IOException, CryptoException {
+        return read(BlobTypes.DIRECTORY, new DataInputStream(new ChunkContainerInputStream(chunkContainer)));
+    }
+
+    static private DirectoryBox read(short type, DataInputStream inputStream) throws IOException {
+        assert type == BlobTypes.DIRECTORY;
         DirectoryBox directoryBox = new DirectoryBox();
         directoryBox.read(inputStream);
         return directoryBox;

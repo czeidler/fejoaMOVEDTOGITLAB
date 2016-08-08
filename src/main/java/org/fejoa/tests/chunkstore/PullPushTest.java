@@ -25,16 +25,16 @@ public class PullPushTest extends RepositoryTestBase {
         return ChunkStore.create(directory, name);
     }
 
-    private IChunkAccessor getAccessor(final ChunkStore chunkStore) {
+    private IChunkAccessor getAccessor(final ChunkStore.Transaction transaction) {
         return new IChunkAccessor() {
             @Override
             public DataInputStream getChunk(BoxPointer hash) throws IOException {
-                return new DataInputStream(new ByteArrayInputStream(chunkStore.getChunk(hash.getBoxHash())));
+                return new DataInputStream(new ByteArrayInputStream(transaction.getChunk(hash.getBoxHash())));
             }
 
             @Override
             public PutResult<HashValue> putChunk(byte[] data) throws IOException {
-                return chunkStore.openTransaction().put(data);
+                return transaction.put(data);
             }
 
             @Override
@@ -48,8 +48,13 @@ public class PullPushTest extends RepositoryTestBase {
         return new IRepoChunkAccessors() {
             @Override
             public ITransaction startTransaction() throws IOException {
-                final IChunkAccessor accessor = getAccessor(chunkStore);
                 return new RepoAccessorsTransactionBase(chunkStore) {
+                    final IChunkAccessor accessor = getAccessor(transaction);
+                    @Override
+                    public ChunkStore.Transaction getRawAccessor() {
+                        return transaction;
+                    }
+
                     @Override
                     public IChunkAccessor getCommitAccessor() {
                         return accessor;
@@ -120,13 +125,21 @@ public class PullPushTest extends RepositoryTestBase {
 
         assertTrue(pulledTip.getBoxHash().isZero());
 
+        // change the remote repo
         List<DatabaseStingEntry> remoteContent = new ArrayList<>();
         add(remoteRepo, remoteContent, new DatabaseStingEntry("testFile", "Hello World"));
         BoxPointer boxPointer = remoteRepo.commit();
 
         pulledTip = pullRequest.pull(senderPipe);
         containsContent(requestRepo, remoteContent);
+        assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
 
+        // make another remote change
+        add(remoteRepo, remoteContent, new DatabaseStingEntry("testFile2", "Hello World 2"));
+        boxPointer = remoteRepo.commit();
+
+        pulledTip = pullRequest.pull(senderPipe);
+        containsContent(requestRepo, remoteContent);
         assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
     }
 /*

@@ -38,12 +38,18 @@ public class RepositoryTest extends RepositoryTestBase {
         };
     }
 
-    private IRepoChunkAccessors getRepoChunkAccessors(final ChunkStore chunkStore) {
+    protected IRepoChunkAccessors getRepoChunkAccessors(final ChunkStore chunkStore) {
         return new IRepoChunkAccessors() {
             @Override
             public ITransaction startTransaction() throws IOException {
                 return new RepoAccessorsTransactionBase(chunkStore) {
                     final IChunkAccessor accessor = getAccessor(transaction);
+
+                    @Override
+                    public ChunkStore.Transaction getRawAccessor() {
+                        return transaction;
+                    }
+
                     @Override
                     public IChunkAccessor getCommitAccessor() {
                         return accessor;
@@ -63,7 +69,7 @@ public class RepositoryTest extends RepositoryTestBase {
         };
     }
 
-    private ChunkStore createChunkStore(File directory, String name) throws IOException {
+    protected ChunkStore createChunkStore(File directory, String name) throws IOException {
         assertTrue(!directory.getName().equals("") && !directory.getName().equals("."));
         cleanUpFiles.add(directory.getName());
 

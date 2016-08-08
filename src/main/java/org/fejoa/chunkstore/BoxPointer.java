@@ -27,6 +27,15 @@ public class BoxPointer {
         this.boxHash = box;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof BoxPointer))
+            return false;
+        if (!dataHash.equals(((BoxPointer) o).dataHash))
+            return false;
+        return boxHash.equals(((BoxPointer) o).boxHash);
+    }
+
     public HashValue getDataHash() {
         return dataHash;
     }

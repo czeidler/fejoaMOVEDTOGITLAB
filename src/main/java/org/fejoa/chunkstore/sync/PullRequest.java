@@ -100,12 +100,11 @@ public class PullRequest {
         BoxPointer remoteTip = requestRepo.getCommitCallback().commitPointerFromLog(remoteTipMessage);
         IRepoChunkAccessors.ITransaction transaction = requestRepo.getChunkAccessors().startTransaction();
         GetCommitJob getCommitJob = new GetCommitJob(null, transaction, remoteTip);
-        ChunkStore.Transaction chunkStoreTransaction = chunkStore.openTransaction();
-        ChunkFetcher chunkFetcher = createRemotePipeFetcher(chunkStoreTransaction, remotePipe);
+        ChunkFetcher chunkFetcher = createRemotePipeFetcher(transaction.getRawAccessor(), remotePipe);
         chunkFetcher.enqueueJob(getCommitJob);
         chunkFetcher.fetch();
 
-        requestRepo.merge(chunkStoreTransaction, getCommitJob.getCommitBox());
+        requestRepo.merge(transaction, getCommitJob.getCommitBox());
         return remoteTip;
     }
 }

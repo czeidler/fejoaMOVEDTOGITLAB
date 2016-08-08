@@ -10,9 +10,11 @@ package org.fejoa.tests.chunkstore;
 import junit.framework.TestCase;
 import org.apache.commons.codec.binary.Base64;
 import org.fejoa.chunkstore.BoxPointer;
+import org.fejoa.chunkstore.DirectoryBox;
 import org.fejoa.chunkstore.HashValue;
 import org.fejoa.chunkstore.Repository;
 import org.fejoa.library.crypto.CryptoException;
+import org.fejoa.library.database.StorageDir;
 import org.fejoa.library.support.StorageLib;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +25,7 @@ import java.util.*;
 
 
 public class RepositoryTestBase extends TestCase {
-    final List<String> cleanUpFiles = new ArrayList<String>();
+    final protected List<String> cleanUpFiles = new ArrayList<String>();
 
     @Override
     public void tearDown() throws Exception {
@@ -54,7 +56,7 @@ public class RepositoryTestBase extends TestCase {
         BoxPointer boxPointer;
     }
 
-    class DatabaseStingEntry {
+    protected class DatabaseStingEntry {
         public String path;
         public String content;
 
@@ -64,7 +66,7 @@ public class RepositoryTestBase extends TestCase {
         }
     }
 
-    Repository.ICommitCallback simpleCommitCallback = new Repository.ICommitCallback() {
+    protected Repository.ICommitCallback simpleCommitCallback = new Repository.ICommitCallback() {
         static final String DATA_HASH_KEY = "dataHash";
         static final String BOX_HASH_KEY = "boxHash";
 
@@ -106,6 +108,13 @@ public class RepositoryTestBase extends TestCase {
         database.writeBytes(entry.path, entry.content.getBytes());
     }
 
+    private int countFiles(Repository database, String dirPath) throws IOException {
+        int fileCount = database.listFiles(dirPath).size();
+        for (String dir : database.listDirectories(dirPath))
+            fileCount += countFiles(database, StorageDir.appendDir(dirPath, dir));
+        return fileCount;
+    }
+
     protected void containsContent(Repository database, List<DatabaseStingEntry> content) throws IOException,
             CryptoException {
         for (DatabaseStingEntry entry : content) {
@@ -113,5 +122,6 @@ public class RepositoryTestBase extends TestCase {
             assertNotNull(bytes);
             assertTrue(entry.content.equals(new String(bytes)));
         }
+        assertEquals(content.size(), countFiles(database, ""));
     }
 }

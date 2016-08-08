@@ -13,6 +13,10 @@ import java.io.IOException;
 public interface IRepoChunkAccessors {
     interface ITransaction {
         /**
+         * Accessor to raw data chunks.
+         */
+        ChunkStore.Transaction getRawAccessor();
+        /**
          * Accessor to access commit chunks.
          */
         IChunkAccessor getCommitAccessor();

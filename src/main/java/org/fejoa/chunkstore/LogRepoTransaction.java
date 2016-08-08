@@ -24,6 +24,12 @@ public class LogRepoTransaction implements IRepoChunkAccessors.ITransaction {
     }
 
     @Override
+    public ChunkStore.Transaction getRawAccessor() {
+        // TODO: create a wrapper for this as well
+        return childTransaction.getRawAccessor();
+    }
+
+    @Override
     public IChunkAccessor getCommitAccessor() {
         return createWrapper(childTransaction.getCommitAccessor());
     }

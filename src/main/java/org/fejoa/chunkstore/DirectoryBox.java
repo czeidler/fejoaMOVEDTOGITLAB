@@ -21,7 +21,7 @@ import java.util.*;
 abstract class DirectoryEntry {
     private String name;
     private BoxPointer dataPointer;
-    private BoxPointer attrsDir;
+    private BoxPointer attrsDir = new BoxPointer();
     private Object object;
 
     public DirectoryEntry(String name, BoxPointer dataPointer) {
@@ -31,6 +31,20 @@ abstract class DirectoryEntry {
 
     public DirectoryEntry() {
 
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof DirectoryEntry))
+            return false;
+        DirectoryEntry others = (DirectoryEntry)o;
+        if (!name.equals(others.name))
+            return false;
+        if (!dataPointer.equals(others.dataPointer))
+            return false;
+        if (!attrsDir.equals(others.attrsDir))
+            return false;
+        return true;
     }
 
     public void setObject(Object object) {
@@ -133,6 +147,15 @@ public class DirectoryBox extends TypedBlob {
         }
 
         @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Entry))
+                return false;
+            if (isFile != ((Entry) o).isFile)
+                return false;
+            return super.equals(o);
+        }
+
+        @Override
         void writeShortAttrs(DataOutputStream outputStream) throws IOException {
 
         }
@@ -173,23 +196,22 @@ public class DirectoryBox extends TypedBlob {
 
     public Entry addDir(String name, BoxPointer pointer) {
         Entry entry = new Entry(name, pointer, false);
-        if (put(name, entry))
-            return entry;
-        return null;
+        put(name, entry);
+        return entry;
     }
 
     public Entry addFile(String name, BoxPointer pointer) {
         Entry entry = new Entry(name, pointer, true);
-        if (put(name, entry))
-            return entry;
-        return null;
+        put(name, entry);
+        return entry;
     }
 
-    private boolean put(String name, Entry entry) {
-        if (entries.containsKey(name))
-            return false;
+    public void put(String name, Entry entry) {
         entries.put(name, entry);
-        return true;
+    }
+
+    public Entry remove(String entryName) {
+        return entries.remove(entryName);
     }
 
     public Collection<Entry> getEntries() {

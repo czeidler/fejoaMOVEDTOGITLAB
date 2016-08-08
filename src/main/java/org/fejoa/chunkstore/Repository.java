@@ -7,126 +7,18 @@
  */
 package org.fejoa.chunkstore;
 
+import org.fejoa.chunkstore.sync.ChunkFetcher;
+import org.fejoa.chunkstore.sync.CommonAncestorsFinder;
+import org.fejoa.chunkstore.sync.ThreeWayMerge;
 import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.support.StreamHelper;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
-
-class TreeAccessor {
-    private boolean modified = false;
-    private DirectoryBox root;
-    private IRepoChunkAccessors.ITransaction transaction;
-
-    public TreeAccessor(DirectoryBox root, IRepoChunkAccessors.ITransaction transaction) throws IOException {
-        this.transaction = transaction;
-
-        this.root = root;
-    }
-
-    public boolean isModified() {
-        return modified;
-    }
-
-    public void setTransaction(IRepoChunkAccessors.ITransaction transaction) {
-        this.transaction = transaction;
-    }
-
-    private String checkPath(String path) {
-        while (path.startsWith("/"))
-            path = path.substring(1);
-        return path;
-    }
-
-    private BoxPointer put(FileBox fileBox) throws IOException, CryptoException {
-        fileBox.flush();
-        return fileBox.getDataContainer().getBoxPointer();
-    }
-
-    public byte[] read(String path) throws IOException, CryptoException {
-        path = checkPath(path);
-        String[] parts = path.split("/");
-        String fileName = parts[parts.length - 1];
-        DirectoryBox currentDir = root;
-        for (int i = 0; i < parts.length - 1; i++) {
-            String subDir = parts[i];
-            DirectoryBox.Entry entry = currentDir.getEntry(subDir);
-            if (entry == null) {
-                return null;
-            } else {
-                if (entry.getObject() != null) {
-                    currentDir = (DirectoryBox)entry.getObject();
-                    continue;
-                }
-                IChunkAccessor accessor = transaction.getTreeAccessor();
-                currentDir = DirectoryBox.read(accessor, entry.getDataPointer());
-            }
-        }
-        DirectoryBox.Entry fileEntry = currentDir.getEntry(fileName);
-        if (fileEntry == null)
-            return null;
-
-        FileBox fileBox = FileBox.read(transaction.getFileAccessor(path), fileEntry.getDataPointer());
-        ChunkContainerInputStream inputStream = new ChunkContainerInputStream(fileBox.getDataContainer());
-        return StreamHelper.readAll(inputStream);
-    }
-
-    public void put(String path, FileBox file) throws IOException, CryptoException {
-        this.modified = true;
-        path = checkPath(path);
-        String[] parts = path.split("/");
-        String fileName = parts[parts.length - 1];
-        DirectoryBox currentDir = root;
-        for (int i = 0; i < parts.length - 1; i++) {
-            String subDir = parts[i];
-            DirectoryBox.Entry entry = currentDir.getEntry(subDir);
-            if (entry == null) {
-                DirectoryBox subDirBox = DirectoryBox.create();
-                DirectoryBox.Entry dirEntry = currentDir.addDir(subDir, null);
-                dirEntry.setObject(subDirBox);
-                currentDir = subDirBox;
-            } else {
-                if (entry.getObject() != null) {
-                    currentDir = (DirectoryBox)entry.getObject();
-                    continue;
-                }
-                IChunkAccessor accessor = transaction.getTreeAccessor();
-                currentDir = DirectoryBox.read(accessor, entry.getDataPointer());
-            }
-        }
-        DirectoryBox.Entry fileEntry = currentDir.addFile(fileName, null);
-        fileEntry.setObject(file);
-    }
-
-    public BoxPointer build() throws IOException, CryptoException {
-        modified = false;
-        return build(root, "");
-    }
-
-    private BoxPointer build(DirectoryBox dir, String path) throws IOException, CryptoException {
-        for (DirectoryBox.Entry child : dir.getDirs()) {
-            if (child.getDataPointer() != null)
-                continue;
-            assert child.getObject() != null;
-            child.setDataPointer(build((DirectoryBox)child.getObject(), path + "/" + child.getName()));
-        }
-        for (DirectoryBox.Entry child : dir.getFiles()) {
-            if (child.getDataPointer() != null)
-                continue;
-            assert child.getObject() != null;
-            FileBox fileBox = (FileBox)child.getObject();
-            BoxPointer dataPointer = put(fileBox);
-            child.setDataPointer(dataPointer);
-        }
-        HashValue boxHash = Repository.put(dir, transaction.getTreeAccessor());
-        return new BoxPointer(dir.hash(), boxHash);
-    }
-
-    public DirectoryBox getRoot() {
-        return root;
-    }
-}
 
 public class Repository {
     final private File dir;
@@ -173,6 +65,10 @@ public class Repository {
                 (int)(kFactor * RabinSplitter.CHUNK_1KB), (int)(kFactor * RabinSplitter.CHUNK_128KB * 5));
     }
 
+    public CommitBox getHeadCommit() {
+        return headCommit;
+    }
+
     public String getBranch() {
         return branch;
     }
@@ -187,6 +83,38 @@ public class Repository {
 
     public IRepoChunkAccessors getChunkAccessors() {
         return accessors;
+    }
+
+    private DirectoryBox getDirBox(String path) throws IOException {
+        try {
+            DirectoryBox.Entry entry = treeAccessor.get(path);
+            if (entry == null)
+                return null;
+            assert !entry.isFile();
+            return  (DirectoryBox)entry.getObject();
+        } catch (CryptoException e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    public List<String> listFiles(String path) throws IOException {
+        DirectoryBox directoryBox = getDirBox(path);
+        if (directoryBox == null)
+            return Collections.emptyList();
+        List<String> entries = new ArrayList<>();
+        for (DirectoryBox.Entry fileEntry : directoryBox.getFiles())
+            entries.add(fileEntry.getName());
+        return entries;
+    }
+
+    public List<String> listDirectories(String path) throws IOException {
+        DirectoryBox directoryBox = getDirBox(path);
+        if (directoryBox == null)
+            return Collections.emptyList();
+        List<String> entries = new ArrayList<>();
+        for (DirectoryBox.Entry dirEntry : directoryBox.getDirs())
+            entries.add(dirEntry.getName());
+        return entries;
     }
 
     public byte[] readBytes(String path) throws IOException, CryptoException {
@@ -219,7 +147,25 @@ public class Repository {
         return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    public void merge(ChunkStore.Transaction otherTransaction, CommitBox otherBranch) throws IOException, CryptoException {
+    private void copyMissingCommits(CommonAncestorsFinder.Chains chains,
+                                    IRepoChunkAccessors.ITransaction source,
+                                    IRepoChunkAccessors.ITransaction target)
+            throws IOException, CryptoException {
+        // TODO: test
+        // copy to their transaction
+        ChunkFetcher chunkFetcher = ChunkFetcher.createLocalFetcher(target.getRawAccessor(),
+                source.getRawAccessor());
+        for (CommonAncestorsFinder.SingleCommitChain chain : chains.chains) {
+            for (int i = 0; i < chain.commits.size() - 1; i++) {
+                CommitBox commitBox = chain.commits.get(i);
+                chunkFetcher.enqueueGetCommitJob(target, commitBox.getBoxPointer());
+            }
+        }
+        chunkFetcher.fetch();
+    }
+
+    public void merge(IRepoChunkAccessors.ITransaction otherTransaction, CommitBox otherBranch)
+            throws IOException, CryptoException {
         // TODO: check if the transaction is valid, i.e. contains object compatible with otherBranch?
         assert otherBranch != null;
 
@@ -231,7 +177,7 @@ public class Repository {
 
             if (headCommit == null) {
                 // we are empty just use the other branch
-                otherTransaction.commit();
+                otherTransaction.finishTransaction();
                 headCommit = otherBranch;
 
                 transaction.finishTransaction();
@@ -239,7 +185,35 @@ public class Repository {
                 log.add(commitCallback.commitPointerToLog(headCommit.getBoxPointer()), transaction.getObjectsWritten());
                 treeAccessor = new TreeAccessor(DirectoryBox.read(transaction.getTreeAccessor(), otherBranch.getTree()),
                         transaction);
+                return;
             }
+            if (headCommit.hash().equals(otherBranch.hash()))
+                return;
+
+            CommonAncestorsFinder.Chains chains = CommonAncestorsFinder.find(transaction.getCommitAccessor(),
+                    headCommit, otherTransaction.getCommitAccessor(), otherBranch);
+            copyMissingCommits(chains, transaction, otherTransaction);
+
+            CommonAncestorsFinder.SingleCommitChain shortestChain = chains.getShortestChain();
+            if (shortestChain == null)
+                throw new IOException("Branches don't have common ancestor.");
+            if (shortestChain.getOldest().hash().equals(headCommit.hash())) {
+                // not local commits just use the remote head
+                otherTransaction.finishTransaction();
+                headCommit = otherBranch;
+
+                transaction.finishTransaction();
+                transaction = new LogRepoTransaction(accessors.startTransaction());
+                log.add(commitCallback.commitPointerToLog(headCommit.getBoxPointer()), transaction.getObjectsWritten());
+                treeAccessor = new TreeAccessor(DirectoryBox.read(transaction.getTreeAccessor(), otherBranch.getTree()),
+                        transaction);
+                return;
+            }
+
+            // merge branches
+            treeAccessor = ThreeWayMerge.merge(transaction, transaction, headCommit, otherTransaction,
+                    otherBranch, shortestChain.getOldest(), ThreeWayMerge.ourSolver());
+            commit("Merge.");
         }
     }
 
@@ -265,6 +239,7 @@ public class Repository {
             HashValue boxHash = put(commitBox, transaction.getCommitAccessor());
             BoxPointer commitPointer = new BoxPointer(commitBox.hash(), boxHash);
             commitBox.setBoxPointer(commitPointer);
+            headCommit = commitBox;
 
             transaction.finishTransaction();
             log.add(commitCallback.commitPointerToLog(commitPointer), transaction.getObjectsWritten());

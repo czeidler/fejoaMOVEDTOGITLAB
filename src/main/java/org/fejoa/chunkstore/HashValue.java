@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 
-public class HashValue {
+public class HashValue implements Comparable<HashValue> {
     final public static short HASH_SIZE = 32;
     final private byte[] hash;
 
@@ -68,5 +68,19 @@ public class HashValue {
     @Override
     public String toString() {
         return toHex();
+    }
+
+    @Override
+    public int compareTo(HashValue value) {
+        byte[] theirHash = value.getBytes();
+        assert theirHash.length == hash.length;
+
+        for (int i = 0; i < hash.length; i++) {
+            int ours = hash[i] & 0xFF;
+            int theirs = theirHash[i] & 0xFF;
+            if (ours != theirs)
+                return ours - theirs;
+        }
+        return 0;
     }
 }

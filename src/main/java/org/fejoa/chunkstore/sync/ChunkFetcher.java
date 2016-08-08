@@ -214,9 +214,13 @@ public class ChunkFetcher {
         });
     }
 
-    public ChunkFetcher(ChunkStore.Transaction chunkStoreTransaction, IFetcherBackend fetcherBackend) {
-        this.transaction = chunkStoreTransaction;
+    public ChunkFetcher(ChunkStore.Transaction transaction, IFetcherBackend fetcherBackend) {
+        this.transaction = transaction;
         this.fetcherBackend = fetcherBackend;
+    }
+
+    public void enqueueGetCommitJob(IRepoChunkAccessors.ITransaction transaction, BoxPointer commitPointer) {
+        enqueueJob(new GetCommitJob(null, transaction, commitPointer));
     }
 
     public void enqueueJob(Job job) {

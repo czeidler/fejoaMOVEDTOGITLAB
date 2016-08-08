@@ -49,7 +49,7 @@ public class PullRequest {
             throw new IOException("GET_REMOTE_TIP response expected but got: " + response);
     }
 
-    private String getRemoteTip(IRemotePipe remotePipe) throws IOException {
+    static public String getRemoteTip(IRemotePipe remotePipe) throws IOException {
         DataOutputStream outputStream = new DataOutputStream(remotePipe.getOutputStream());
         writeRequestHeader(outputStream, GET_REMOTE_TIP);
         DataInputStream inputStream = new DataInputStream(remotePipe.getInputStream());

@@ -10,6 +10,7 @@ package org.fejoa.tests.chunkstore;
 import org.fejoa.chunkstore.*;
 import org.fejoa.chunkstore.sync.*;
 import org.fejoa.library.remote.IRemotePipe;
+import org.fejoa.library.support.StorageLib;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -108,6 +109,8 @@ public class PullPushTest extends RepositoryTestBase {
         String branch = "pullBranch";
         File directory = new File("PullTest");
         cleanUpFiles.add(directory.getName());
+        for (String dir : cleanUpFiles)
+            StorageLib.recursiveDeleteFile(new File(dir));
         directory.mkdirs();
 
         ChunkStore requestChunkStore = createChunkStore(directory, "requestStore");
@@ -160,7 +163,7 @@ public class PullPushTest extends RepositoryTestBase {
 
         final IRemotePipe senderPipe = connect(handler);
 
-        PushSender pushSender = new PushSender(senderRepo, new HashValue(HashValue.HASH_SIZE));
+        PushRequest pushSender = new PushRequest(senderRepo, new HashValue(HashValue.HASH_SIZE));
         pushSender.push(senderPipe);
     }*/
 }

@@ -206,6 +206,8 @@ public class ChunkFetcher {
             public void fetch(ChunkStore.Transaction target, List<HashValue> requestedChunks) throws IOException {
                 for (HashValue requestedChunk : requestedChunks) {
                     byte[] buffer = source.getChunk(requestedChunk);
+                    if (buffer == null)
+                        throw new IOException("Requested chunk not found.");
                     PutResult<HashValue> result = target.put(buffer);
                     if (!result.key.equals(requestedChunk))
                         throw new IOException("Hash miss match.");

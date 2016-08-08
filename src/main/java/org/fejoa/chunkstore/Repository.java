@@ -147,20 +147,22 @@ public class Repository {
         return chunkContainer.getBoxPointer().getBoxHash();
     }
 
-    private void copyMissingCommits(CommonAncestorsFinder.Chains chains,
+    private void copyMissingCommits(CommitBox commitBox,
                                     IRepoChunkAccessors.ITransaction source,
                                     IRepoChunkAccessors.ITransaction target)
             throws IOException, CryptoException {
         // TODO: test
         // copy to their transaction
-        ChunkFetcher chunkFetcher = ChunkFetcher.createLocalFetcher(target.getRawAccessor(),
-                source.getRawAccessor());
-        for (CommonAncestorsFinder.SingleCommitChain chain : chains.chains) {
-            for (int i = 0; i < chain.commits.size() - 1; i++) {
-                CommitBox commitBox = chain.commits.get(i);
-                chunkFetcher.enqueueGetCommitJob(target, commitBox.getBoxPointer());
-            }
+        ChunkStore.Transaction targetTransaction = target.getRawAccessor();
+        if (targetTransaction.contains(commitBox.getBoxPointer().getBoxHash()))
+            return;
+        for (BoxPointer parent : commitBox.getParents()) {
+            CommitBox parentCommit = CommitBox.read(source.getCommitAccessor(), parent);
+            copyMissingCommits(parentCommit, source, target);
         }
+
+        ChunkFetcher chunkFetcher = ChunkFetcher.createLocalFetcher(targetTransaction, source.getRawAccessor());
+        chunkFetcher.enqueueGetCommitJob(target, commitBox.getBoxPointer());
         chunkFetcher.fetch();
     }
 
@@ -192,7 +194,7 @@ public class Repository {
 
             CommonAncestorsFinder.Chains chains = CommonAncestorsFinder.find(transaction.getCommitAccessor(),
                     headCommit, otherTransaction.getCommitAccessor(), otherBranch);
-            copyMissingCommits(chains, transaction, otherTransaction);
+            copyMissingCommits(headCommit, transaction, otherTransaction);
 
             CommonAncestorsFinder.SingleCommitChain shortestChain = chains.getShortestChain();
             if (shortestChain == null)

@@ -28,6 +28,10 @@ public class ChunkStore {
             return ChunkStore.this.put(data);
         }
 
+        public boolean contains(HashValue hash) throws IOException {
+            return ChunkStore.this.hasChunk(hash);
+        }
+
         public void commit() throws IOException {
             currentTransaction = null;
         }
@@ -65,6 +69,10 @@ public class ChunkStore {
         if (position == null)
             return null;
         return packFile.get(position.intValue(), hash);
+    }
+
+    public boolean hasChunk(HashValue hashValue) throws IOException {
+        return tree.get(hashValue.getBytes()) != null;
     }
 
     public Transaction openTransaction() throws IOException {

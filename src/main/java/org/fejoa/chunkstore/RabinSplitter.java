@@ -10,8 +10,26 @@ package org.fejoa.chunkstore;
 import org.rabinfingerprint.fingerprint.RabinFingerprintLongWindowed;
 import org.rabinfingerprint.polynomial.Polynomial;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 public class RabinSplitter extends ChunkSplitter {
+    // Init the window is expensive so cache it this bucket and reuse it to create a new window.
+    static private class WindowBucket {
+        final private Map<Integer, RabinFingerprintLongWindowed> bucket = new HashMap<>();
+
+        public RabinFingerprintLongWindowed get(int windowSize) {
+            RabinFingerprintLongWindowed window = bucket.get(windowSize);
+            if (window != null)
+                return new RabinFingerprintLongWindowed(window);
+            window = new RabinFingerprintLongWindowed(Polynomial.createFromLong(9256118209264353l), windowSize);
+            bucket.put(windowSize, window);
+            return window;
+        }
+    }
+
+    final static private WindowBucket bucket = new WindowBucket();
     final private RabinFingerprintLongWindowed window;
 
     final static public int CHUNK_1KB = 1024;
@@ -36,15 +54,14 @@ public class RabinSplitter extends ChunkSplitter {
         this.targetChunkSize = targetChunkSize;
         this.minChunkSize = minChunkSize;
         this.maxChunkSize = maxChunkSize;
-        Polynomial irreduciblePolynomial = Polynomial.createFromLong(9256118209264353l);
-        window = new RabinFingerprintLongWindowed(irreduciblePolynomial, windowSize);
+        this.window = bucket.get(windowSize);
     }
 
     private RabinSplitter(RabinSplitter splitter) {
         this.targetChunkSize = splitter.targetChunkSize;
         this.minChunkSize = splitter.minChunkSize;
         this.maxChunkSize = splitter.maxChunkSize;
-        this.window = new RabinFingerprintLongWindowed(splitter.window);
+        this.window = splitter.window;
     }
 
     public RabinSplitter() {

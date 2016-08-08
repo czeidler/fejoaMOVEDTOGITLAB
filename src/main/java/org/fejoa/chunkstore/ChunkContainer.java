@@ -110,22 +110,23 @@ public class ChunkContainer extends ChunkContainerNode {
         super(blobAccessor, null, nodeSplitter, LEAF_LEVEL);
     }
 
-    static public ChunkContainer read(IChunkAccessor blobAccessor, BoxPointer hash)
+    static public ChunkContainer read(IChunkAccessor blobAccessor, BoxPointer boxPointer)
             throws IOException, CryptoException {
-        return new ChunkContainer(blobAccessor, hash);
+        return new ChunkContainer(blobAccessor, boxPointer);
     }
 
     /**
      * Load an existing chunk container.
      *
      * @param blobAccessor
-     * @param hash
+     * @param boxPointer
      * @throws IOException
      * @throws CryptoException
      */
-    private ChunkContainer(IChunkAccessor blobAccessor, BoxPointer hash)
+    private ChunkContainer(IChunkAccessor blobAccessor, BoxPointer boxPointer)
             throws IOException, CryptoException {
-        this(blobAccessor, blobAccessor.getChunk(hash));
+        this(blobAccessor, blobAccessor.getChunk(boxPointer));
+        that.setBoxPointer(boxPointer);
     }
 
     private ChunkContainer(IChunkAccessor blobAccessor, DataInputStream inputStream)

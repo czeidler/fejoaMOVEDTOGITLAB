@@ -21,7 +21,7 @@ import java.util.List;
 
 
 public class ChunkContainerNode implements IChunk {
-    static final protected int DATA_LEVEL = 0;
+    static final public int DATA_LEVEL = 0;
     static final protected int LEAF_LEVEL = DATA_LEVEL + 1;
 
     final protected IChunkPointer that;
@@ -74,7 +74,7 @@ public class ChunkContainerNode implements IChunk {
         return that.getLevel() == ChunkContainer.LEAF_LEVEL;
     }
 
-    protected boolean isDataPointer(IChunkPointer pointer) {
+    static public boolean isDataPointer(IChunkPointer pointer) {
         return pointer.getLevel() == ChunkContainer.DATA_LEVEL;
     }
 

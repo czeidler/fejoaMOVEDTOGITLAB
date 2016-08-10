@@ -9,17 +9,12 @@ package org.fejoa.chunkstore.sync;
 
 import org.fejoa.chunkstore.*;
 import org.fejoa.library.crypto.CryptoException;
-import org.fejoa.library.remote.IRemotePipe;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-
-import static org.fejoa.chunkstore.sync.PullRequest.GET_CHUNKS;
 
 
 abstract class Job {

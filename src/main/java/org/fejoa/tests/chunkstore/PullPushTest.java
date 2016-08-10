@@ -117,14 +117,19 @@ public class PullPushTest extends RepositoryTestBase {
         Repository requestRepo = new Repository(directory, branch, getRepoChunkAccessors(requestChunkStore),
                 simpleCommitCallback);
         ChunkStore remoteChunkStore = createChunkStore(directory, "remoteStore");
-        Repository remoteRepo = new Repository(directory, branch, getRepoChunkAccessors(remoteChunkStore),
+        final Repository remoteRepo = new Repository(directory, branch, getRepoChunkAccessors(remoteChunkStore),
                 simpleCommitCallback);
 
-        final PullHandler handler = new PullHandler(remoteChunkStore, remoteRepo.getBranchLog());
+        final RequestHandler handler = new RequestHandler(remoteChunkStore, new RequestHandler.IBranchLogGetter() {
+            @Override
+            public ChunkStoreBranchLog get(String branch) throws IOException {
+                return remoteRepo.getBranchLog();
+            }
+        });
         final IRemotePipe senderPipe = connect(handler);
 
         PullRequest pullRequest = new PullRequest(requestChunkStore, requestRepo);
-        BoxPointer pulledTip = pullRequest.pull(senderPipe);
+        BoxPointer pulledTip = pullRequest.pull(senderPipe, branch);
 
         assertTrue(pulledTip.getBoxHash().isZero());
 
@@ -133,7 +138,7 @@ public class PullPushTest extends RepositoryTestBase {
         add(remoteRepo, remoteContent, new DatabaseStingEntry("testFile", "Hello World"));
         BoxPointer boxPointer = remoteRepo.commit();
 
-        pulledTip = pullRequest.pull(senderPipe);
+        pulledTip = pullRequest.pull(senderPipe, branch);
         containsContent(requestRepo, remoteContent);
         assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
 
@@ -141,7 +146,7 @@ public class PullPushTest extends RepositoryTestBase {
         add(remoteRepo, remoteContent, new DatabaseStingEntry("testFile2", "Hello World 2"));
         boxPointer = remoteRepo.commit();
 
-        pulledTip = pullRequest.pull(senderPipe);
+        pulledTip = pullRequest.pull(senderPipe, branch);
         containsContent(requestRepo, remoteContent);
         assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
     }

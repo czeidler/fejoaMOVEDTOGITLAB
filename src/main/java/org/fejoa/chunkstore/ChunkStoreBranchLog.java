@@ -17,14 +17,61 @@ import java.util.List;
  */
 public class ChunkStoreBranchLog {
     static public class Entry {
+        int rev;
         String message;
         final List<HashValue> changes = new ArrayList<>();
+
+        public Entry(int rev, String message) {
+            this.rev = rev;
+            this.message = message;
+        }
+
+        private Entry() {
+
+        }
+
+        public int getRev() {
+            return rev;
+        }
 
         public String getMessage() {
             return message;
         }
+
+        static public Entry fromHeader(String header) {
+            Entry entry = new Entry();
+            int splitIndex = header.indexOf(" ");
+            if (splitIndex < 0) {
+                entry.rev = Integer.parseInt(header);
+                entry.message = "";
+            } else {
+                entry.rev = Integer.parseInt(header.substring(0, splitIndex));
+                entry.message = header.substring(splitIndex + 1);
+            }
+            return entry;
+        }
+
+        static private Entry read(BufferedReader reader) throws IOException {
+            String header = reader.readLine();
+            if (header == null || header.length() == 0)
+                return null;
+            Entry entry = fromHeader(header);
+            int nChanges = Integer.parseInt(reader.readLine());
+            for (int i = 0; i < nChanges; i++) {
+                entry.changes.add(HashValue.fromHex(reader.readLine()));
+            }
+            return entry;
+        }
+
+        public void write(OutputStream outputStream) throws IOException {
+            outputStream.write(("" + rev + " " + message + "\n").getBytes());
+            outputStream.write(("" + changes.size() + "\n").getBytes());
+            for (HashValue change : changes)
+                outputStream.write((change.toHex() + "\n").getBytes());
+        }
     }
 
+    private int latestRev = 0;
     final private File logfile;
     final private List<Entry> entries = new ArrayList<>();
 
@@ -32,6 +79,14 @@ public class ChunkStoreBranchLog {
         this.logfile = logfile;
 
         read();
+    }
+
+    public void lock() {
+        // TODO: implement
+    }
+
+    public void unlock() {
+        // TODO: implement
     }
 
     public List<Entry> getEntries() {
@@ -46,16 +101,18 @@ public class ChunkStoreBranchLog {
         } catch (FileNotFoundException e) {
             return;
         }
-        String line;
-        while ((line = reader.readLine()) != null && line.length() != 0) {
-            Entry entry = new Entry();
-            entry.message = line;
-            int nChanges = Integer.parseInt(reader.readLine());
-            for (int i = 0; i < nChanges; i++) {
-                entry.changes.add(HashValue.fromHex(reader.readLine()));
-            }
+        Entry entry;
+        while ((entry = Entry.read(reader)) != null)
             entries.add(entry);
-        }
+
+        if (entries.size() > 0)
+            latestRev = entries.get(0).rev + 1;
+    }
+
+    private int nextRevId() {
+        int currentRev = latestRev;
+        latestRev++;
+        return currentRev;
     }
 
     public Entry getLatest() {
@@ -65,8 +122,7 @@ public class ChunkStoreBranchLog {
     }
 
     public void add(String message, List<HashValue> changes) throws IOException {
-        Entry entry = new Entry();
-        entry.message = message;
+        Entry entry = new Entry(nextRevId(), message);
         entry.changes.addAll(changes);
         write(entry);
         entries.add(entry);
@@ -80,10 +136,7 @@ public class ChunkStoreBranchLog {
 
         FileOutputStream outputStream = new FileOutputStream(logfile, false);
         try {
-            outputStream.write((entry.message + "\n").getBytes());
-            outputStream.write(("" + entry.changes.size() + "\n").getBytes());
-            for (HashValue change : entry.changes)
-                outputStream.write((change.toHex() + "\n").getBytes());
+            entry.write(outputStream);
         } finally {
             outputStream.close();
         }

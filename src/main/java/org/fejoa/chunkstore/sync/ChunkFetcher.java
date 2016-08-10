@@ -137,8 +137,12 @@ class GetCommitJob extends GetChunkContainerJob {
 
         commitBox = CommitBox.read(chunkContainer);
         System.out.println(commitBox);
-        for (BoxPointer parent : commitBox.getParents())
+        ChunkStore.Transaction rawTransaction = transaction.getRawAccessor();
+        for (BoxPointer parent : commitBox.getParents()) {
+            if (rawTransaction.contains(parent.getBoxHash()))
+                continue;
             chunkFetcher.enqueueJob(new GetCommitJob(this, transaction, parent));
+        }
         chunkFetcher.enqueueJob(new GetDirJob(this, transaction, commitBox.getTree(), ""));
     }
 }
@@ -163,7 +167,10 @@ class GetDirJob extends GetChunkContainerJob {
         DirectoryBox directoryBox = DirectoryBox.read(chunkContainer);
         System.out.println(directoryBox);
 
+        ChunkStore.Transaction rawTransaction = transaction.getRawAccessor();
         for (DirectoryBox.Entry entry : directoryBox.getEntries()) {
+            if (rawTransaction.contains(entry.getDataPointer().getBoxHash()))
+                continue;
             if (entry.isFile()) {
                 chunkFetcher.enqueueJob(new GetChunkContainerJob(this,
                         transaction.getFileAccessor(path + "/" + entry.getName()), entry.getDataPointer()));

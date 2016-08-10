@@ -18,7 +18,7 @@ import java.util.List;
 public class ChunkStoreBranchLog {
     static public class Entry {
         int rev;
-        String message;
+        String message = "";
         final List<HashValue> changes = new ArrayList<>();
 
         public Entry(int rev, String message) {
@@ -40,15 +40,20 @@ public class ChunkStoreBranchLog {
 
         static public Entry fromHeader(String header) {
             Entry entry = new Entry();
+            if (header.equals(""))
+                return entry;
             int splitIndex = header.indexOf(" ");
             if (splitIndex < 0) {
                 entry.rev = Integer.parseInt(header);
-                entry.message = "";
             } else {
                 entry.rev = Integer.parseInt(header.substring(0, splitIndex));
                 entry.message = header.substring(splitIndex + 1);
             }
             return entry;
+        }
+
+        public String getHeader() {
+            return "" + rev + " " + message;
         }
 
         static private Entry read(BufferedReader reader) throws IOException {
@@ -64,14 +69,14 @@ public class ChunkStoreBranchLog {
         }
 
         public void write(OutputStream outputStream) throws IOException {
-            outputStream.write(("" + rev + " " + message + "\n").getBytes());
+            outputStream.write((getHeader() + "\n").getBytes());
             outputStream.write(("" + changes.size() + "\n").getBytes());
             for (HashValue change : changes)
                 outputStream.write((change.toHex() + "\n").getBytes());
         }
     }
 
-    private int latestRev = 0;
+    private int latestRev = 1;
     final private File logfile;
     final private List<Entry> entries = new ArrayList<>();
 

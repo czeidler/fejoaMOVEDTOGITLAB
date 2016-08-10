@@ -79,11 +79,11 @@ public class RequestHandler implements IHandler {
             return;
         }
         Request.writeRequestHeader(outputStream, GET_REMOTE_TIP);
-        String tip;
+        String header;
         if (localBranchLog.getLatest() == null)
-            tip = "";
+            header = "";
         else
-            tip = localBranchLog.getLatest().getMessage();
-        StreamHelper.writeString(outputStream, tip);
+            header = localBranchLog.getLatest().getHeader();
+        StreamHelper.writeString(outputStream, header);
     }
 }

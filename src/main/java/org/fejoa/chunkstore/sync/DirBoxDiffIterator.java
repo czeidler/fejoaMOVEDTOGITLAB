@@ -12,7 +12,7 @@ import org.fejoa.chunkstore.DirectoryBox;
 
 public class DirBoxDiffIterator extends DiffIterator<DirectoryBox.Entry> {
     public DirBoxDiffIterator(String basePath, DirectoryBox ours, DirectoryBox theirs) {
-        super(basePath, ours.getEntries(), theirs.getEntries(), new NameGetter<DirectoryBox.Entry>() {
+        super(basePath, ours == null ? null : ours.getEntries(), theirs.getEntries(), new NameGetter<DirectoryBox.Entry>() {
             @Override
             public String getName(DirectoryBox.Entry entry) {
                 return entry.getName();

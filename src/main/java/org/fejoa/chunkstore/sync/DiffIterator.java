@@ -66,7 +66,10 @@ public class DiffIterator<T> implements Iterator<DiffIterator.Change> {
         this.nameGetter = nameGetter;
         this.basePath = basePath;
 
-        oursEntries = new ArrayList<>(ours);
+        if (ours != null)
+            oursEntries = new ArrayList<>(ours);
+        else
+            oursEntries = new ArrayList<>();
         Collections.sort(oursEntries, entryComparator);
         theirsEntries = new ArrayList<>(theirs);
         Collections.sort(theirsEntries, entryComparator);

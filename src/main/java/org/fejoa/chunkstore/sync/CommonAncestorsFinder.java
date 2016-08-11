@@ -118,6 +118,15 @@ public class CommonAncestorsFinder {
         return null;
     }
 
+    static public Chains collectAllChains(IChunkAccessor local, CommitBox localCommit)
+            throws IOException, CryptoException {
+        Chains chains = new Chains();
+        SingleCommitChain startCommitChain = new SingleCommitChain(localCommit);
+        chains.chains.add(startCommitChain);
+        loadCommits(local, startCommitChain, Integer.MAX_VALUE, chains);
+        return chains;
+    }
+
     static public Chains find(IChunkAccessor local, CommitBox localCommit,
                               IChunkAccessor others, CommitBox othersCommit) throws IOException, CryptoException {
         assert localCommit != null;

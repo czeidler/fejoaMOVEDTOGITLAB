@@ -9,6 +9,7 @@ package org.fejoa.tests.chunkstore;
 
 import org.fejoa.chunkstore.*;
 import org.fejoa.chunkstore.sync.*;
+import org.fejoa.library.crypto.CryptoException;
 import org.fejoa.library.remote.IRemotePipe;
 import org.fejoa.library.support.StorageLib;
 
@@ -150,26 +151,59 @@ public class PullPushTest extends RepositoryTestBase {
         containsContent(requestRepo, remoteContent);
         assertTrue(pulledTip.getBoxHash().equals(boxPointer.getBoxHash()));
     }
-/*
-    public void testPush() throws IOException, CryptoException {
+
+    public void testPush() throws Exception {
         String branch = "pushBranch";
         File directory = new File("PushTest");
+        final File remoteDirectory = new File("RemotePushTest");
         cleanUpFiles.add(directory.getName());
+        cleanUpFiles.add(remoteDirectory.getName());
+        for (String dir : cleanUpFiles)
+            StorageLib.recursiveDeleteFile(new File(dir));
         directory.mkdirs();
+        remoteDirectory.mkdirs();
 
-        ChunkStore chunkStore = createChunkStore(directory, "senderStore");
-        IRepoChunkAccessors accessors = getRepoChunkAccessors(chunkStore);
-        Repository senderRepo = new Repository(directory, branch, accessors);
-        Repository receiverRepo = new Repository(directory, branch,
-                getRepoChunkAccessors(createChunkStore(directory, "receiverStore")));
+        ChunkStore localChunkStore = createChunkStore(directory, "localStore");
+        Repository localRepo = new Repository(directory, branch, getRepoChunkAccessors(localChunkStore),
+                simpleCommitCallback);
+        final ChunkStore remoteChunkStore = createChunkStore(remoteDirectory, "remoteStore");
 
-
-        final PushHandler handler = new PushHandler(receiverRepo.getBranchLog());
-
+        final RequestHandler handler = new RequestHandler(remoteChunkStore, new RequestHandler.IBranchLogGetter() {
+            @Override
+            public ChunkStoreBranchLog get(String branch) throws IOException {
+                Repository remoteRepo = null;
+                try {
+                    remoteRepo = new Repository(remoteDirectory, branch, getRepoChunkAccessors(remoteChunkStore),
+                            simpleCommitCallback);
+                } catch (CryptoException e) {
+                    e.printStackTrace();
+                }
+                return remoteRepo.getBranchLog();
+            }
+        });
         final IRemotePipe senderPipe = connect(handler);
 
-        PushRequest pushSender = new PushRequest(senderRepo, new HashValue(HashValue.HASH_SIZE));
-        pushSender.push(senderPipe);
-    }*/
+        // change the local repo
+        List<DatabaseStingEntry> localContent = new ArrayList<>();
+        add(localRepo, localContent, new DatabaseStingEntry("testFile", "Hello World!"));
+        localRepo.commit();
+
+        IRepoChunkAccessors.ITransaction localTransaction = localRepo.getChunkAccessors().startTransaction();
+        PushRequest pushRequest = new PushRequest(localRepo);
+        pushRequest.push(senderPipe, localTransaction, branch);
+
+        Repository remoteRepo = new Repository(remoteDirectory, branch, getRepoChunkAccessors(remoteChunkStore),
+                simpleCommitCallback);
+        containsContent(remoteRepo, localContent);
+
+        // add more
+        add(localRepo, localContent, new DatabaseStingEntry("testFile2", "Hello World 2"));
+        localRepo.commit();
+        // push changes
+        pushRequest.push(senderPipe, localTransaction, branch);
+        remoteRepo = new Repository(remoteDirectory, branch, getRepoChunkAccessors(remoteChunkStore),
+                simpleCommitCallback);
+        containsContent(remoteRepo, localContent);
+    }
 }
 

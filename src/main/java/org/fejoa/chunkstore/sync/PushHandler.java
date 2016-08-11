@@ -53,7 +53,8 @@ public class PushHandler {
 
         try {
             branchLog.lock();
-            if (branchLog.getLatest().getRev() != rev) {
+            ChunkStoreBranchLog.Entry latest = branchLog.getLatest();
+            if (latest != null && latest.getRev() != rev) {
                 RequestHandler.makeError(outputStream, "Rev log changed.");
                 return;
             }
